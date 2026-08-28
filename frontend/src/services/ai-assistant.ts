@@ -1,5 +1,5 @@
-import { fetchTransactions } from './data';
 import { Currency } from '@/types';
+import { apiFetch } from './api';
 
 export interface AIActionItem {
   label: string;
@@ -43,10 +43,9 @@ export const INITIAL_AI_MESSAGES: AIMessage[] = [
 
 export async function processUserMessage(prompt: string, currency: Currency = 'EUR', pagePath: string = '/dashboard'): Promise<AIMessage> {
   const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
 
   try {
-    const res = await fetch(`${API_BASE}/ai/chat`, {
+    const res = await apiFetch(`/ai/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

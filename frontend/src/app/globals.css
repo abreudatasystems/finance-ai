@@ -32,3 +32,29 @@ nextjs-portal,
 [data-nextjs-dialog-overlay] {
   display: none !important;
 }
+
+/* ---- Slide-over (side drawer) animations ---- */
+@keyframes fai-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fai-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.fai-overlay {
+  animation: fai-overlay-in 0.2s ease-out both;
+}
+
+.fai-drawer {
+  animation: fai-drawer-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fai-overlay,
+  .fai-drawer {
+    animation-duration: 0.01ms;
+  }
+}

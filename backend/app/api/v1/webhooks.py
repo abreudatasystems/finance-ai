@@ -1,88 +1,106 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Optional
+
 from app.db.session import get_db
+from app.core.config import settings
 from app.models.models import AIDocument, AuditLog
 
 router = APIRouter()
 
-@router.post("/email")
-async def email_webhook(request: Request, db: Session = Depends(get_db)):
-    data = await request.json()
-    sender_email = data.get("sender", "faturas@fornecedor.pt")
-    subject = data.get("subject", "Fatura em Anexo")
-    attachment_name = data.get("filename", "fatura_email.pdf")
-    company_id = data.get("company_id", "COMP001")
-    
-    doc_id = f"DOC-EML-{int(datetime.utcnow().timestamp())}"
+
+def verify_webhook_secret(x_webhook_secret: Optional[str] = Header(default=None)):
+    """Machine-to-machine endpoints are guarded by a shared secret.
+
+    When WEBHOOK_SECRET is unset (local dev) the check is skipped; in any
+    deployment it must be configured so third parties cannot inject documents.
+    """
+    if settings.WEBHOOK_SECRET and x_webhook_secret != settings.WEBHOOK_SECRET:
+        raise HTTPException(status_code=401, detail="Assinatura de webhook inválida")
+
+
+def _now():
+    return datetime.now(timezone.utc)
+
+
+def _ingest(db: Session, *, company_id: str, channel: str, file_name: str,
+            supplier: str, amount: float, vat: float, category: str,
+            confidence: int, prefix: str, audit_user: str, audit_desc: str):
+    now = _now()
+    doc_id = f"{prefix}-{int(now.timestamp() * 1000)}"
     doc = AIDocument(
         id=doc_id,
         company_id=company_id,
-        filename=attachment_name,
-        source="email",
-        status="parsed",
-        upload_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
-        extracted_supplier=sender_email.split("@")[0].capitalize(),
-        extracted_amount=450.0,
-        extracted_vat=103.5,
-        extracted_category="Marketing",
-        extracted_due_date=datetime.utcnow().strftime("%Y-%m-%d"),
-        ai_confidence=95,
-        file_path=f"email_attachments/{attachment_name}"
+        file_name=file_name,
+        channel=channel,
+        status="processed",
+        upload_date=now.strftime("%Y-%m-%d %H:%M"),
+        extracted_supplier=supplier,
+        extracted_amount=amount,
+        extracted_vat=vat,
+        extracted_date=now.strftime("%Y-%m-%d"),
+        suggested_category=category,
+        ai_confidence=confidence,
     )
     db.add(doc)
-    
-    audit = AuditLog(
-        id=f"AUD-EML-{int(datetime.utcnow().timestamp())}",
+    db.add(AuditLog(
+        id=f"AUD-{prefix}-{int(now.timestamp() * 1000)}",
         company_id=company_id,
-        timestamp=datetime.utcnow().isoformat(),
-        user="Email Webhook Engine",
+        timestamp=now.isoformat(),
+        user=audit_user,
         action="Documento Recebido",
         module="Finance Inbox",
-        description=f"Recebida fatura por Email de {sender_email}",
-        entity_id=doc_id
-    )
-    db.add(audit)
+        description=audit_desc,
+        entity_id=doc_id,
+    ))
     db.commit()
-    
+    return doc_id
+
+
+@router.post("/email", dependencies=[Depends(verify_webhook_secret)])
+async def email_webhook(request: Request, db: Session = Depends(get_db)):
+    data = await request.json()
+    sender_email = data.get("sender", "faturas@fornecedor.pt")
+    attachment_name = data.get("filename", "fatura_email.pdf")
+    company_id = data.get("company_id", "COMP001")
+
+    doc_id = _ingest(
+        db,
+        company_id=company_id,
+        channel="email",
+        file_name=attachment_name,
+        supplier=sender_email.split("@")[0].capitalize(),
+        amount=450.0,
+        vat=103.5,
+        category="Marketing",
+        confidence=95,
+        prefix="DOC-EML",
+        audit_user="Email Webhook Engine",
+        audit_desc=f"Recebida fatura por Email de {sender_email}",
+    )
     return {"status": "success", "document_id": doc_id, "channel": "email"}
 
-@router.post("/whatsapp")
+
+@router.post("/whatsapp", dependencies=[Depends(verify_webhook_secret)])
 async def whatsapp_webhook(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
     phone_number = data.get("phone", "+351912345678")
     media_url = data.get("media_url", "recibo_whatsapp.jpg")
     company_id = data.get("company_id", "COMP001")
-    
-    doc_id = f"DOC-WAP-{int(datetime.utcnow().timestamp())}"
-    doc = AIDocument(
-        id=doc_id,
+
+    doc_id = _ingest(
+        db,
         company_id=company_id,
-        filename="recibo_whatsapp.jpg",
-        source="whatsapp",
-        status="parsed",
-        upload_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
-        extracted_supplier="Combustíveis Galp",
-        extracted_amount=65.0,
-        extracted_vat=14.95,
-        extracted_category="Transporte & Viagens",
-        extracted_due_date=datetime.utcnow().strftime("%Y-%m-%d"),
-        ai_confidence=92,
-        file_path=f"whatsapp_media/{media_url}"
+        channel="whatsapp",
+        file_name=media_url,
+        supplier="Combustíveis Galp",
+        amount=65.0,
+        vat=14.95,
+        category="Transporte & Viagens",
+        confidence=92,
+        prefix="DOC-WAP",
+        audit_user="WhatsApp Webhook Engine",
+        audit_desc=f"Recebido recibo via WhatsApp de {phone_number}",
     )
-    db.add(doc)
-    
-    audit = AuditLog(
-        id=f"AUD-WAP-{int(datetime.utcnow().timestamp())}",
-        company_id=company_id,
-        timestamp=datetime.utcnow().isoformat(),
-        user="WhatsApp Webhook Engine",
-        action="Documento Recebido",
-        module="Finance Inbox",
-        description=f"Recebido recibo via WhatsApp de {phone_number}",
-        entity_id=doc_id
-    )
-    db.add(audit)
-    db.commit()
-    
     return {"status": "success", "document_id": doc_id, "channel": "whatsapp"}

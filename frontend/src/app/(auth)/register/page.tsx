@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
+import { register } from '@/services/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -11,10 +12,24 @@ export default function RegisterPage() {
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push('/dashboard');
+    setError(null);
+    if (password.length < 8) {
+      setError('A palavra-passe deve ter pelo menos 8 caracteres');
+      return;
+    }
+    setLoading(true);
+    const result = await register(name, companyName, email, password);
+    setLoading(false);
+    if (result.ok || result.error === 'network') {
+      router.push('/dashboard');
+    } else {
+      setError(result.error || 'Não foi possível criar a conta');
+    }
   };
 
   return (
@@ -80,12 +95,19 @@ export default function RegisterPage() {
             />
           </div>
 
+          {error && (
+            <div className="text-[11px] text-rose-300 bg-rose-950/40 border border-rose-900/60 rounded-lg px-3 py-2 font-medium">
+              {error}
+            </div>
+          )}
+
           <button
             type="submit"
-            className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-indigo-900/40 flex items-center justify-center gap-2 active:scale-98 mt-2"
+            disabled={loading}
+            className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-indigo-900/40 flex items-center justify-center gap-2 active:scale-98 mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <span>Iniciar Teste Gratuito</span>
-            <ArrowRight className="w-4 h-4" />
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Iniciar Teste Gratuito</span>}
+            {!loading && <ArrowRight className="w-4 h-4" />}
           </button>
         </form>
 

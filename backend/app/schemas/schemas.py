@@ -35,9 +35,41 @@ class CompanyOut(BaseModel):
     currency: str
     fiscal_year_start: str
 
+    class Config:
+        from_attributes = True
+
+
+# Category
+class CategoryCreate(BaseModel):
+    type: str  # income, expense
+    name: str
+    parent_id: Optional[str] = None
+    description: Optional[str] = None
+    keywords: Optional[List[str]] = None
+
+
+# Supplier
+class SupplierCreate(BaseModel):
+    name: str
+    nif: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    default_category_id: Optional[str] = None
+    default_category_name: Optional[str] = None
+
+
+# Customer
+class CustomerCreate(BaseModel):
+    name: str
+    nif: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    default_category_id: Optional[str] = None
+    default_category_name: Optional[str] = None
+
 # Transaction
 class TransactionCreate(BaseModel):
-    company_id: str = "COMP001"
     type: str  # income, expense, transfer
     description: str
     entity_name: str

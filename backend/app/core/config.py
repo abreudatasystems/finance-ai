@@ -1,21 +1,44 @@
 import os
+import secrets
+from typing import List, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Finance AI API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
-    SECRET_KEY: str = "FINANCE_AI_SUPER_SECRET_KEY_JWT_2026_PRODUCTION"
+
+    # Security
+    # In production ALWAYS provide SECRET_KEY via environment variable.
+    # When unset we generate an ephemeral key so tokens simply don't survive a
+    # restart in development instead of shipping a hard-coded secret.
+    SECRET_KEY: str = os.getenv("SECRET_KEY", secrets.token_urlsafe(48))
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
-    
+
     # Database
     DATABASE_URL: str = "sqlite:///./finance_ai.db"
-    
+
+    # CORS — comma separated list of allowed origins (no wildcard with credentials)
+    BACKEND_CORS_ORIGINS: Union[str, List[str]] = "http://localhost:3000,http://127.0.0.1:3000"
+
+    # Webhook shared secret (protects machine-to-machine ingestion endpoints)
+    WEBHOOK_SECRET: str = os.getenv("WEBHOOK_SECRET", "")
+
     # Dify AI Integration
-    DIFY_API_KEY: str = "app-dify-mock-key"
-    DIFY_API_URL: str = "https://api.dify.ai/v1"
-    
+    DIFY_API_KEY: str = os.getenv("DIFY_API_KEY", "")
+    DIFY_API_URL: str = os.getenv("DIFY_API_URL", "https://api.dify.ai/v1")
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
+
     class Config:
         case_sensitive = True
+
 
 settings = Settings()

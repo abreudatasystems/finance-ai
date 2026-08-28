@@ -3,7 +3,7 @@ from app.schemas.schemas import AIChatRequest, AIChatResponse, AIChatAction
 
 async def process_ai_intent_and_action(request: AIChatRequest) -> AIChatResponse:
     prompt = (request.message or request.prompt or "").strip()
-    lower = prompt.toLowerCase() if hasattr(prompt, "toLowerCase") else prompt.lower()
+    lower = prompt.lower()
     timestamp = datetime.utcnow().strftime("%H:%M")
     page_context = request.context.page if request.context else "dashboard"
     currency_symbol = "€" if request.currency == "EUR" else "$" if request.currency == "USD" else "R$" if request.currency == "BRL" else "£"
