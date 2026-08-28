@@ -101,20 +101,45 @@ export interface Transaction {
   cost_center_id?: string;
   cost_center_name?: string;
   amount: number;
+  // Financial breakdown
+  net_amount?: number;
+  vat_rate?: number;
   vat_amount?: number;
+  gross_amount?: number;
+  vat_exemption_reason?: string;
+  currency?: Currency;
+  exchange_rate?: number;
+  // Payment settlement (separate from approval)
+  paid_amount?: number;
+  outstanding_amount?: number;
+  payment_status?: PaymentStatus;
   status: TransactionStatus;
   source: TransactionSource;
   ai_confidence?: number;
+  // Source document
   document_id?: string;
   document_name?: string;
+  document_number?: string;
+  document_type?: string;
+  document_date?: string;
+  document_url?: string;
   is_recurring?: boolean;
   recurrence_period?: 'monthly' | 'weekly' | 'yearly';
   payment_method?: string;
+  payment_reference?: string;
+  bank_account_id?: string;
   notes?: string;
   tags?: string[];
+  // Audit / control
+  created_by?: string;
+  approved_by?: string;
+  approved_at?: string;
+  rejection_reason?: string;
   created_at: string;
   updated_at: string;
 }
+
+export type PaymentStatus = 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
 
 export type DocumentChannel = 'email' | 'whatsapp' | 'upload' | 'drive';
 

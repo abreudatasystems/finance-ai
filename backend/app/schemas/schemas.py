@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List, Any
 from datetime import datetime
 
@@ -78,12 +78,50 @@ class TransactionCreate(BaseModel):
     category_name: str
     cost_center_id: Optional[str] = None
     cost_center_name: Optional[str] = None
-    amount: float
+    amount: float                       # total (gross); net/vat derived if not sent
+    net_amount: Optional[float] = None
+    vat_rate: Optional[float] = None
     vat_amount: Optional[float] = 0.0
+    currency: Optional[str] = "EUR"
     due_date: Optional[str] = None
     payment_method: Optional[str] = None
+    document_number: Optional[str] = None
+    document_type: Optional[str] = None
+    document_date: Optional[str] = None
     is_recurring: Optional[bool] = False
     notes: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+
+class TransactionUpdate(BaseModel):
+    """Partial update — only provided fields are changed."""
+    description: Optional[str] = None
+    entity_name: Optional[str] = None
+    entity_id: Optional[str] = None
+    category_id: Optional[str] = None
+    category_name: Optional[str] = None
+    cost_center_id: Optional[str] = None
+    cost_center_name: Optional[str] = None
+    amount: Optional[float] = None
+    net_amount: Optional[float] = None
+    vat_rate: Optional[float] = None
+    vat_amount: Optional[float] = None
+    currency: Optional[str] = None
+    due_date: Optional[str] = None
+    payment_date: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
+    payment_status: Optional[str] = None
+    paid_amount: Optional[float] = None
+    document_number: Optional[str] = None
+    document_type: Optional[str] = None
+    document_date: Optional[str] = None
+    document_url: Optional[str] = None
+    is_recurring: Optional[bool] = None
+    recurrence_period: Optional[str] = None
+    notes: Optional[str] = None
+    tags: Optional[List[str]] = None
+
 
 class TransactionOut(BaseModel):
     id: str
@@ -94,20 +132,49 @@ class TransactionOut(BaseModel):
     type: str
     description: str
     entity_name: str
+    entity_id: Optional[str] = None
     category_id: str
     category_name: str
     cost_center_id: Optional[str] = None
     cost_center_name: Optional[str] = None
     amount: float
+    net_amount: Optional[float] = None
+    vat_rate: Optional[float] = None
     vat_amount: Optional[float] = 0.0
+    gross_amount: Optional[float] = None
+    vat_exemption_reason: Optional[str] = None
+    currency: Optional[str] = "EUR"
+    exchange_rate: Optional[float] = None
+    paid_amount: Optional[float] = None
+    outstanding_amount: Optional[float] = None
+    payment_status: Optional[str] = None
     status: str
     source: str
     ai_confidence: Optional[int] = None
     document_id: Optional[str] = None
     document_name: Optional[str] = None
+    document_number: Optional[str] = None
+    document_type: Optional[str] = None
+    document_date: Optional[str] = None
+    document_url: Optional[str] = None
     is_recurring: Optional[bool] = False
+    recurrence_period: Optional[str] = None
     payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
+    bank_account_id: Optional[str] = None
     notes: Optional[str] = None
+    tags: Optional[List[str]] = None
+    created_by: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[str] = None
+    rejection_reason: Optional[str] = None
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def split_tags(cls, v):
+        if isinstance(v, str):
+            return [t.strip() for t in v.split(",") if t.strip()]
+        return v
 
     class Config:
         from_attributes = True

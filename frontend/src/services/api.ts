@@ -77,6 +77,21 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T | null>
   return null;
 }
 
+/** Convenience JSON PATCH. */
+export async function apiPatch<T>(path: string, body: unknown): Promise<T | null> {
+  try {
+    const res = await apiFetch(path, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return (await res.json()) as T;
+  } catch {
+    /* fall through */
+  }
+  return null;
+}
+
 export interface AuthResult {
   ok: boolean;
   error?: string;

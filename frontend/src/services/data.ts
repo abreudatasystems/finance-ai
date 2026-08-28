@@ -28,7 +28,7 @@ import {
   AuditLogItem
 } from '@/types';
 
-import { apiGet } from './api';
+import { apiGet, apiPatch } from './api';
 
 export const delay = (ms: number = 100) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -66,6 +66,19 @@ export async function fetchTransactions(companyId: string = 'COMP001'): Promise<
   if (data) return data;
   await delay(200);
   return (transactionsData as Transaction[]).filter(t => t.company_id === companyId);
+}
+
+export async function fetchTransaction(id: string, companyId: string = 'COMP001'): Promise<Transaction | null> {
+  const data = await apiGet<Transaction>(`/transactions/${id}`);
+  if (data) return data;
+  await delay(120);
+  return (transactionsData as Transaction[]).find(t => t.id === id && t.company_id === companyId) || null;
+}
+
+export async function updateTransaction(id: string, patch: Partial<Transaction>): Promise<Transaction | null> {
+  // Returns the updated transaction from the API, or null in demo/offline mode
+  // (the caller keeps the optimistic local copy in that case).
+  return apiPatch<Transaction>(`/transactions/${id}`, patch);
 }
 
 export async function fetchDocuments(companyId: string = 'COMP001'): Promise<AIDocument[]> {

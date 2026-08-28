@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text, Numeric
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
@@ -99,19 +99,50 @@ class Transaction(Base):
     category_name = Column(String, nullable=False)
     cost_center_id = Column(String, nullable=True)
     cost_center_name = Column(String, nullable=True)
-    amount = Column(Float, nullable=False)
-    vat_amount = Column(Float, default=0.0)
+
+    # --- Financial amounts (stored as Numeric/Decimal, never float) ---
+    # `amount` is kept as the gross total for backward compatibility.
+    amount = Column(Numeric(14, 2), nullable=False)
+    net_amount = Column(Numeric(14, 2), nullable=True)       # valor sem IVA
+    vat_rate = Column(Float, nullable=True)                  # 0, 6, 13, 23 ...
+    vat_amount = Column(Numeric(14, 2), default=0)           # valor do IVA
+    gross_amount = Column(Numeric(14, 2), nullable=True)     # total com IVA
+    vat_exemption_reason = Column(String, nullable=True)     # motivo de isenção (SAF-T)
+    currency = Column(String, default="EUR")
+    exchange_rate = Column(Float, nullable=True)
+
+    # --- Payment settlement (separate from approval) ---
+    paid_amount = Column(Numeric(14, 2), default=0)
+    outstanding_amount = Column(Numeric(14, 2), nullable=True)
+    payment_status = Column(String, default="pending")  # pending, partially_paid, paid, overdue, cancelled
+
     status = Column(String, default="approved")  # draft, pending_ai, pending_approval, approved, paid, received, cancelled
     source = Column(String, default="manual")  # manual, ai, bank, import
     ai_confidence = Column(Integer, nullable=True)
+
+    # --- Source document ---
     document_id = Column(String, nullable=True)
     document_name = Column(String, nullable=True)
+    document_number = Column(String, nullable=True)  # ex: FT 2026/00452
+    document_type = Column(String, nullable=True)    # invoice, receipt, credit_note ...
+    document_date = Column(String, nullable=True)
+    document_url = Column(String, nullable=True)      # link para o ficheiro original
+
     is_recurring = Column(Boolean, default=False)
     recurrence_period = Column(String, nullable=True)
     payment_method = Column(String, nullable=True)
+    payment_reference = Column(String, nullable=True)
+    bank_account_id = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
     tags = Column(String, nullable=True)
+
+    # --- Audit / control ---
+    created_by = Column(String, nullable=True)
+    approved_by = Column(String, nullable=True)
+    approved_at = Column(String, nullable=True)
+    rejection_reason = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class AIDocument(Base):
     __tablename__ = "ai_documents"
