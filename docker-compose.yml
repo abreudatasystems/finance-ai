@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # Open-Source Database: PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: finance_ai_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: finance_user
+      POSTGRES_PASSWORD: finance_password_2026
+      POSTGRES_DB: finance_ai_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Open-Source Object Storage: MinIO (S3-compatible)
+  minio:
+    image: minio/minio:RELEASE.2024-03-03T17-50-39Z
+    container_name: finance_ai_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadminpassword
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  # Open-Source LLM & Vision Engine: Ollama (Qwen2.5-VL)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: finance_ai_ollama
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  postgres_data:
+  minio_data:
+  ollama_data:

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "COMP001",
+    "name": "TechStart Lda",
+    "nif": "PT516789012",
+    "currency": "EUR",
+    "fiscal_year_start": "01",
+    "created_at": "2026-01-15T10:00:00Z"
+  },
+  {
+    "id": "COMP002",
+    "name": "Digital Services SA",
+    "nif": "PT509876543",
+    "currency": "USD",
+    "fiscal_year_start": "01",
+    "created_at": "2026-03-20T14:00:00Z"
+  }
+]

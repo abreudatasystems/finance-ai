@@ -1,0 +1,67 @@
+[
+  {
+    "id": "SUP001",
+    "company_id": "COMP001",
+    "name": "Google Ireland Ltd",
+    "nif": "IE6388047V",
+    "email": "billing@google.com",
+    "phone": "+353 1 436 1000",
+    "address": "Gordon House, Barrow Street, Dublin 4, Ireland",
+    "default_category_id": "CAT001_1",
+    "default_category_name": "Google Ads",
+    "total_spent": 12500,
+    "last_transaction_date": "2026-08-28"
+  },
+  {
+    "id": "SUP002",
+    "company_id": "COMP001",
+    "name": "Microsoft Ireland Operations",
+    "nif": "IE8256796U",
+    "email": "invoices@microsoft.com",
+    "phone": "+353 1 706 5000",
+    "address": "One Microsoft Place, South County Business Park, Leopardstown, Dublin 18",
+    "default_category_id": "CAT002_1",
+    "default_category_name": "Licenças & SaaS",
+    "total_spent": 4200,
+    "last_transaction_date": "2026-08-25"
+  },
+  {
+    "id": "SUP003",
+    "company_id": "COMP001",
+    "name": "EDP Comercial SA",
+    "nif": "PT503504564",
+    "email": "faturacao@edp.pt",
+    "phone": "+351 210 017 000",
+    "address": "Av. 24 de Julho 12, Lisboa",
+    "default_category_id": "CAT004_1",
+    "default_category_name": "Energia & Água",
+    "total_spent": 1440,
+    "last_transaction_date": "2026-08-23"
+  },
+  {
+    "id": "SUP004",
+    "company_id": "COMP001",
+    "name": "Amazon Web Services EMEA",
+    "nif": "LU27947034",
+    "email": "aws-invoices@amazon.com",
+    "phone": "+352 26 73 30 00",
+    "address": "38 Avenue John F. Kennedy, L-1855 Luxembourg",
+    "default_category_id": "CAT002_2",
+    "default_category_name": "Cloud Infrastructure",
+    "total_spent": 8900,
+    "last_transaction_date": "2026-08-20"
+  },
+  {
+    "id": "SUP005",
+    "company_id": "COMP001",
+    "name": "Meta Ireland Ltd",
+    "nif": "IE9692928F",
+    "email": "ads-support@meta.com",
+    "phone": "+353 1 653 5300",
+    "address": "4 Grand Canal Square, Dublin 2, Ireland",
+    "default_category_id": "CAT001_2",
+    "default_category_name": "Redes Sociais",
+    "total_spent": 3800,
+    "last_transaction_date": "2026-08-20"
+  }
+]

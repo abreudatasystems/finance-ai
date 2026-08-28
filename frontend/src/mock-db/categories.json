@@ -1,0 +1,156 @@
+[
+  {
+    "id": "CAT001",
+    "company_id": "COMP001",
+    "type": "expense",
+    "name": "Marketing",
+    "description": "Despesas com publicidade e aquisição",
+    "active": true,
+    "children": [
+      {
+        "id": "CAT001_1",
+        "company_id": "COMP001",
+        "type": "expense",
+        "name": "Google Ads",
+        "parent_id": "CAT001",
+        "description": "Anúncios no motor de busca Google",
+        "keywords": ["google", "ads", "adwords", "campaign", "search ads"],
+        "active": true
+      },
+      {
+        "id": "CAT001_2",
+        "company_id": "COMP001",
+        "type": "expense",
+        "name": "Redes Sociais",
+        "parent_id": "CAT001",
+        "description": "Meta, Instagram, LinkedIn ads",
+        "keywords": ["facebook", "instagram", "meta", "linkedin", "social"],
+        "active": true
+      },
+      {
+        "id": "CAT001_3",
+        "company_id": "COMP001",
+        "type": "expense",
+        "name": "SEO & Conteúdo",
+        "parent_id": "CAT001",
+        "description": "Blog, SEO e agências de conteúdo",
+        "keywords": ["blog", "seo", "copywriting", "content"],
+        "active": true
+      }
+    ]
+  },
+  {
+    "id": "CAT002",
+    "company_id": "COMP001",
+    "type": "expense",
+    "name": "Software & Cloud",
+    "description": "Licenças de software e infraestrutura cloud",
+    "active": true,
+    "children": [
+      {
+        "id": "CAT002_1",
+        "company_id": "COMP001",
+        "type": "expense",
+        "name": "Licenças & SaaS",
+        "parent_id": "CAT002",
+        "description": "Microsoft 365, Slack, Figma, Adobe",
+        "keywords": ["microsoft", "office", "adobe", "slack", "figma", "saas"],
+        "active": true
+      },
+      {
+        "id": "CAT002_2",
+        "company_id": "COMP001",
+        "type": "expense",
+        "name": "Cloud Infrastructure",
+        "parent_id": "CAT002",
+        "description": "AWS, Azure, Vercel, Supabase",
+        "keywords": ["aws", "azure", "cloud", "vercel", "hosting", "server"],
+        "active": true
+      }
+    ]
+  },
+  {
+    "id": "CAT003",
+    "company_id": "COMP001",
+    "type": "expense",
+    "name": "Pessoal & Salários",
+    "description": "Remunerações e encargos com pessoal",
+    "active": true,
+    "children": [
+      {
+        "id": "CAT003_1",
+        "company_id": "COMP001",
+        "type": "expense",
+        "name": "Salários Líquidos",
+        "parent_id": "CAT003",
+        "keywords": ["ordenado", "salario", "vencimento", "remuneracao"],
+        "active": true
+      },
+      {
+        "id": "CAT003_2",
+        "company_id": "COMP001",
+        "type": "expense",
+        "name": "Impostos & Segurança Social",
+        "parent_id": "CAT003",
+        "keywords": ["ss", "seguranca social", "irs", "tsu"],
+        "active": true
+      }
+    ]
+  },
+  {
+    "id": "CAT004",
+    "company_id": "COMP001",
+    "type": "expense",
+    "name": "Instalações & Serviços",
+    "description": "Água, luz, renda e escritório",
+    "active": true,
+    "children": [
+      {
+        "id": "CAT004_1",
+        "company_id": "COMP001",
+        "type": "expense",
+        "name": "Energia & Água",
+        "parent_id": "CAT004",
+        "keywords": ["edp", "eletricidade", "energia", "luz", "agua"],
+        "active": true
+      },
+      {
+        "id": "CAT004_2",
+        "company_id": "COMP001",
+        "type": "expense",
+        "name": "Renda de Instalações",
+        "parent_id": "CAT004",
+        "keywords": ["renda", "aluguer", "escritorio"],
+        "active": true
+      }
+    ]
+  },
+  {
+    "id": "CAT005",
+    "company_id": "COMP001",
+    "type": "income",
+    "name": "Vendas & Serviços",
+    "description": "Receita proveniente de clientes",
+    "active": true,
+    "children": [
+      {
+        "id": "CAT005_1",
+        "company_id": "COMP001",
+        "type": "income",
+        "name": "Serviços de Consultoria",
+        "parent_id": "CAT005",
+        "keywords": ["consultoria", "servicos", "projeto"],
+        "active": true
+      },
+      {
+        "id": "CAT005_2",
+        "company_id": "COMP001",
+        "type": "income",
+        "name": "Subscrições SaaS",
+        "parent_id": "CAT005",
+        "keywords": ["subscricao", "mensalidade", "plano"],
+        "active": true
+      }
+    ]
+  }
+]
