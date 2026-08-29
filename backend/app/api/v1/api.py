@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, dashboard, transactions, documents, ai_assistant, categories, suppliers, customers, approvals, events, audit, settings, companies, webhooks, reports
+from app.api.v1 import auth, dashboard, transactions, documents, ai_assistant, categories, suppliers, customers, approvals, events, audit, settings, companies, webhooks, reports, bank_reconciliation, fiscal
 
 api_router = APIRouter()
 
@@ -18,3 +18,5 @@ api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
+api_router.include_router(bank_reconciliation.router, prefix="/bank", tags=["bank"])
+api_router.include_router(fiscal.router, prefix="/fiscal", tags=["fiscal"])

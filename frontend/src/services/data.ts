@@ -141,3 +141,32 @@ export async function fetchAuditLogs(companyId: string = 'COMP001'): Promise<Aud
   await delay(150);
   return (auditLogData as AuditLogItem[]).filter(a => a.company_id === companyId);
 }
+
+// ── Dashboard real-time endpoints ──
+export async function fetchDashboardSummary(): Promise<any[]> {
+  const data = await apiGet<any[]>('/dashboard/summary');
+  return data || [];
+}
+
+export async function fetchExpensesByCategory(): Promise<any[]> {
+  const data = await apiGet<any[]>('/dashboard/expenses-by-category');
+  return data || [];
+}
+
+// ── Fiscal endpoints ──
+export async function fetchVatSummary(period?: string): Promise<any> {
+  const url = period ? `/fiscal/vat-summary?period=${period}` : '/fiscal/vat-summary';
+  const data = await apiGet<any>(url);
+  return data || { breakdown: [], totals: {} };
+}
+
+// ── Bank Reconciliation ──
+export async function fetchBankStatements(): Promise<any[]> {
+  const data = await apiGet<any[]>('/bank/statements');
+  return data || [];
+}
+
+export async function fetchBankStatementEntries(statementId: string): Promise<any[]> {
+  const data = await apiGet<any[]>(`/bank/statements/${statementId}/entries`);
+  return data || [];
+}

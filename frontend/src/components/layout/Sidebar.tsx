@@ -56,7 +56,8 @@ export const Sidebar: React.FC = () => {
       items: [
         { label: 'Fluxo de Caixa', href: '/financial/cash-flow', icon: Wallet },
         { label: 'Contas a Pagar', href: '/financial/payables', icon: ArrowDownLeft },
-        { label: 'Contas a Receber', href: '/financial/receivables', icon: ArrowUpRight }
+        { label: 'Contas a Receber', href: '/financial/receivables', icon: ArrowUpRight },
+        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 }
       ]
     },
     {
