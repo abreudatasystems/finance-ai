@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Upload, Sparkles, Loader2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { apiPost } from '@/services/api';
+import { fetchCategories } from '@/services/data';
+import { Category } from '@/types';
 import { SideDrawer } from './SideDrawer';
 
 interface CreateTransactionModalProps {
@@ -23,9 +25,46 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
   const [entityName, setEntityName] = useState('');
   const [categoryName, setCategoryName] = useState('Marketing > Google Ads');
   const [amount, setAmount] = useState('');
+  const [vatRate, setVatRate] = useState<number>(23);
   const [dueDate, setDueDate] = useState('2026-08-30');
+  const [categoryId, setCategoryId] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
   const [isSuccess, setIsSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchCategories().then((cats) => { if (active) setCategories(cats); });
+    return () => { active = false; };
+  }, []);
+
+  // Flatten the category tree: a leaf is what a movement is actually booked to.
+  const categoryOptions = useMemo(() => {
+    const opts: { id: string; label: string; type?: string }[] = [];
+    for (const parent of categories) {
+      const children = (parent as Category & { children?: Category[] }).children || [];
+      if (children.length) {
+        for (const child of children) {
+          opts.push({ id: child.id, label: `${parent.name} > ${child.name}`, type: parent.type });
+        }
+      } else {
+        opts.push({ id: parent.id, label: parent.name, type: parent.type });
+      }
+    }
+    return opts.filter((o) => !o.type || o.type === (type === 'income' ? 'income' : 'expense'));
+  }, [categories, type]);
+
+  useEffect(() => {
+    if (!categoryId && categoryOptions.length) setCategoryId(categoryOptions[0].id);
+  }, [categoryOptions, categoryId]);
+
+  // Live VAT breakdown from the gross amount and the selected rate.
+  const breakdown = useMemo(() => {
+    const gross = parseFloat(amount) || 0;
+    if (!vatRate) return { net: gross, vat: 0, gross };
+    const net = Math.round((gross / (1 + vatRate / 100)) * 100) / 100;
+    return { net, vat: Math.round((gross - net) * 100) / 100, gross };
+  }, [amount, vatRate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,9 +75,10 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
         type,
         description: description.trim(),
         entity_name: entityName.trim() || 'N/D',
-        category_id: 'CAT-MANUAL',
-        category_name: categoryName,
+        category_id: categoryId || 'CAT-MANUAL',
+        category_name: categoryOptions.find((o) => o.id === categoryId)?.label || categoryName,
         amount: parseFloat(amount) || 0,
+        vat_rate: vatRate,
         due_date: dueDate,
       });
     }
@@ -169,20 +209,63 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-slate-600">Taxa de IVA</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[0, 6, 13, 23].map((rate) => (
+                <button
+                  key={rate}
+                  type="button"
+                  onClick={() => setVatRate(rate)}
+                  className={`py-2 rounded-lg border text-[11px] font-bold transition-all ${
+                    vatRate === rate
+                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  {rate === 0 ? 'Isento' : `${rate}%`}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 rounded-xl text-center border border-slate-200/80">
+              <div>
+                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Líquido</div>
+                <div className="text-xs font-bold text-slate-800">{currencySymbol}{breakdown.net.toFixed(2)}</div>
+              </div>
+              <div>
+                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">IVA</div>
+                <div className="text-xs font-bold text-slate-800">{currencySymbol}{breakdown.vat.toFixed(2)}</div>
+              </div>
+              <div>
+                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Total</div>
+                <div className="text-xs font-black text-indigo-700">{currencySymbol}{breakdown.gross.toFixed(2)}</div>
+              </div>
+            </div>
+            <p className="text-[10px] text-slate-400">O valor introduzido é o total com IVA; o líquido é calculado a partir da taxa.</p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-slate-600">Categoria</label>
-              <select
-                value={categoryName}
-                onChange={(e) => setCategoryName(e.target.value)}
-                className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-              >
-                <option value="Marketing > Google Ads">Marketing &gt; Google Ads</option>
-                <option value="Marketing > Redes Sociais">Marketing &gt; Redes Sociais</option>
-                <option value="Software > Licenças & SaaS">Software &gt; Licenças &amp; SaaS</option>
-                <option value="Instalações > Energia & Água">Instalações &gt; Energia &amp; Água</option>
-                <option value="Vendas > Serviços de Consultoria">Vendas &gt; Consultoria</option>
-              </select>
+              {categoryOptions.length ? (
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
+                >
+                  {categoryOptions.map((o) => (
+                    <option key={o.id} value={o.id}>{o.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  placeholder="ex: Marketing > Google Ads"
+                  className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
+                />
+              )}
             </div>
 
             <div className="space-y-1.5">

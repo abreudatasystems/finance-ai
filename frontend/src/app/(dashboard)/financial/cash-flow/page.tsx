@@ -134,8 +134,10 @@ export default function CashFlowPage() {
                 <th className="p-3.5">Entidade (Fornecedor/Cliente)</th>
                 <th className="p-3.5">Categoria (Hierarquia)</th>
                 <th className="p-3.5">Centro Custo</th>
+                <th className="p-3.5">IVA</th>
                 <th className="p-3.5">Valor Total</th>
                 <th className="p-3.5">Status</th>
+                <th className="p-3.5">Pagamento</th>
                 <th className="p-3.5 text-right">Origem</th>
               </tr>
             </thead>
@@ -151,8 +153,18 @@ export default function CashFlowPage() {
                   <td className="p-3.5 text-slate-700 font-medium">{trx.entity_name}</td>
                   <td className="p-3.5 text-slate-600">{trx.category_name}</td>
                   <td className="p-3.5 text-slate-500">{trx.cost_center_name || 'Geral'}</td>
+                  <td className="p-3.5 text-slate-500 whitespace-nowrap">
+                    {trx.vat_amount ? (
+                      <>
+                        {formatMoney(Number(trx.vat_amount))}
+                        {trx.vat_rate ? <span className="text-[10px] text-slate-400 ml-1">({trx.vat_rate}%)</span> : null}
+                      </>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
                   <td className={`p-3.5 font-extrabold ${trx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                    {trx.type === 'income' ? '+' : '-'}{formatMoney(trx.amount)}
+                    {trx.type === 'income' ? '+' : '-'}{formatMoney(Number(trx.gross_amount ?? trx.amount))}
                   </td>
                   <td className="p-3.5">
                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
@@ -162,6 +174,23 @@ export default function CashFlowPage() {
                     }`}>
                       {trx.status}
                     </span>
+                  </td>
+                  <td className="p-3.5">
+                    {trx.payment_status ? (
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${
+                        trx.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        trx.payment_status === 'partially_paid' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        trx.payment_status === 'overdue' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                        'bg-slate-100 text-slate-600 border-slate-200'
+                      }`}>
+                        {trx.payment_status === 'paid' ? 'Pago'
+                          : trx.payment_status === 'partially_paid' ? 'Parcial'
+                          : trx.payment_status === 'overdue' ? 'Vencido'
+                          : 'Pendente'}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
                   </td>
                   <td className="p-3.5 text-right font-mono text-[11px] text-slate-500">
                     {trx.source === 'ai' ? '🤖 IA' : '✋ Manual'}
