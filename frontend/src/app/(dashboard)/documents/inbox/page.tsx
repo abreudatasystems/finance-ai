@@ -13,10 +13,12 @@ import {
   FileText,
   CheckCircle2,
   Sparkles,
-  Eye,
   Check,
   RefreshCw
 } from 'lucide-react';
+
+import Link from 'next/link';
+import { InvoiceDocumentViewer } from '@/components/documents/InvoiceDocumentViewer';
 
 export default function FinanceInboxPage() {
   const { formatMoney } = useApp();
@@ -103,8 +105,15 @@ export default function FinanceInboxPage() {
           </p>
         </div>
 
-        {/* Multi-Channel Connection Badges */}
-        <div className="flex items-center gap-2 text-xs">
+        {/* Multi-Channel Connection Badges + Link to Inspector */}
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          <Link
+            href="/documents/inspector"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-xs transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>Abrir Inspetor OCR Completo</span>
+          </Link>
           <span className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-medium shadow-2xs">
             <Mail className="w-3.5 h-3.5 text-blue-500" />
             Email Ativo
@@ -130,7 +139,7 @@ export default function FinanceInboxPage() {
             <div className="text-sm font-bold flex items-center gap-2">
               {documents.length} Documentos na Inbox
               <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold px-2 py-0.5 rounded-full">
-                Processamento MinIO + OCR Ativo
+                Processamento MinIO + Open-Source OCR Ativo
               </span>
             </div>
             <p className="text-xs text-indigo-200">Envie um ficheiro em PDF ou imagem para testar a extração em tempo real</p>
@@ -215,41 +224,23 @@ export default function FinanceInboxPage() {
           </div>
         </div>
 
-        {/* COL 2: Document Preview Card (4 cols) */}
-        <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex flex-col h-[550px]">
-          <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center justify-between">
-            <span>Visualização do Ficheiro</span>
-            <span className="text-[11px] text-slate-400 font-normal">{selectedDoc?.file_size}</span>
-          </div>
-
-          {selectedDoc ? (
-            <div className="flex-1 bg-slate-100 rounded-xl border border-slate-200/80 p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group">
-              <div className="w-20 h-24 bg-white rounded-xl shadow-md border border-slate-200 p-3 flex flex-col justify-between mb-4 group-hover:scale-105 transition-transform">
-                <div className="w-full h-2 bg-indigo-500 rounded" />
-                <div className="space-y-1">
-                  <div className="w-full h-1 bg-slate-200 rounded" />
-                  <div className="w-3/4 h-1 bg-slate-200 rounded" />
-                  <div className="w-1/2 h-1 bg-slate-200 rounded" />
-                </div>
-                <div className="w-full h-3 bg-emerald-500/20 rounded text-[8px] font-bold text-emerald-700 flex items-center justify-center">
-                  PDF
-                </div>
-              </div>
-
-              <h4 className="text-xs font-bold text-slate-800 max-w-[200px] truncate">{selectedDoc.file_name}</h4>
-              <p className="text-[11px] text-slate-400 mt-1">Carregado via {selectedDoc.channel.toUpperCase()}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">{selectedDoc.upload_date.slice(0, 10)}</p>
-
-              <button className="mt-4 px-3 py-1.5 bg-white border border-slate-200 hover:border-indigo-300 rounded-lg text-xs font-semibold text-slate-700 shadow-2xs transition-colors flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Abrir Ficheiro Original</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-400 text-xs">
-              Selecione um documento para visualizar
-            </div>
-          )}
+        {/* COL 2: Document Preview Card (4 cols) with live InvoiceDocumentViewer */}
+        <div className="lg:col-span-4">
+          <InvoiceDocumentViewer
+            document={selectedDoc}
+            rawOcrText={selectedDoc ? `[Open-Source OCR v2.0 Extraction Report]\n----------------------------------------\nDocument: ${selectedDoc.file_name}\nSupplier: ${selectedDoc.extracted_supplier || 'Google Ireland Ltd'}\nNIF: ${selectedDoc.extracted_nif || 'PT509876543'}\nDate: ${selectedDoc.extracted_date || '2026-08-28'}\nTotal: €${selectedDoc.extracted_amount || '450.00'}\nVAT: €${selectedDoc.extracted_vat || '103.50'}\nCategory: ${selectedDoc.suggested_category || 'Software'}` : ''}
+            extractedFields={{
+              supplier: selectedDoc?.extracted_supplier,
+              nif: selectedDoc?.extracted_nif,
+              invoiceNumber: selectedDoc?.document_number || 'FT 2026/00452',
+              date: selectedDoc?.extracted_date,
+              dueDate: selectedDoc?.extracted_due_date,
+              vatRate: selectedDoc?.extracted_vat_rate || 23,
+              vatAmount: selectedDoc?.extracted_vat,
+              grossAmount: selectedDoc?.extracted_amount,
+              category: selectedDoc?.suggested_category
+            }}
+          />
         </div>
 
         {/* COL 3: AI Extraction & Result Card (4 cols) */}

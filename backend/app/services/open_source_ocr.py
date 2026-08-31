@@ -9,14 +9,28 @@ from __future__ import annotations
 
 import hashlib
 import io
+import re
 from typing import Optional, Tuple
 
 from pypdf import PdfReader
+from PIL import Image
+
+try:
+    import pytesseract
+    HAS_PYTESSERACT = True
+except ImportError:
+    HAS_PYTESSERACT = False
+
+try:
+    import pdfplumber
+    HAS_PDFPLUMBER = True
+except ImportError:
+    HAS_PDFPLUMBER = False
 
 from app.services.invoice_parser import ParsedInvoice, parse_invoice_text
 
-AI_MODEL = "invoice-parser"
-AI_VERSION = "1.0"
+AI_MODEL = "open-source-ocr-v2"
+AI_VERSION = "2.0"
 
 
 def compute_hash(file_bytes: bytes) -> str:
@@ -25,21 +39,62 @@ def compute_hash(file_bytes: bytes) -> str:
 
 
 def extract_text(file_bytes: bytes, file_name: str) -> str:
-    """Pull the text layer out of a PDF. Images need an OCR engine (not bundled)."""
-    if file_name.lower().endswith(".pdf"):
+    """Pull text out of PDFs, images, or text files using open-source engines."""
+    lower_name = file_name.lower()
+    
+    # 1. PDF Extraction
+    if lower_name.endswith(".pdf"):
+        # Try pdfplumber first if available for high-fidelity text extraction
+        if HAS_PDFPLUMBER:
+            try:
+                with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                    pages_text = []
+                    for page in pdf.pages:
+                        t = page.extract_text(layout=True) or page.extract_text()
+                        if t:
+                            pages_text.append(t)
+                    if pages_text:
+                        return "\n\n".join(pages_text)
+            except Exception as exc:
+                print(f"[pdfplumber extract warning] {exc}")
+
+        # Fallback to pypdf
         try:
             reader = PdfReader(io.BytesIO(file_bytes))
-            return "\n".join((page.extract_text() or "") for page in reader.pages)
-        except Exception as exc:  # pragma: no cover - corrupt/encrypted file
-            print(f"[PDF extract error] {exc}")
-            return ""
+            text = "\n".join((page.extract_text() or "") for page in reader.pages)
+            if text.strip():
+                return text
+        except Exception as exc:
+            print(f"[pypdf extract warning] {exc}")
 
-    # Plain-text uploads are parsed directly; images require OCR.
-    if file_name.lower().endswith((".txt", ".csv")):
+    # 2. Image OCR Extraction (PNG, JPG, JPEG, WEBP, TIFF, BMP)
+    if lower_name.endswith((".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff")):
+        try:
+            image = Image.open(io.BytesIO(file_bytes))
+            if HAS_PYTESSERACT:
+                try:
+                    # Run OCR in Portuguese & English
+                    ocr_text = pytesseract.image_to_string(image, lang="por+eng")
+                    if ocr_text.strip():
+                        return ocr_text
+                except Exception as t_err:
+                    # Fallback to default lang
+                    try:
+                        ocr_text = pytesseract.image_to_string(image)
+                        if ocr_text.strip():
+                            return ocr_text
+                    except Exception as t_err2:
+                        print(f"[pytesseract image error] {t_err2}")
+        except Exception as img_err:
+            print(f"[PIL image open error] {img_err}")
+
+    # 3. Plain text / CSV files
+    if lower_name.endswith((".txt", ".csv", ".tsv", ".json", ".xml", ".html")):
         try:
             return file_bytes.decode("utf-8", errors="ignore")
         except Exception:
             return ""
+
     return ""
 
 
@@ -67,8 +122,8 @@ def suggest_category(parsed: ParsedInvoice, categories) -> Tuple[Optional[str], 
     return None, None
 
 
-async def process_document(file_bytes: bytes, file_name: str) -> ParsedInvoice:
-    """Run the full pipeline and return the structured, validated result."""
+async def process_document(file_bytes: bytes, file_name: str) -> Tuple[ParsedInvoice, str]:
+    """Run the full pipeline and return (ParsedInvoice, raw_extracted_text)."""
     text = extract_text(file_bytes, file_name)
     parsed = parse_invoice_text(text, file_name)
     if not parsed.supplier and file_name:
@@ -76,4 +131,5 @@ async def process_document(file_bytes: bytes, file_name: str) -> ParsedInvoice:
         stem = file_name.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").strip()
         if stem:
             parsed.supplier = stem.title()
-    return parsed
+    return parsed, text
+

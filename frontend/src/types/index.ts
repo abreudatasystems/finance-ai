@@ -143,7 +143,7 @@ export type PaymentStatus = 'pending' | 'partially_paid' | 'paid' | 'overdue' | 
 
 export type DocumentChannel = 'email' | 'whatsapp' | 'upload' | 'drive';
 
-export type DocumentStatus = 'uploading' | 'processing' | 'processed' | 'pending_approval' | 'error';
+export type DocumentStatus = 'uploading' | 'processing' | 'processed' | 'extracted' | 'needs_review' | 'pending_approval' | 'error';
 
 export interface AIDocument {
   id: string;
@@ -154,15 +154,26 @@ export interface AIDocument {
   channel: DocumentChannel;
   status: DocumentStatus;
   upload_date: string;
+  file_url?: string;
+  file_hash?: string;
+  document_number?: string;
+  document_type?: string;
+  document_date?: string;
   extracted_supplier?: string;
   extracted_nif?: string;
   extracted_amount?: number;
+  extracted_net?: number;
   extracted_vat?: number;
+  extracted_vat_rate?: number;
   extracted_date?: string;
+  extracted_due_date?: string;
   suggested_category?: string;
   suggested_category_id?: string;
   ai_confidence?: number;
   is_recurring?: boolean;
+  validation_status?: string;
+  validation_report?: string;
+  uploaded_by?: string;
   error_message?: string;
 }
 
@@ -211,7 +222,7 @@ export interface FinancialEvent {
   description: string;
   entity_type?: string;
   entity_id?: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   status: 'unread' | 'read';
   created_at: string;
 }

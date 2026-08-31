@@ -17,7 +17,8 @@ import {
   Building2,
   History,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  ScanText
 } from 'lucide-react';
 
 interface NavItem {
@@ -48,7 +49,8 @@ export const Sidebar: React.FC = () => {
       group: 'AUTOMATION ENGINE',
       items: [
         { label: 'Finance Inbox', href: '/documents/inbox', icon: Inbox, badge: '5' },
-        { label: 'Aprovações IA', href: '/approvals', icon: CheckSquare, badge: '3', highlight: true }
+        { label: 'Inspetor OCR', href: '/documents/inspector', icon: ScanText, highlight: true },
+        { label: 'Aprovações IA', href: '/approvals', icon: CheckSquare, badge: '3' }
       ]
     },
     {

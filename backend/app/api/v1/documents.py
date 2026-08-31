@@ -1,8 +1,10 @@
 import json
+import os
 from datetime import datetime, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_company_id, get_current_user
@@ -79,6 +81,16 @@ def get_document(
     }
 
 
+@router.get("/files/{file_name}")
+def get_document_file(file_name: str):
+    """Serve the raw file directly from local storage for in-browser rendering."""
+    local_path = minio_service.get_local_path(file_name)
+    if os.path.exists(local_path):
+        media_type = "application/pdf" if file_name.lower().endswith(".pdf") else "image/png" if file_name.lower().endswith(".png") else "image/jpeg"
+        return FileResponse(local_path, media_type=media_type)
+    raise HTTPException(status_code=404, detail="Ficheiro físico não encontrado no armazenamento")
+
+
 @router.post("/upload", status_code=201)
 async def upload_document(
     file: UploadFile = File(...),
@@ -119,7 +131,7 @@ async def upload_document(
     )
 
     # --- Extract structured data from the document itself ---
-    parsed = await process_document(file_bytes, file.filename)
+    parsed, raw_text = await process_document(file_bytes, file.filename)
 
     categories = db.query(Category).filter(Category.company_id == company_id).all()
     cat_id, cat_name = suggest_category(parsed, categories)
@@ -195,7 +207,7 @@ async def upload_document(
         validation_report=json.dumps(parsed.checks, ensure_ascii=False),
         ai_model=AI_MODEL,
         ai_version=AI_VERSION,
-        raw_result=json.dumps(parsed.as_dict(), ensure_ascii=False),
+        raw_result=json.dumps({"raw_text": raw_text, "parsed": parsed.as_dict()}, ensure_ascii=False),
         processed_at=now,
     )
     db.add(extraction)

@@ -8,6 +8,9 @@ MINIO_ACCESS_KEY = os.getenv("MINIO_ROOT_USER", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_ROOT_PASSWORD", "minioadminpassword")
 BUCKET_NAME = "finance-documents"
 
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 class MinIOStorageService:
     def __init__(self):
         self.client = None
@@ -25,6 +28,15 @@ class MinIOStorageService:
             print(f"[MinIO Warning] Operating in local fallback mode: {e}")
 
     def upload_file(self, object_name: str, file_data: bytes, content_type: str = "application/pdf") -> str:
+        # Always store a local copy on disk for seamless preview/streaming
+        try:
+            safe_name = os.path.basename(object_name)
+            local_path = os.path.join(UPLOAD_DIR, safe_name)
+            with open(local_path, "wb") as f:
+                f.write(file_data)
+        except Exception as e:
+            print(f"[Local Storage Error] {e}")
+
         if self.client:
             try:
                 import io
@@ -39,6 +51,11 @@ class MinIOStorageService:
                 return f"http://{MINIO_ENDPOINT}/{BUCKET_NAME}/{object_name}"
             except Exception as e:
                 print(f"[MinIO Storage Error] {e}")
-        return f"http://localhost:9000/finance-documents/{object_name}"
+        return f"/api/v1/documents/files/{object_name}"
+
+    def get_local_path(self, object_name: str) -> str:
+        safe_name = os.path.basename(object_name)
+        return os.path.join(UPLOAD_DIR, safe_name)
 
 minio_service = MinIOStorageService()
+
