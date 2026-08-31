@@ -4,13 +4,15 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { fetchSuppliers } from '@/services/data';
 import { Supplier } from '@/types';
-import { Building2, Mail, Plus, Tag, Calendar, CheckCircle2 } from 'lucide-react';
+import { Building2, Mail, Plus, Tag, Calendar, Trash2 } from 'lucide-react';
 import { CreateSupplierModal } from '@/components/shared/CreateSupplierModal';
+import { deleteSupplier } from '@/services/data';
 
 export default function SuppliersPage() {
   const { formatMoney } = useApp();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -22,6 +24,14 @@ export default function SuppliersPage() {
 
   const handleSupplierCreated = (newSup: Supplier) => {
     setSuppliers(prev => [...prev, newSup]);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem a certeza que deseja eliminar este fornecedor?')) return;
+    setDeletingId(id);
+    await deleteSupplier(id);
+    setSuppliers(prev => prev.filter(s => s.id !== id));
+    setDeletingId(null);
   };
 
   return (
@@ -59,6 +69,7 @@ export default function SuppliersPage() {
                 <th className="py-3 px-4">Email de Contacto</th>
                 <th className="py-3 px-4">Último Movimento</th>
                 <th className="py-3 px-4 text-right">Total Acumulado Gasto</th>
+                <th className="py-3 px-4 text-right">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 text-xs font-medium text-neutral-800">
@@ -95,6 +106,16 @@ export default function SuppliersPage() {
                   </td>
                   <td className="py-3.5 px-4 text-right font-bold text-neutral-900">
                     {formatMoney(s.total_spent)}
+                  </td>
+                  <td className="py-3.5 px-4 text-right">
+                    <button
+                      onClick={() => handleDelete(s.id)}
+                      disabled={deletingId === s.id}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      title="Eliminar Fornecedor"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))}

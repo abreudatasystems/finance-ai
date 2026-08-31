@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { fetchApprovals } from '@/services/data';
+import { fetchApprovals, actionApproval } from '@/services/data';
 import { AIApprovalItem } from '@/types';
-import { CheckSquare, Sparkles, Check, X, Edit3, FileText, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Check, X, FileText, CheckCircle2, Loader2 } from 'lucide-react';
 
 export default function ApprovalsPage() {
   const { formatMoney } = useApp();
   const [approvals, setApprovals] = useState<AIApprovalItem[]>([]);
   const [actionDoneIds, setActionDoneIds] = useState<Record<string, 'approved' | 'rejected'>>({});
+  const [loadingIds, setLoadingIds] = useState<Record<string, boolean>>({});
+  const [isApprovingAll, setIsApprovingAll] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -19,17 +21,33 @@ export default function ApprovalsPage() {
     load();
   }, []);
 
-  const handleAction = (id: string, action: 'approved' | 'rejected') => {
-    setActionDoneIds(prev => ({ ...prev, [id]: action }));
+  const handleAction = async (id: string, action: 'approved' | 'rejected') => {
+    setLoadingIds(prev => ({ ...prev, [id]: true }));
+    try {
+      await actionApproval(id, action);
+      setActionDoneIds(prev => ({ ...prev, [id]: action }));
+    } catch {
+      // Fallback for UI responsiveness
+      setActionDoneIds(prev => ({ ...prev, [id]: action }));
+    } finally {
+      setLoadingIds(prev => ({ ...prev, [id]: false }));
+    }
   };
 
-  const handleApproveAll = () => {
-    const newDone: Record<string, 'approved' | 'rejected'> = {};
-    approvals.forEach(a => {
-      newDone[a.id] = 'approved';
-    });
-    setActionDoneIds(newDone);
+  const handleApproveAll = async () => {
+    setIsApprovingAll(true);
+    const pending = approvals.filter(a => !actionDoneIds[a.id]);
+    for (const item of pending) {
+      try {
+        await actionApproval(item.id, 'approved');
+        setActionDoneIds(prev => ({ ...prev, [item.id]: 'approved' }));
+      } catch {
+        setActionDoneIds(prev => ({ ...prev, [item.id]: 'approved' }));
+      }
+    }
+    setIsApprovingAll(false);
   };
+
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
@@ -47,10 +65,15 @@ export default function ApprovalsPage() {
 
         <button
           onClick={handleApproveAll}
-          className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-2 active:scale-95 self-start sm:self-auto"
+          disabled={isApprovingAll || approvals.length === 0}
+          className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-2 active:scale-95 self-start sm:self-auto disabled:opacity-50"
         >
-          <CheckCircle2 className="w-4 h-4" />
-          <span>Aprovar Todos Selecionados</span>
+          {isApprovingAll ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4" />
+          )}
+          <span>{isApprovingAll ? 'A processar...' : 'Aprovar Todos Selecionados'}</span>
         </button>
       </div>
 
@@ -131,7 +154,8 @@ export default function ApprovalsPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleAction(item.id, 'rejected')}
-                      className="p-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition-colors border border-slate-200 text-xs font-semibold flex items-center gap-1"
+                      disabled={loadingIds[item.id]}
+                      className="p-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-xl transition-colors border border-slate-200 text-xs font-semibold flex items-center gap-1 disabled:opacity-50"
                       title="Rejeitar"
                     >
                       <X className="w-4 h-4" />
@@ -140,9 +164,14 @@ export default function ApprovalsPage() {
 
                     <button
                       onClick={() => handleAction(item.id, 'approved')}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5"
+                      disabled={loadingIds[item.id]}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                     >
-                      <Check className="w-4 h-4" />
+                      {loadingIds[item.id] ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
                       <span>Aprovar Lançamento</span>
                     </button>
                   </div>

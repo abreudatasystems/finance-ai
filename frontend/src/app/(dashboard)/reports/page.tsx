@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { FileSpreadsheet, FileText, Download, Loader2 } from 'lucide-react';
+import { FileSpreadsheet, Download, Loader2 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { fetchDashboardSummary, fetchVatSummary } from '@/services/data';
 import { apiFetch } from '@/services/api';
@@ -37,7 +37,7 @@ export default function ReportsPage() {
     async function loadData() {
       const summary = await fetchDashboardSummary();
       if (summary && summary.length > 0) {
-        setReportData(summary.map((s: { month: string; Entradas: number; Saídas: number }) => ({
+        setReportData((summary as unknown as Array<{ month: string; Entradas: number; Saídas: number }>).map((s) => ({
           month: s.month,
           Receitas: s.Entradas,
           Despesas: s.Saídas,
@@ -57,7 +57,7 @@ export default function ReportsPage() {
 
       const vat = await fetchVatSummary();
       if (vat && vat.breakdown) {
-        setVatSummary(vat);
+        setVatSummary(vat as unknown as VatSummary);
       }
     }
     loadData();
@@ -86,6 +86,20 @@ export default function ReportsPage() {
     }
   };
 
+  const handleExportCsv = () => {
+    let csv = 'Mês,Receitas,Despesas,Resultado\n';
+    reportData.forEach(r => {
+      csv += `${r.month},${r.Receitas},${r.Despesas},${r.Receitas - r.Despesas}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio-financeiro-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       
@@ -102,28 +116,20 @@ export default function ReportsPage() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => alert('Exportando relatório em PDF...')}
-            className="px-3.5 py-1.5 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-xs font-bold text-slate-700 shadow-2xs flex items-center gap-1.5 transition-colors"
-          >
-            <FileText className="w-4 h-4 text-rose-500" />
-            <span>Exportar PDF</span>
-          </button>
-
-          <button
-            onClick={() => alert('Exportando relatório em Excel...')}
-            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors"
+            onClick={handleExportCsv}
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4" />
-            <span>Exportar Excel</span>
+            <span>Exportar CSV / Excel</span>
           </button>
 
           <button
             onClick={handleSaftExport}
             disabled={isExporting}
-            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
           >
             {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            <span>SAF-T (XML)</span>
+            <span>SAF-T (PT) XML</span>
           </button>
         </div>
       </div>

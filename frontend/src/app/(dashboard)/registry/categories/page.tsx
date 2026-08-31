@@ -3,14 +3,16 @@
 import React, { useEffect, useState } from 'react';
 import { fetchCategories } from '@/services/data';
 import { Category } from '@/types';
-import { FolderTree, Plus, Sparkles, Tag, CheckCircle2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Sparkles, Tag, CheckCircle2, ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
 import { CreateCategoryModal } from '@/components/shared/CreateCategoryModal';
+import { deleteCategory } from '@/services/data';
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeTab, setActiveTab] = useState<'expense' | 'income'>('expense');
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({ CAT001: true, CAT002: true });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -26,6 +28,15 @@ export default function CategoriesPage() {
 
   const handleCategoryCreated = (newCat: Category) => {
     setCategories(prev => [...prev, newCat]);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!confirm('Tem a certeza que deseja eliminar esta categoria?')) return;
+    setDeletingId(id);
+    await deleteCategory(id);
+    setCategories(prev => prev.filter(c => c.id !== id));
+    setDeletingId(null);
   };
 
   const filteredCategories = categories.filter(c => c.type === activeTab);
@@ -84,6 +95,7 @@ export default function CategoriesPage() {
                 <th className="py-3 px-4">Subcategorias</th>
                 <th className="py-3 px-4">Palavras-Chave Motor IA</th>
                 <th className="py-3 px-4 text-right">Estado</th>
+                <th className="py-3 px-4 text-right">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 text-xs font-medium text-neutral-800">
@@ -128,6 +140,16 @@ export default function CategoriesPage() {
                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Ativo
                       </span>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <button
+                        onClick={(e) => handleDelete(e, cat.id)}
+                        disabled={deletingId === cat.id}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Eliminar Categoria"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
 

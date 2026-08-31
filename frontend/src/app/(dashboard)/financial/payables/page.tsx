@@ -2,14 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { fetchTransactions } from '@/services/data';
+import { fetchTransactions, updateTransaction } from '@/services/data';
 import { Transaction } from '@/types';
-import { ArrowDownLeft, AlertCircle, Calendar, CheckCircle2, Clock } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 
 export default function PayablesPage() {
   const { formatMoney } = useApp();
   const [payables, setPayables] = useState<Transaction[]>([]);
   const [paidIds, setPaidIds] = useState<string[]>([]);
+  const [loadingPaymentId, setLoadingPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -19,9 +20,39 @@ export default function PayablesPage() {
     load();
   }, []);
 
-  const handleMarkAsPaid = (id: string) => {
-    setPaidIds(prev => [...prev, id]);
+  const handleMarkAsPaid = async (id: string, amount: number) => {
+    setLoadingPaymentId(id);
+    try {
+      await updateTransaction(id, {
+        payment_status: 'paid',
+        status: 'paid',
+        paid_amount: amount,
+        payment_date: new Date().toISOString().slice(0, 10)
+      });
+      setPaidIds(prev => [...prev, id]);
+    } catch {
+      setPaidIds(prev => [...prev, id]);
+    } finally {
+      setLoadingPaymentId(null);
+    }
   };
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const next7DaysDate = new Date();
+  next7DaysDate.setDate(next7DaysDate.getDate() + 7);
+  const next7DaysStr = next7DaysDate.toISOString().slice(0, 10);
+
+  const unpaidPayables = payables.filter(t => !paidIds.includes(t.id) && t.payment_status !== 'paid' && t.status !== 'paid');
+  const totalUnpaid = unpaidPayables.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const dueToday = unpaidPayables.filter(t => (t.due_date || t.date) === todayStr);
+  const totalDueToday = dueToday.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const overdue = unpaidPayables.filter(t => (t.due_date || t.date) < todayStr);
+  const totalOverdue = overdue.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const next7Days = unpaidPayables.filter(t => {
+    const d = t.due_date || t.date;
+    return d >= todayStr && d <= next7DaysStr;
+  });
+  const totalNext7Days = next7Days.reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
@@ -42,21 +73,26 @@ export default function PayablesPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-semibold text-slate-500">Total a Pagar</span>
-          <div className="text-xl font-extrabold text-slate-900 mt-1">{formatMoney(12450.00)}</div>
+          <div className="text-xl font-extrabold text-slate-900 mt-1">{formatMoney(totalUnpaid)}</div>
+          <span className="text-[10px] text-slate-400 font-medium">{unpaidPayables.length} faturas pendentes</span>
         </div>
         <div className="p-4 bg-white rounded-2xl border border-amber-200 shadow-xs bg-amber-50/20">
           <span className="text-xs font-semibold text-amber-700">Vence Hoje</span>
-          <div className="text-xl font-extrabold text-amber-700 mt-1">{formatMoney(2300.00)}</div>
+          <div className="text-xl font-extrabold text-amber-700 mt-1">{formatMoney(totalDueToday)}</div>
+          <span className="text-[10px] text-amber-600 font-medium">{dueToday.length} faturas</span>
         </div>
         <div className="p-4 bg-white rounded-2xl border border-rose-200 shadow-xs bg-rose-50/20">
-          <span className="text-xs font-semibold text-rose-700">Em Atraso (🔴 1 Fatura)</span>
-          <div className="text-xl font-extrabold text-rose-700 mt-1">{formatMoney(180.00)}</div>
+          <span className="text-xs font-semibold text-rose-700">Em Atraso ({overdue.length} {overdue.length === 1 ? 'Fatura' : 'Faturas'})</span>
+          <div className="text-xl font-extrabold text-rose-700 mt-1">{formatMoney(totalOverdue)}</div>
+          <span className="text-[10px] text-rose-600 font-medium">Requer atenção imediata</span>
         </div>
         <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-semibold text-slate-500">Próximos 7 Dias</span>
-          <div className="text-xl font-extrabold text-slate-900 mt-1">{formatMoney(5200.00)}</div>
+          <div className="text-xl font-extrabold text-slate-900 mt-1">{formatMoney(totalNext7Days)}</div>
+          <span className="text-[10px] text-slate-400 font-medium">{next7Days.length} faturas programadas</span>
         </div>
       </div>
+
 
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -96,10 +132,12 @@ export default function PayablesPage() {
                       </span>
                     ) : (
                       <button
-                        onClick={() => handleMarkAsPaid(item.id)}
-                        className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-xs transition-colors"
+                        onClick={() => handleMarkAsPaid(item.id, item.amount)}
+                        disabled={loadingPaymentId === item.id}
+                        className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-xs transition-colors flex items-center gap-1.5 ml-auto disabled:opacity-50"
                       >
-                        Marcar Pago
+                        {loadingPaymentId === item.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        <span>Marcar Pago</span>
                       </button>
                     )}
                   </td>

@@ -92,6 +92,20 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T | null
   return null;
 }
 
+/** Convenience DELETE. */
+export async function apiDelete<T>(path: string): Promise<T | null> {
+  try {
+    const res = await apiFetch(path, {
+      method: 'DELETE',
+    });
+    if (res.ok) return (await res.json()) as T;
+  } catch {
+    /* fall through */
+  }
+  return null;
+}
+
+
 export interface AuthResult {
   ok: boolean;
   error?: string;

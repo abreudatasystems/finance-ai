@@ -65,3 +65,20 @@ def create_category(
     db.commit()
     db.refresh(new_cat)
     return _serialize(new_cat)
+
+
+@router.delete("/{category_id}")
+def delete_category(
+    category_id: str,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    cat = db.query(Category).filter(Category.id == category_id, Category.company_id == company_id).first()
+    if not cat:
+        return {"status": "error", "message": "Categoria não encontrada"}
+    # Also delete child categories if any
+    db.query(Category).filter(Category.parent_id == category_id, Category.company_id == company_id).delete()
+    db.delete(cat)
+    db.commit()
+    return {"status": "success", "deleted_id": category_id}
+

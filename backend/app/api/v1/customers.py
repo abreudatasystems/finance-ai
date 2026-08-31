@@ -40,3 +40,18 @@ def create_customer(
     db.commit()
     db.refresh(new_cust)
     return new_cust
+
+
+@router.delete("/{customer_id}")
+def delete_customer(
+    customer_id: str,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    cust = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == company_id).first()
+    if not cust:
+        return {"status": "error", "message": "Cliente não encontrado"}
+    db.delete(cust)
+    db.commit()
+    return {"status": "success", "deleted_id": customer_id}
+

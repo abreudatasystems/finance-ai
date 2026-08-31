@@ -59,7 +59,7 @@ export default function DashboardPage() {
       await fetchFinancialEvents();
 
       // Real chart data from API
-      const summary = await fetchDashboardSummary();
+      const summary = await fetchDashboardSummary<ChartDataItem>();
       if (summary && summary.length > 0) {
         setChartData(summary);
       } else {
@@ -73,7 +73,7 @@ export default function DashboardPage() {
         ]);
       }
 
-      const categories = await fetchExpensesByCategory();
+      const categories = await fetchExpensesByCategory<PieDataItem>();
       if (categories && categories.length > 0) {
         setPieData(categories);
       } else {

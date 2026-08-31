@@ -38,7 +38,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
   const [isCreateDropdownOpen, setIsCreateDropdownOpen] = useState(false);
 
   return (
-    <header className={`h-16 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 fixed top-0 left-0 z-50 flex items-center justify-between px-5 select-none shadow-2xs transition-all duration-300 ${
+    <header className={`h-16 bg-white/80 backdrop-blur-md fixed top-0 left-0 z-50 flex items-center justify-between px-5 select-none transition-all duration-300 ${
       isAiDrawerOpen ? 'right-[420px] md:right-[360px] lg:right-[420px]' : 'right-0'
     }`}>
       
@@ -228,7 +228,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         </Link>
 
         {/* User Profile Avatar */}
-        <div className="flex items-center gap-2 pl-2 border-l border-neutral-200">
+        <div className="flex items-center gap-2 pl-1">
           <div className="w-8 h-8 rounded-xl bg-black text-white flex items-center justify-center font-bold text-xs shadow-2xs border border-neutral-800">
             {currentUser?.name?.charAt(0) || 'U'}
           </div>

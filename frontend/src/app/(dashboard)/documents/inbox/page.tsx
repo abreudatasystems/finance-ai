@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
-import { fetchDocuments } from '@/services/data';
+import { fetchDocuments, uploadInvoiceDocument } from '@/services/data';
 import { AIDocument } from '@/types';
 import {
   Inbox,
@@ -12,15 +12,10 @@ import {
   HardDrive,
   FileText,
   CheckCircle2,
-  AlertTriangle,
-  Clock,
   Sparkles,
-  ArrowRight,
   Eye,
   Check,
-  RefreshCw,
-  Plus,
-  Upload
+  RefreshCw
 } from 'lucide-react';
 
 export default function FinanceInboxPage() {
@@ -30,8 +25,6 @@ export default function FinanceInboxPage() {
   const [isProcessingNew, setIsProcessingNew] = useState(false);
   const [confirmedDocs, setConfirmedDocs] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
   useEffect(() => {
     async function load() {
@@ -49,23 +42,9 @@ export default function FinanceInboxPage() {
     setIsProcessingNew(true);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('channel', 'upload');
-      formData.append('company_id', 'COMP001');
-
-      const res = await fetch(`${API_BASE}/documents/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (res.ok) {
-        const uploadedDoc: AIDocument = await res.json();
-        setDocuments(prev => [uploadedDoc, ...prev]);
-        setSelectedDoc(uploadedDoc);
-      } else {
-        alert('Erro ao enviar documento para a API');
-      }
+      const uploadedDoc = (await uploadInvoiceDocument(file, 'upload')) as unknown as AIDocument;
+      setDocuments(prev => [uploadedDoc, ...prev]);
+      setSelectedDoc(uploadedDoc);
     } catch (err) {
       console.error('Upload Error:', err);
       // Local fallback simulation if offline
@@ -95,6 +74,7 @@ export default function FinanceInboxPage() {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
 
   const handleConfirmDoc = (docId: string) => {
     setConfirmedDocs(prev => [...prev, docId]);

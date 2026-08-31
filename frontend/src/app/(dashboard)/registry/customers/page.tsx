@@ -4,13 +4,15 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { fetchCustomers } from '@/services/data';
 import { Customer } from '@/types';
-import { Users, Mail, Phone, Plus, Tag } from 'lucide-react';
+import { Users, Mail, Phone, Plus, Tag, Trash2 } from 'lucide-react';
 import { CreateCustomerModal } from '@/components/shared/CreateCustomerModal';
+import { deleteCustomer } from '@/services/data';
 
 export default function CustomersPage() {
   const { formatMoney } = useApp();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -22,6 +24,14 @@ export default function CustomersPage() {
 
   const handleCustomerCreated = (newCust: Customer) => {
     setCustomers(prev => [...prev, newCust]);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem a certeza que deseja eliminar este cliente?')) return;
+    setDeletingId(id);
+    await deleteCustomer(id);
+    setCustomers(prev => prev.filter(c => c.id !== id));
+    setDeletingId(null);
   };
 
   return (
@@ -59,6 +69,7 @@ export default function CustomersPage() {
                 <th className="py-3 px-4">Email</th>
                 <th className="py-3 px-4">Telemóvel / Telefone</th>
                 <th className="py-3 px-4 text-right">Faturação Acumulada</th>
+                <th className="py-3 px-4 text-right">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 text-xs font-medium text-neutral-800">
@@ -95,6 +106,16 @@ export default function CustomersPage() {
                   </td>
                   <td className="py-3.5 px-4 text-right font-bold text-emerald-600">
                     +{formatMoney(c.total_revenue)}
+                  </td>
+                  <td className="py-3.5 px-4 text-right">
+                    <button
+                      onClick={() => handleDelete(c.id)}
+                      disabled={deletingId === c.id}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      title="Eliminar Cliente"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))}

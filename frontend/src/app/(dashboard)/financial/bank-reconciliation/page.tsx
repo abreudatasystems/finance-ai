@@ -65,7 +65,7 @@ export default function BankReconciliationPage() {
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
 
   const loadStatements = async () => {
-    const data = await fetchBankStatements();
+    const data = await fetchBankStatements<Statement>();
     setStatements(data);
   };
 
@@ -74,7 +74,7 @@ export default function BankReconciliationPage() {
 
   const loadEntries = async (stmt: Statement) => {
     setSelectedStatement(stmt);
-    const data = await fetchBankStatementEntries(stmt.id);
+    const data = await fetchBankStatementEntries<StatementEntry>(stmt.id);
     setEntries(data);
   };
 

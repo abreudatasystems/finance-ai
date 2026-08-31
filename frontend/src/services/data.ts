@@ -28,7 +28,7 @@ import {
   AuditLogItem
 } from '@/types';
 
-import { apiGet, apiPatch } from './api';
+import { apiGet, apiPatch, apiPost, apiDelete, apiFetch } from './api';
 
 export const delay = (ms: number = 100) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -143,30 +143,79 @@ export async function fetchAuditLogs(companyId: string = 'COMP001'): Promise<Aud
 }
 
 // ── Dashboard real-time endpoints ──
-export async function fetchDashboardSummary(): Promise<any[]> {
-  const data = await apiGet<any[]>('/dashboard/summary');
+export async function fetchDashboardSummary<T = Record<string, unknown>>(): Promise<T[]> {
+  const data = await apiGet<T[]>('/dashboard/summary');
   return data || [];
 }
 
-export async function fetchExpensesByCategory(): Promise<any[]> {
-  const data = await apiGet<any[]>('/dashboard/expenses-by-category');
+export async function fetchExpensesByCategory<T = Record<string, unknown>>(): Promise<T[]> {
+  const data = await apiGet<T[]>('/dashboard/expenses-by-category');
   return data || [];
 }
 
 // ── Fiscal endpoints ──
-export async function fetchVatSummary(period?: string): Promise<any> {
+export async function fetchVatSummary<T = Record<string, unknown>>(period?: string): Promise<T> {
   const url = period ? `/fiscal/vat-summary?period=${period}` : '/fiscal/vat-summary';
-  const data = await apiGet<any>(url);
-  return data || { breakdown: [], totals: {} };
+  const data = await apiGet<T>(url);
+  return data || ({ breakdown: [], totals: {} } as unknown as T);
 }
 
 // ── Bank Reconciliation ──
-export async function fetchBankStatements(): Promise<any[]> {
-  const data = await apiGet<any[]>('/bank/statements');
+export async function fetchBankStatements<T = Record<string, unknown>>(): Promise<T[]> {
+  const data = await apiGet<T[]>('/bank/statements');
   return data || [];
 }
 
-export async function fetchBankStatementEntries(statementId: string): Promise<any[]> {
-  const data = await apiGet<any[]>(`/bank/statements/${statementId}/entries`);
+export async function fetchBankStatementEntries<T = Record<string, unknown>>(statementId: string): Promise<T[]> {
+  const data = await apiGet<T[]>(`/bank/statements/${statementId}/entries`);
   return data || [];
 }
+
+
+// ── Approvals Action ──
+export async function actionApproval(
+  approvalId: string,
+  action: 'approved' | 'rejected',
+  notes?: string
+): Promise<Record<string, unknown> | null> {
+  const data = await apiPost<Record<string, unknown>>(`/approvals/${approvalId}/action?action=${action}`, {
+    rejection_reason: notes,
+  });
+  return data;
+}
+
+// ── Document Upload ──
+export async function uploadInvoiceDocument(file: File, channel: string = 'upload'): Promise<Record<string, unknown>> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('channel', channel);
+
+  const res = await apiFetch('/documents/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (res.ok) {
+    return (await res.json()) as Record<string, unknown>;
+  }
+  const err = (await res.json().catch(() => ({}))) as { detail?: string };
+  throw new Error(err.detail || 'Erro ao processar fatura.');
+}
+
+// ── Registry Deletions ──
+export async function deleteSupplier(id: string): Promise<boolean> {
+  const res = await apiDelete<Record<string, unknown>>(`/suppliers/${id}`);
+  return !!res;
+}
+
+export async function deleteCustomer(id: string): Promise<boolean> {
+  const res = await apiDelete<Record<string, unknown>>(`/customers/${id}`);
+  return !!res;
+}
+
+export async function deleteCategory(id: string): Promise<boolean> {
+  const res = await apiDelete<Record<string, unknown>>(`/categories/${id}`);
+  return !!res;
+}
+
+

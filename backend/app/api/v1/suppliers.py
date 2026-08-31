@@ -42,3 +42,18 @@ def create_supplier(
     db.commit()
     db.refresh(new_sup)
     return new_sup
+
+
+@router.delete("/{supplier_id}")
+def delete_supplier(
+    supplier_id: str,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    sup = db.query(Supplier).filter(Supplier.id == supplier_id, Supplier.company_id == company_id).first()
+    if not sup:
+        return {"status": "error", "message": "Fornecedor não encontrado"}
+    db.delete(sup)
+    db.commit()
+    return {"status": "success", "deleted_id": supplier_id}
+
