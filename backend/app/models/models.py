@@ -153,17 +153,71 @@ class AIDocument(Base):
     file_size = Column(String, default="1.0 MB")
     file_type = Column(String, default="application/pdf")
     channel = Column(String, default="upload")  # email, whatsapp, upload, drive
-    status = Column(String, default="processed")  # uploading, processing, processed, pending_approval, error
-    upload_date = Column(String, default=datetime.utcnow().isoformat)
+    # uploaded, processing, extracted, needs_review, approved, rejected, error
+    status = Column(String, default="uploaded")
+    upload_date = Column(String, default=lambda: datetime.utcnow().isoformat())
+
+    # Stored original + duplicate detection
+    file_url = Column(String, nullable=True)
+    file_hash = Column(String, index=True, nullable=True)  # SHA-256, unique per company
+
+    # Document identity
+    document_number = Column(String, nullable=True)   # ex: FT 2026/00452
+    document_type = Column(String, nullable=True)     # invoice, receipt, credit_note ...
+    document_date = Column(String, nullable=True)
+
+    # Convenience copy of the latest extraction (the full record lives in AIExtraction)
     extracted_supplier = Column(String, nullable=True)
     extracted_nif = Column(String, nullable=True)
-    extracted_amount = Column(Float, nullable=True)
-    extracted_vat = Column(Float, nullable=True)
+    extracted_amount = Column(Numeric(14, 2), nullable=True)   # gross
+    extracted_net = Column(Numeric(14, 2), nullable=True)
+    extracted_vat = Column(Numeric(14, 2), nullable=True)
+    extracted_vat_rate = Column(Float, nullable=True)
     extracted_date = Column(String, nullable=True)
+    extracted_due_date = Column(String, nullable=True)
     suggested_category = Column(String, nullable=True)
     suggested_category_id = Column(String, nullable=True)
     ai_confidence = Column(Integer, default=95)
     is_recurring = Column(Boolean, default=False)
+    uploaded_by = Column(String, nullable=True)
+
+
+class AIExtraction(Base):
+    """One pass of the OCR/vision engine over a document.
+
+    Kept separate from both the document and the approval so we always know
+    what the AI *read*, distinct from what a human later approved.
+    """
+
+    __tablename__ = "ai_extractions"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    document_id = Column(String, ForeignKey("ai_documents.id"), nullable=False)
+
+    supplier = Column(String, nullable=True)
+    nif = Column(String, nullable=True)
+    document_number = Column(String, nullable=True)
+    document_date = Column(String, nullable=True)
+    due_date = Column(String, nullable=True)
+
+    net_amount = Column(Numeric(14, 2), nullable=True)
+    vat_rate = Column(Float, nullable=True)
+    vat_amount = Column(Numeric(14, 2), nullable=True)
+    gross_amount = Column(Numeric(14, 2), nullable=True)
+    currency = Column(String, default="EUR")
+
+    suggested_category = Column(String, nullable=True)
+    suggested_category_id = Column(String, nullable=True)
+
+    confidence = Column(Float, default=0.0)              # 0.000 - 1.000
+    validation_status = Column(String, default="needs_review")  # valid, needs_review, failed
+    validation_report = Column(Text, nullable=True)      # JSON list of checks
+
+    ai_model = Column(String, nullable=True)
+    ai_version = Column(String, nullable=True)
+    raw_result = Column(Text, nullable=True)
+    processed_at = Column(DateTime, default=datetime.utcnow)
 
 class AIApprovalItem(Base):
     __tablename__ = "ai_approvals"
@@ -172,15 +226,26 @@ class AIApprovalItem(Base):
     company_id = Column(String, ForeignKey("companies.id"), nullable=False)
     document_id = Column(String, nullable=False)
     document_name = Column(String, nullable=False)
+    extraction_id = Column(String, nullable=True)   # proposal this item came from
     supplier_name = Column(String, nullable=False)
-    amount = Column(Float, nullable=False)
-    vat = Column(Float, default=0.0)
+    entity_id = Column(String, nullable=True)
+    amount = Column(Numeric(14, 2), nullable=False)   # gross
+    net_amount = Column(Numeric(14, 2), nullable=True)
+    vat_rate = Column(Float, nullable=True)
+    vat = Column(Numeric(14, 2), default=0)
     date = Column(String, nullable=False)
+    due_date = Column(String, nullable=True)
+    document_number = Column(String, nullable=True)
+    document_type = Column(String, nullable=True)
     suggested_category = Column(String, nullable=False)
     suggested_category_id = Column(String, nullable=False)
     suggested_cost_center = Column(String, nullable=True)
     ai_confidence = Column(Integer, default=90)
     status = Column(String, default="pending")  # pending, approved, rejected, edited
+    transaction_id = Column(String, nullable=True)  # filled on approval
+    decided_by = Column(String, nullable=True)
+    decided_at = Column(String, nullable=True)
+    rejection_reason = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class FinancialEvent(Base):
