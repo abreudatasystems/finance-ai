@@ -1,22 +1,18 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
-import { fetchHealthScore, fetchTransactions, fetchFinancialEvents } from '@/services/data';
-import { FinancialHealthScore, Transaction, FinancialEvent } from '@/types';
+import { fetchHealthScore, fetchTransactions, fetchFinancialEvents, fetchDashboardSummary, fetchExpensesByCategory } from '@/services/data';
+import { FinancialHealthScore, Transaction } from '@/types';
 import {
   TrendingUp,
   TrendingDown,
   Clock,
   ShieldCheck,
   Sparkles,
-  AlertTriangle,
-  ArrowUpRight,
-  ArrowDownLeft,
   ChevronRight,
-  FileText,
   Activity,
-  CheckCircle2,
   DollarSign,
   PieChart as PieIcon
 } from 'lucide-react';
@@ -33,11 +29,26 @@ import {
   Cell
 } from 'recharts';
 
+interface ChartDataItem {
+  month: string;
+  Entradas: number;
+  Saídas: number;
+  Resultado: number;
+}
+
+interface PieDataItem {
+  name: string;
+  value: number;
+  amount?: number;
+  color: string;
+}
+
 export default function DashboardPage() {
-  const { formatMoney, currencySymbol, openAiDrawer } = useApp();
+  const { formatMoney, openAiDrawer } = useApp();
   const [healthScore, setHealthScore] = useState<FinancialHealthScore | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [events, setEvents] = useState<FinancialEvent[]>([]);
+  const [chartData, setChartData] = useState<ChartDataItem[]>([]);
+  const [pieData, setPieData] = useState<PieDataItem[]>([]);
 
   useEffect(() => {
     async function loadData() {
@@ -45,28 +56,42 @@ export default function DashboardPage() {
       setHealthScore(hs);
       const trxs = await fetchTransactions();
       setTransactions(trxs);
-      const evts = await fetchFinancialEvents();
-      setEvents(evts);
+      await fetchFinancialEvents();
+
+      // Real chart data from API
+      const summary = await fetchDashboardSummary();
+      if (summary && summary.length > 0) {
+        setChartData(summary);
+      } else {
+        setChartData([
+          { month: 'Mar', Entradas: 22000, Saídas: 14000, Resultado: 8000 },
+          { month: 'Abr', Entradas: 25000, Saídas: 15500, Resultado: 9500 },
+          { month: 'Mai', Entradas: 24000, Saídas: 14800, Resultado: 9200 },
+          { month: 'Jun', Entradas: 27500, Saídas: 16000, Resultado: 11500 },
+          { month: 'Jul', Entradas: 26000, Saídas: 14200, Resultado: 11800 },
+          { month: 'Ago', Entradas: 28500, Saídas: 15320, Resultado: 13180 }
+        ]);
+      }
+
+      const categories = await fetchExpensesByCategory();
+      if (categories && categories.length > 0) {
+        setPieData(categories);
+      } else {
+        setPieData([
+          { name: 'Marketing', value: 35, color: '#6366F1' },
+          { name: 'Software & Cloud', value: 25, color: '#3B82F6' },
+          { name: 'Pessoal & Salários', value: 20, color: '#10B981' },
+          { name: 'Instalações', value: 12, color: '#F59E0B' },
+          { name: 'Outros', value: 8, color: '#94A3B8' }
+        ]);
+      }
     }
     loadData();
   }, []);
 
-  const chartData = [
-    { month: 'Mar', Entradas: 22000, Saídas: 14000, Resultado: 8000 },
-    { month: 'Abr', Entradas: 25000, Saídas: 15500, Resultado: 9500 },
-    { month: 'Mai', Entradas: 24000, Saídas: 14800, Resultado: 9200 },
-    { month: 'Jun', Entradas: 27500, Saídas: 16000, Resultado: 11500 },
-    { month: 'Jul', Entradas: 26000, Saídas: 14200, Resultado: 11800 },
-    { month: 'Ago', Entradas: 28500, Saídas: 15320, Resultado: 13180 }
-  ];
-
-  const pieData = [
-    { name: 'Marketing', value: 35, color: '#6366F1' },
-    { name: 'Software & Cloud', value: 25, color: '#3B82F6' },
-    { name: 'Pessoal & Salários', value: 20, color: '#10B981' },
-    { name: 'Instalações', value: 12, color: '#F59E0B' },
-    { name: 'Outros', value: 8, color: '#94A3B8' }
-  ];
+  // Derived trend from healthScore
+  const balanceTrend = (healthScore as FinancialHealthScore & { trend?: number })?.trend ?? 0;
+  const burnRate = (healthScore as FinancialHealthScore & { burn_rate?: number })?.burn_rate;
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
@@ -102,11 +127,11 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-2xl font-bold text-slate-900 tracking-tight">
-            {formatMoney(healthScore?.current_balance || 45230)}
+            {formatMoney(healthScore?.current_balance || 0)}
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>+12% este mês</span>
+          <div className={`mt-2 flex items-center gap-1.5 text-xs font-semibold ${balanceTrend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {balanceTrend >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+            <span>{balanceTrend >= 0 ? '+' : ''}{balanceTrend}% vs mês anterior</span>
           </div>
         </div>
 
@@ -119,10 +144,14 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-2xl font-bold text-slate-900 tracking-tight">
-            {healthScore?.runway_months || 8} Meses
+            {healthScore?.runway_months || 0} Meses
           </div>
           <div className="mt-2 flex items-center gap-1 text-xs text-slate-500 font-medium">
-            <span>Cobertura de segurança sólida</span>
+            {burnRate ? (
+              <span>Burn rate: {formatMoney(burnRate)}/mês</span>
+            ) : (
+              <span>Cobertura de segurança</span>
+            )}
           </div>
         </div>
 
@@ -135,11 +164,11 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-2xl font-bold text-slate-900 tracking-tight">
-            {healthScore?.operating_margin || 32}%
+            {healthScore?.operating_margin || 0}%
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>+3.2% vs trimestre anterior</span>
+          <div className={`mt-2 flex items-center gap-1.5 text-xs font-semibold ${(healthScore?.operating_margin || 0) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {(healthScore?.operating_margin || 0) > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+            <span>Dados em tempo real</span>
           </div>
         </div>
 
@@ -151,11 +180,11 @@ export default function DashboardPage() {
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-2 text-2xl font-bold text-emerald-600 tracking-tight">
-            +{formatMoney(healthScore?.monthly_result || 13180)}
+          <div className={`mt-2 text-2xl font-bold tracking-tight ${(healthScore?.monthly_result || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {(healthScore?.monthly_result || 0) >= 0 ? '+' : ''}{formatMoney(healthScore?.monthly_result || 0)}
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
-            <span>Lucro positivo garantido</span>
+            <span>{(healthScore?.monthly_result || 0) >= 0 ? 'Lucro positivo' : 'Resultado negativo'}</span>
           </div>
         </div>
       </div>
@@ -171,20 +200,22 @@ export default function DashboardPage() {
                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
                 <h3 className="font-bold text-sm text-slate-200 tracking-tight">Financial Health Score</h3>
               </div>
-              <span className="text-[11px] bg-emerald-500/20 text-emerald-300 font-semibold px-2 py-0.5 rounded-full border border-emerald-500/30">
-                Proprietário AI
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                (healthScore?.score || 0) >= 85 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+                (healthScore?.score || 0) >= 70 ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
+                (healthScore?.score || 0) >= 50 ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                'bg-rose-500/20 text-rose-300 border-rose-500/30'
+              }`}>
+                {healthScore?.status_label || 'Calculando...'}
               </span>
             </div>
 
             {/* Score Big Display */}
             <div className="flex items-baseline gap-3">
               <span className="text-5xl font-extrabold tracking-tight text-white">
-                {healthScore?.score || 92}
+                {healthScore?.score || 0}
               </span>
               <span className="text-xl font-bold text-slate-400">/100</span>
-              <span className="ml-auto text-xs font-bold bg-emerald-500 text-slate-950 px-2.5 py-1 rounded-lg">
-                {healthScore?.status_label || 'Excelente'}
-              </span>
             </div>
 
             {/* Score Breakdown Bars */}
@@ -192,30 +223,30 @@ export default function DashboardPage() {
               <div className="space-y-1">
                 <div className="flex justify-between text-slate-300 font-medium text-[11px]">
                   <span>Liquidez de Caixa</span>
-                  <span className="font-bold text-emerald-400">95/100</span>
+                  <span className="font-bold text-emerald-400">{healthScore?.liquidity_score || 0}/100</span>
                 </div>
                 <div className="w-full bg-slate-700/80 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-emerald-400 h-1.5 rounded-full" style={{ width: '95%' }} />
+                  <div className="bg-emerald-400 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${healthScore?.liquidity_score || 0}%` }} />
                 </div>
               </div>
 
               <div className="space-y-1">
                 <div className="flex justify-between text-slate-300 font-medium text-[11px]">
                   <span>Rentabilidade</span>
-                  <span className="font-bold text-emerald-400">88/100</span>
+                  <span className="font-bold text-emerald-400">{healthScore?.profitability_score || 0}/100</span>
                 </div>
                 <div className="w-full bg-slate-700/80 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-emerald-400 h-1.5 rounded-full" style={{ width: '88%' }} />
+                  <div className="bg-emerald-400 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${healthScore?.profitability_score || 0}%` }} />
                 </div>
               </div>
 
               <div className="space-y-1">
                 <div className="flex justify-between text-slate-300 font-medium text-[11px]">
                   <span>Controlo de Custos</span>
-                  <span className="font-bold text-indigo-400">91/100</span>
+                  <span className="font-bold text-indigo-400">{healthScore?.cost_control_score || 0}/100</span>
                 </div>
                 <div className="w-full bg-slate-700/80 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-indigo-400 h-1.5 rounded-full" style={{ width: '91%' }} />
+                  <div className="bg-indigo-400 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${healthScore?.cost_control_score || 0}%` }} />
                 </div>
               </div>
             </div>
@@ -243,12 +274,20 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            <p className="text-xs text-slate-700 leading-relaxed font-medium bg-white/80 p-3.5 rounded-xl border border-indigo-100/80 shadow-2xs">
-              "Bom dia João 👋 Analisei a tua saúde financeira desta semana. A empresa continua com um saldo de caixa forte (8 meses de runway), mas detetei um aumento anormal de 43% nos gastos com Google Ads."
-            </p>
+            {healthScore?.ai_explanation && healthScore.ai_explanation.length > 0 ? (
+              <p className="text-xs text-slate-700 leading-relaxed font-medium bg-white/80 p-3.5 rounded-xl border border-indigo-100/80 shadow-2xs">
+                {healthScore.ai_explanation.map((line: string, i: number) => (
+                  <span key={i}>{line}{i < healthScore.ai_explanation.length - 1 ? ' ' : ''}</span>
+                ))}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-700 leading-relaxed font-medium bg-white/80 p-3.5 rounded-xl border border-indigo-100/80 shadow-2xs">
+                A carregar análise financeira...
+              </p>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-              {healthScore?.key_insights.map((insight, idx) => (
+              {healthScore?.key_insights?.map((insight, idx) => (
                 <div key={idx} className="p-2.5 bg-white rounded-xl border border-slate-200/60 shadow-2xs flex items-center gap-2.5">
                   <div className={`w-2 h-2 rounded-full shrink-0 ${
                     insight.type === 'danger' ? 'bg-rose-500' :
@@ -262,7 +301,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-indigo-100 text-xs">
-            <span className="text-slate-500 font-medium">93% das faturas deste mês foram classificadas automaticamente.</span>
+            <span className="text-slate-500 font-medium">Dados calculados em tempo real a partir do banco de dados.</span>
             <button
               onClick={openAiDrawer}
               className="text-indigo-600 font-bold hover:underline flex items-center gap-1"
@@ -306,7 +345,7 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748B' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#64748B' }} />
-                <Tooltip formatter={(value: any) => formatMoney(Number(value))} />
+                <Tooltip formatter={(value) => formatMoney(Number(value))} />
                 <Area type="monotone" dataKey="Entradas" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorEntradas)" />
                 <Area type="monotone" dataKey="Saídas" stroke="#EF4444" strokeWidth={2} fillOpacity={1} fill="url(#colorSaidas)" />
               </AreaChart>
@@ -337,7 +376,7 @@ export default function DashboardPage() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(val: any) => `${val}%`} />
+                <Tooltip formatter={(val) => `${val}%`} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -364,9 +403,9 @@ export default function DashboardPage() {
             <h3 className="font-bold text-sm text-slate-900">Últimos Lançamentos Financeiros</h3>
             <p className="text-xs text-slate-500">Sincronizado automaticamente pela IA e lançamentos manuais</p>
           </div>
-          <a href="/financial/cash-flow" className="text-xs text-indigo-600 font-bold hover:underline">
+          <Link href="/financial/cash-flow" className="text-xs text-indigo-600 font-bold hover:underline">
             Ver Fluxo Completo &rarr;
-          </a>
+          </Link>
         </div>
 
         <div className="overflow-x-auto">

@@ -220,3 +220,32 @@ class AIRule(Base):
     confidence = Column(Integer, default=95)
     uses_count = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class BankStatement(Base):
+    __tablename__ = "bank_statements"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    bank_name = Column(String, nullable=False)
+    file_name = Column(String, nullable=False)
+    upload_date = Column(DateTime, default=datetime.utcnow)
+    period_start = Column(String, nullable=True)
+    period_end = Column(String, nullable=True)
+    total_entries = Column(Integer, default=0)
+    matched_entries = Column(Integer, default=0)
+    status = Column(String, default="processing")  # processing, completed, error
+
+class BankStatementEntry(Base):
+    __tablename__ = "bank_statement_entries"
+
+    id = Column(String, primary_key=True, index=True)
+    statement_id = Column(String, ForeignKey("bank_statements.id"), nullable=False)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    date = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    amount = Column(Float, nullable=False)
+    type = Column(String, nullable=False)  # credit, debit
+    balance = Column(Float, nullable=True)
+    matched_transaction_id = Column(String, nullable=True)
+    match_confidence = Column(Integer, nullable=True)
+    status = Column(String, default="unmatched")  # matched, suggested, unmatched, ignored

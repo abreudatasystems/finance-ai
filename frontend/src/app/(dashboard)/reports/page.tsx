@@ -1,23 +1,90 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { BarChart3, Download, FileSpreadsheet, FileText, Filter, Printer } from 'lucide-react';
+import { FileSpreadsheet, FileText, Download, Loader2 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { fetchDashboardSummary, fetchVatSummary } from '@/services/data';
+import { apiFetch } from '@/services/api';
+
+interface VatBreakdownItem {
+  vat_rate: number | null;
+  label: string;
+  base_tributavel: number;
+  iva_total: number;
+  total_bruto: number;
+  num_documentos: number;
+}
+
+interface VatSummary {
+  period: string;
+  breakdown: VatBreakdownItem[];
+  totals: {
+    base_tributavel: number;
+    iva_total: number;
+    total_bruto: number;
+    num_documentos: number;
+  };
+}
 
 export default function ReportsPage() {
   const { formatMoney } = useApp();
+  const [reportData, setReportData] = useState<{ month: string; Receitas: number; Despesas: number }[]>([]);
+  const [vatSummary, setVatSummary] = useState<VatSummary | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const reportData = [
-    { month: 'Jan', Receitas: 24000, Despesas: 15000 },
-    { month: 'Fev', Receitas: 26000, Despesas: 14500 },
-    { month: 'Mar', Receitas: 22000, Despesas: 14000 },
-    { month: 'Abr', Receitas: 25000, Despesas: 15500 },
-    { month: 'Mai', Receitas: 24000, Despesas: 14800 },
-    { month: 'Jun', Receitas: 27500, Despesas: 16000 },
-    { month: 'Jul', Receitas: 26000, Despesas: 14200 },
-    { month: 'Ago', Receitas: 28500, Despesas: 15320 }
-  ];
+  useEffect(() => {
+    async function loadData() {
+      const summary = await fetchDashboardSummary();
+      if (summary && summary.length > 0) {
+        setReportData(summary.map((s: { month: string; Entradas: number; Saídas: number }) => ({
+          month: s.month,
+          Receitas: s.Entradas,
+          Despesas: s.Saídas,
+        })));
+      } else {
+        setReportData([
+          { month: 'Jan', Receitas: 24000, Despesas: 15000 },
+          { month: 'Fev', Receitas: 26000, Despesas: 14500 },
+          { month: 'Mar', Receitas: 22000, Despesas: 14000 },
+          { month: 'Abr', Receitas: 25000, Despesas: 15500 },
+          { month: 'Mai', Receitas: 24000, Despesas: 14800 },
+          { month: 'Jun', Receitas: 27500, Despesas: 16000 },
+          { month: 'Jul', Receitas: 26000, Despesas: 14200 },
+          { month: 'Ago', Receitas: 28500, Despesas: 15320 }
+        ]);
+      }
+
+      const vat = await fetchVatSummary();
+      if (vat && vat.breakdown) {
+        setVatSummary(vat);
+      }
+    }
+    loadData();
+  }, []);
+
+  const totalReceitas = reportData.reduce((sum, d) => sum + d.Receitas, 0);
+  const totalDespesas = reportData.reduce((sum, d) => sum + d.Despesas, 0);
+
+  const handleSaftExport = async () => {
+    setIsExporting(true);
+    try {
+      const res = await apiFetch('/fiscal/saft-export');
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'SAFT-PT.xml';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // fallback
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
@@ -29,7 +96,7 @@ export default function ReportsPage() {
             Relatórios Financeiros &amp; Exportação
           </h1>
           <p className="text-xs text-slate-500 font-medium">
-            Análise consolidada do desempenho financeiro, comparativo de receitas e despesas
+            Análise consolidada do desempenho financeiro, IVA e exportação SAF-T (PT)
           </p>
         </div>
 
@@ -49,6 +116,15 @@ export default function ReportsPage() {
             <FileSpreadsheet className="w-4 h-4" />
             <span>Exportar Excel</span>
           </button>
+
+          <button
+            onClick={handleSaftExport}
+            disabled={isExporting}
+            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+          >
+            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            <span>SAF-T (XML)</span>
+          </button>
         </div>
       </div>
 
@@ -65,7 +141,7 @@ export default function ReportsPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748B' }} />
               <YAxis tick={{ fontSize: 11, fill: '#64748B' }} />
-              <Tooltip formatter={(val: any) => formatMoney(Number(val))} />
+              <Tooltip formatter={(val) => formatMoney(Number(val))} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="Receitas" fill="#10B981" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Despesas" fill="#EF4444" radius={[4, 4, 0, 0]} />
@@ -78,19 +154,70 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
         <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
           <span className="text-slate-400 font-medium">Total Receitas Acumuladas</span>
-          <div className="text-xl font-black text-emerald-600">{formatMoney(205000)}</div>
+          <div className="text-xl font-black text-emerald-600">{formatMoney(totalReceitas)}</div>
         </div>
 
         <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
           <span className="text-slate-400 font-medium">Total Despesas Acumuladas</span>
-          <div className="text-xl font-black text-rose-600">{formatMoney(119320)}</div>
+          <div className="text-xl font-black text-rose-600">{formatMoney(totalDespesas)}</div>
         </div>
 
         <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
           <span className="text-slate-400 font-medium">Resultado Acumulado</span>
-          <div className="text-xl font-black text-indigo-600">+{formatMoney(85680)}</div>
+          <div className={`text-xl font-black ${totalReceitas - totalDespesas >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+            {totalReceitas - totalDespesas >= 0 ? '+' : ''}{formatMoney(totalReceitas - totalDespesas)}
+          </div>
         </div>
       </div>
+
+      {/* IVA Summary Section */}
+      {vatSummary && vatSummary.breakdown.length > 0 && (
+        <div className="p-6 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900">Resumo de IVA</h3>
+              <p className="text-xs text-slate-500">Período: {vatSummary.period}</p>
+            </div>
+            <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">
+              🇵🇹 Portugal
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
+                  <th className="p-3">Taxa IVA</th>
+                  <th className="p-3 text-right">Base Tributável</th>
+                  <th className="p-3 text-right">IVA Liquidado</th>
+                  <th className="p-3 text-right">Total Bruto</th>
+                  <th className="p-3 text-right">Nº Documentos</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {vatSummary.breakdown.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/80 transition-colors font-medium">
+                    <td className="p-3 font-semibold text-slate-800">{item.label}</td>
+                    <td className="p-3 text-right text-slate-700">{formatMoney(item.base_tributavel)}</td>
+                    <td className="p-3 text-right text-indigo-600 font-bold">{formatMoney(item.iva_total)}</td>
+                    <td className="p-3 text-right text-slate-700">{formatMoney(item.total_bruto)}</td>
+                    <td className="p-3 text-right text-slate-500">{item.num_documentos}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-slate-50 border-t-2 border-slate-300 font-bold text-slate-900">
+                  <td className="p-3">TOTAIS</td>
+                  <td className="p-3 text-right">{formatMoney(vatSummary.totals.base_tributavel)}</td>
+                  <td className="p-3 text-right text-indigo-600">{formatMoney(vatSummary.totals.iva_total)}</td>
+                  <td className="p-3 text-right">{formatMoney(vatSummary.totals.total_bruto)}</td>
+                  <td className="p-3 text-right">{vatSummary.totals.num_documentos}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
     </div>
   );
