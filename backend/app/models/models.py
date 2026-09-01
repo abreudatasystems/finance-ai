@@ -300,6 +300,13 @@ class Payment(Base):
     notes = Column(Text, nullable=True)
 
     reconciliation_status = Column(String, default="unmatched")  # unmatched, matched, manually_matched
+    # The bank line that proves this payment happened. It is the single link
+    # between the settlement layer and the statement: the entry's reconciled
+    # state is read from here, never written on both sides.
+    bank_entry_id = Column(String, ForeignKey("bank_statement_entries.id"), nullable=True, index=True)
+    # manual = someone registered it; bank = it was created from a bank line,
+    # which is what lets an unmatch undo it cleanly.
+    source = Column(String, default="manual")
     created_by = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -461,6 +468,13 @@ class BankStatement(Base):
     status = Column(String, default="processing")  # processing, completed, error
 
 class BankStatementEntry(Base):
+    """One line of a bank statement — money that actually moved.
+
+    Amounts are Numeric like everywhere else money is handled: a statement is
+    the thing every other number gets checked against, so it cannot be the one
+    place carrying floating-point drift.
+    """
+
     __tablename__ = "bank_statement_entries"
 
     id = Column(String, primary_key=True, index=True)
@@ -468,9 +482,10 @@ class BankStatementEntry(Base):
     company_id = Column(String, ForeignKey("companies.id"), nullable=False)
     date = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(14, 2), nullable=False)
     type = Column(String, nullable=False)  # credit, debit
-    balance = Column(Float, nullable=True)
+    balance = Column(Numeric(14, 2), nullable=True)
     matched_transaction_id = Column(String, nullable=True)
     match_confidence = Column(Integer, nullable=True)
     status = Column(String, default="unmatched")  # matched, suggested, unmatched, ignored
+    reconciled_at = Column(DateTime, nullable=True)
