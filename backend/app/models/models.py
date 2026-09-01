@@ -21,6 +21,10 @@ class Company(Base):
     vat_periodicity = Column(String, default="quarterly")
     cae = Column(String, nullable=True)               # código de atividade económica
 
+    # Chart of accounts provisioning
+    chart_template = Column(String, nullable=True)
+    chart_provisioned = Column(Boolean, default=False)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class User(Base):
@@ -79,6 +83,10 @@ class Category(Base):
     description = Column(String, nullable=True)
     keywords = Column(Text, nullable=True)  # comma separated
     active = Column(Boolean, default=True)
+    # Provenance: came from a chart template (editable and deletable, just labelled)
+    is_system = Column(Boolean, default=False)
+    source_key = Column(String, nullable=True, index=True)
+    snc_code = Column(String, nullable=True)   # SNC account, e.g. "62"
 
 class Supplier(Base):
     __tablename__ = "suppliers"

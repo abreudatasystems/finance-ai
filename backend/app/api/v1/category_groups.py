@@ -52,11 +52,19 @@ class GroupUpdate(BaseModel):
 
 
 def ensure_system_groups(db: Session, company_id: str) -> None:
-    """Create the Receita/Despesa groups for this company if they are missing.
+    """Ensure the company has its chart of accounts.
 
-    Done lazily so companies that predate this feature get them on first read,
-    without needing a data migration.
+    Delegates to the provisioning service so the groups (and, the first time
+    round, the standard categories) come from the catalog rather than being
+    defined here. Runs lazily, so companies that predate this feature pick it
+    up on first read without a data migration.
     """
+    from app.services.provisioning import ensure_provisioned
+    ensure_provisioned(db, company_id)
+
+
+def _legacy_ensure_system_groups(db: Session, company_id: str) -> None:
+    """Superseded by the catalog; kept only as the historical definition."""
     existing = {
         g.name.lower()
         for g in db.query(CategoryGroup)

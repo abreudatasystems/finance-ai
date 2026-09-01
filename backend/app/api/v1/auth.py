@@ -8,6 +8,7 @@ from app.api.deps import get_current_user
 from app.models.models import User, Company, UserMembership
 from app.schemas.schemas import LoginRequest, UserCreate, Token, UserOut
 from app.core.security import verify_password, get_password_hash, create_access_token
+from app.services.provisioning import apply_template
 
 router = APIRouter()
 
@@ -55,6 +56,9 @@ def register(request: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.add(new_mem)
     db.commit()
+
+    # Give the new company a working chart of accounts straight away.
+    apply_template(db, comp_id)
 
     token = create_access_token(subject=user_id)
     return {"access_token": token, "token_type": "bearer"}

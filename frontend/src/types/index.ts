@@ -108,7 +108,21 @@ export interface Category {
   description?: string;
   keywords?: string[];
   active: boolean;
+  /** Came from the standard chart template: read-only (cannot be edited or deleted). */
+  is_system?: boolean;
+  source_key?: string | null;
+  snc_code?: string | null;
   children?: Category[];
+}
+
+export interface ChartTemplate {
+  code: string;
+  name: string;
+  description: string;
+  country: string;
+  standard?: string | null;
+  category_count: number;
+  active?: boolean;
 }
 
 export interface Supplier {

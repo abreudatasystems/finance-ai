@@ -17,6 +17,7 @@ import {
   User,
   Category,
   CategoryGroup,
+  ChartTemplate,
   Installment,
   PaymentRecord,
   BankAccount,
@@ -291,6 +292,20 @@ export async function fetchBankAccounts(): Promise<BankAccount[]> {
   return (await apiGet<BankAccount[]>('/bank-accounts/')) || [];
 }
 
+export async function fetchChartTemplates(): Promise<ChartTemplate[]> {
+  return (await apiGet<ChartTemplate[]>('/chart-templates/')) || [];
+}
+
+export interface RestoreChartResult {
+  created: number;
+  skipped: number;
+  message: string;
+}
+
+export async function restoreChartDefaults(templateCode?: string): Promise<RestoreChartResult | null> {
+  return apiPost<RestoreChartResult>('/chart-templates/restore', { template_code: templateCode });
+}
+
 export async function fetchCategoryGroups(): Promise<CategoryGroup[]> {
   return (await apiGet<CategoryGroup[]>('/category-groups/')) || [];
 }
@@ -320,6 +335,13 @@ export async function createCategory(payload: {
   keywords?: string[];
 }): Promise<Category | null> {
   return apiPost<Category>('/categories/', payload);
+}
+
+export async function updateCategory(
+  id: string,
+  patch: Partial<Pick<Category, 'name' | 'description' | 'group_id' | 'active'>> & { keywords?: string[] },
+): Promise<Category | null> {
+  return apiPatch<Category>(`/categories/${id}`, patch);
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
