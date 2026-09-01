@@ -138,7 +138,46 @@ class Category(Base):
     source_key = Column(String, nullable=True, index=True)
     snc_code = Column(String, nullable=True)   # SNC account, e.g. "62"
 
+class Entity(Base):
+    """A counterparty: a supplier, a customer, or both.
+
+    Suppliers and customers were two tables holding the same columns, which
+    meant the same company appeared twice — once for what we buy from them and
+    once for what we sell them — with two NIFs to keep in step and no single
+    account to look at. One entity carries both roles instead.
+
+    Money is deliberately **not** stored here: what an entity owes and what is
+    owed to it is derived from the transactions, so it can never go stale.
+    """
+
+    __tablename__ = "entities"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    nif = Column(String, nullable=True, index=True)
+    email = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+
+    # The same entity can be both — a supplier you also invoice.
+    is_supplier = Column(Boolean, default=False)
+    is_customer = Column(Boolean, default=False)
+
+    default_category_id = Column(String, nullable=True)
+    default_category_name = Column(String, nullable=True)
+
+    notes = Column(Text, nullable=True)
+    active = Column(Boolean, default=True)
+    # Where this row came from when the two old tables were folded in.
+    source_ref = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Supplier(Base):
+    """Legacy table, superseded by Entity. Kept so migration 0005 stays
+    reversible; nothing reads it any more."""
+
     __tablename__ = "suppliers"
 
     id = Column(String, primary_key=True, index=True)
@@ -154,6 +193,8 @@ class Supplier(Base):
     last_transaction_date = Column(String, nullable=True)
 
 class Customer(Base):
+    """Legacy table, superseded by Entity (see Supplier above)."""
+
     __tablename__ = "customers"
 
     id = Column(String, primary_key=True, index=True)

@@ -1,13 +1,44 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from datetime import datetime, timezone
+"""Suppliers — a view over the unified entity register.
 
-from app.db.session import get_db
+Suppliers and customers are the same thing wearing different hats, so they
+live in one table now (see app/services/entities.py). This endpoint keeps its
+old shape — including ``total_spent`` — so existing clients carry on working,
+but the numbers are derived from the movements rather than stored.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
 from app.api.deps import get_current_company_id, require_write
-from app.models.models import Supplier, User
+from app.db.session import get_db
+from app.models.models import User
 from app.schemas.schemas import SupplierCreate
+from app.services import entities as service
+from app.api.v1.entities import query_entities
 
 router = APIRouter()
+
+
+def _as_supplier(row: dict) -> dict:
+    """The legacy supplier shape, filled from the entity and its balance."""
+    compras = row.get("compras") or {}
+    return {
+        "id": row["id"],
+        "company_id": row["company_id"],
+        "name": row["name"],
+        "nif": row["nif"],
+        "email": row["email"],
+        "phone": row["phone"],
+        "address": row["address"],
+        "default_category_id": row["default_category_id"],
+        "default_category_name": row["default_category_name"],
+        "total_spent": compras.get("faturado", 0.0),
+        "em_divida": compras.get("em_divida", 0.0),
+        "last_transaction_date": row.get("ultimo_movimento"),
+        # New, and useful: the same company may also be a customer.
+        "is_customer": row["is_customer"],
+        "papel": row["papel"],
+    }
 
 
 @router.get("/")
@@ -15,7 +46,8 @@ def get_suppliers(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
 ):
-    return db.query(Supplier).filter(Supplier.company_id == company_id).all()
+    rows = service.with_balances(db, company_id, query_entities(db, company_id, "supplier"))
+    return [_as_supplier(r) for r in rows]
 
 
 @router.post("/", status_code=201)
@@ -25,24 +57,8 @@ def create_supplier(
     company_id: str = Depends(get_current_company_id),
     _writer: User = Depends(require_write),
 ):
-    sup_id = f"SUP-{int(datetime.now(timezone.utc).timestamp() * 1000)}"
-    new_sup = Supplier(
-        id=sup_id,
-        company_id=company_id,
-        name=item.name,
-        nif=item.nif or "PT000000000",
-        email=item.email,
-        phone=item.phone,
-        address=item.address,
-        default_category_id=item.default_category_id,
-        default_category_name=item.default_category_name,
-        total_spent=0.0,
-        last_transaction_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-    )
-    db.add(new_sup)
-    db.commit()
-    db.refresh(new_sup)
-    return new_sup
+    entity = service.create(db, company_id, {**item.model_dump(), "is_supplier": True})
+    return _as_supplier(service.serialize(entity, {"compras": {}, "vendas": {}}))
 
 
 @router.delete("/{supplier_id}")
@@ -52,10 +68,14 @@ def delete_supplier(
     company_id: str = Depends(get_current_company_id),
     _writer: User = Depends(require_write),
 ):
-    sup = db.query(Supplier).filter(Supplier.id == supplier_id, Supplier.company_id == company_id).first()
-    if not sup:
-        return {"status": "error", "message": "Fornecedor não encontrado"}
-    db.delete(sup)
-    db.commit()
-    return {"status": "success", "deleted_id": supplier_id}
-
+    """Drops the supplier role; the entity itself survives if it is also a customer."""
+    entity = service.scoped(db, company_id, supplier_id)
+    if entity.is_customer:
+        entity.is_supplier = False
+        db.commit()
+        return {
+            "status": "success",
+            "deleted_id": supplier_id,
+            "message": f"'{entity.name}' continua como cliente.",
+        }
+    return service.remove(db, company_id, supplier_id)
