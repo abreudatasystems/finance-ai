@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_company_id
+from app.api.deps import get_current_company_id, require_write
 from app.db.session import get_db
-from app.models.models import BankAccount, Payment
+from app.models.models import BankAccount, Payment, User
 
 router = APIRouter()
 
@@ -86,6 +86,7 @@ def create_account(
     item: AccountCreate,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     name = (item.name or "").strip()
     if not name:

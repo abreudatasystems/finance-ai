@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_company_id, get_current_user
+from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.db.session import get_db
 from app.models.models import Installment, Payment, Transaction, User, AuditLog
 
@@ -166,6 +166,7 @@ def create_installments(
     plan: InstallmentPlan,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     """Split a transaction into N parcelas. Replaces any unpaid existing plan."""
     trx = _scoped_trx(db, company_id, trx_id)
@@ -287,6 +288,7 @@ def create_payment(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
     current_user: User = Depends(get_current_user),
+    _writer: User = Depends(require_write),
 ):
     """Register a payment (expense) or a receipt (income), full or partial."""
     trx = _scoped_trx(db, company_id, trx_id)
@@ -391,6 +393,7 @@ def delete_payment(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
     current_user: User = Depends(get_current_user),
+    _writer: User = Depends(require_write),
 ):
     """Undo a payment (e.g. registered by mistake) and re-derive the totals."""
     trx = _scoped_trx(db, company_id, trx_id)

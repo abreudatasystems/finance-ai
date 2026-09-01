@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_company_id, get_current_user
+from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.db.session import get_db
 from app.models.models import (
     AIApprovalItem,
@@ -98,6 +98,7 @@ async def upload_document(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
     current_user: User = Depends(get_current_user),
+    _writer: User = Depends(require_write),
 ):
     """Ingest a document: store it, extract its data, and queue it for approval.
 

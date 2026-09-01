@@ -14,9 +14,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_company_id
+from app.api.deps import get_current_company_id, require_write
 from app.db.session import get_db
-from app.models.models import Category, CategoryGroup
+from app.models.models import Category, CategoryGroup, User
 
 router = APIRouter()
 
@@ -152,6 +152,7 @@ def create_group(
     item: GroupCreate,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     ensure_system_groups(db, company_id)
 
@@ -203,6 +204,7 @@ def update_group(
     patch: GroupUpdate,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     group = _scoped(db, company_id, group_id)
     data = patch.model_dump(exclude_unset=True)
@@ -252,6 +254,7 @@ def delete_group(
     group_id: str,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     group = _scoped(db, company_id, group_id)
 

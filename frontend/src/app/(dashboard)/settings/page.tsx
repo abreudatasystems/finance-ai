@@ -8,6 +8,7 @@ import { clearToken } from '@/services/api';
 import { AIRule, AuditLogItem } from '@/types';
 import Link from 'next/link';
 import { ChartOfAccounts } from '@/components/settings/ChartOfAccounts';
+import { TeamPanel } from '@/components/settings/TeamPanel';
 import {
   Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, Mail, BadgeCheck, History,
   FolderTree
@@ -34,7 +35,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'categories', label: 'Categorias', icon: <FolderTree className="w-4 h-4" /> },
   { id: 'ai', label: 'Inteligência Artificial', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'profile', label: 'Perfil', icon: <User className="w-4 h-4" /> },
-  { id: 'users', label: 'Utilizadores & Roles', icon: <Users className="w-4 h-4" /> },
+  { id: 'users', label: 'Equipa & Permissões', icon: <Users className="w-4 h-4" /> },
   { id: 'audit', label: 'Auditoria & Logs', icon: <History className="w-4 h-4" /> },
 ];
 
@@ -402,45 +403,7 @@ export default function SettingsPage() {
       )}
 
       {/* TAB: Utilizadores & Roles */}
-      {activeTab === 'users' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4 text-xs">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-slate-900">Membros da Equipa e Permissões</h3>
-            <span className="text-slate-400 font-mono">2 Membros</span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[560px]">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
-                  <th className="p-3">Nome</th>
-                  <th className="p-3">Email</th>
-                  <th className="p-3">Role / Permissão</th>
-                  <th className="p-3">Data de Entrada</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                <tr className="hover:bg-slate-50 font-medium">
-                  <td className="p-3 font-bold text-slate-900">{displayName}</td>
-                  <td className="p-3 text-slate-600">{displayEmail}</td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-bold rounded text-[10px] uppercase">Owner</span>
-                  </td>
-                  <td className="p-3 text-slate-500">15/01/2026</td>
-                </tr>
-                <tr className="hover:bg-slate-50 font-medium">
-                  <td className="p-3 font-bold text-slate-900">Ana Costa</td>
-                  <td className="p-3 text-slate-600">ana@techstart.pt</td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-bold rounded text-[10px] uppercase">Finance Manager</span>
-                  </td>
-                  <td className="p-3 text-slate-500">10/02/2026</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {activeTab === 'users' && <TeamPanel />}
 
       {/* TAB: Auditoria & Logs */}
       {activeTab === 'audit' && (

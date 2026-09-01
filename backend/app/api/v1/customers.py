@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from app.db.session import get_db
-from app.api.deps import get_current_company_id
-from app.models.models import Customer
+from app.api.deps import get_current_company_id, require_write
+from app.models.models import Customer, User
 from app.schemas.schemas import CustomerCreate
 
 router = APIRouter()
@@ -23,6 +23,7 @@ def create_customer(
     item: CustomerCreate,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     cust_id = f"CUST-{int(datetime.now(timezone.utc).timestamp() * 1000)}"
     new_cust = Customer(
@@ -47,6 +48,7 @@ def delete_customer(
     customer_id: str,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     cust = db.query(Customer).filter(Customer.id == customer_id, Customer.company_id == company_id).first()
     if not cust:

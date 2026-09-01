@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from app.db.session import get_db
-from app.api.deps import get_current_company_id, get_current_user
+from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.models.models import Transaction, User
 from app.schemas.schemas import TransactionCreate, TransactionUpdate, TransactionOut
 from app.api.v1.settlements import (
@@ -85,6 +85,7 @@ def create_transaction(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
     current_user: User = Depends(get_current_user),
+    _writer: User = Depends(require_write),
 ):
     now = datetime.now(timezone.utc)
     trx_id = f"TRX-{int(now.timestamp() * 1000)}"
@@ -164,6 +165,7 @@ def update_transaction(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
     current_user: User = Depends(get_current_user),
+    _writer: User = Depends(require_write),
 ):
     trx = _scoped(db, company_id, trx_id)
     data = patch.model_dump(exclude_unset=True)

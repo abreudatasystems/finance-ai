@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_company_id, get_current_user
+from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.db.session import get_db
 from app.models.models import AIApprovalItem, AIDocument, AuditLog, Transaction, User
 
@@ -56,6 +56,7 @@ def action_approval(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
     current_user: User = Depends(get_current_user),
+    _writer: User = Depends(require_write),
 ):
     """Decide on a pending item.
 

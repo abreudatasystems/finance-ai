@@ -91,16 +91,29 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
                     switchCompany(comp.id);
                     setIsCompanyDropdownOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${
                     comp.id === currentCompany?.id
                       ? 'bg-neutral-100 text-neutral-900 font-bold'
                       : 'text-neutral-700 hover:bg-neutral-50 font-medium'
                   }`}
                 >
-                  <span>{comp.name}</span>
-                  <span className="text-[10px] text-neutral-400 font-mono">{comp.currency}</span>
+                  <span className="truncate">{comp.name}</span>
+                  {/* The role travels with the company: the same login can be
+                      owner here and consulta there. */}
+                  <span className="text-[9px] text-neutral-500 font-bold uppercase shrink-0">
+                    {comp.role_label || comp.currency}
+                  </span>
                 </button>
               ))}
+
+              <div className="h-px bg-neutral-100 my-1" />
+              <Link
+                href="/settings/companies"
+                onClick={() => setIsCompanyDropdownOpen(false)}
+                className="w-full text-left px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 flex items-center gap-2"
+              >
+                <Building2 className="w-3.5 h-3.5" /> Gerir empresas
+              </Link>
             </div>
           )}
         </div>

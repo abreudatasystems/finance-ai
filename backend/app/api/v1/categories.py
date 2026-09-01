@@ -17,8 +17,8 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.db.session import get_db
-from app.api.deps import get_current_company_id
-from app.models.models import Category, CategoryGroup
+from app.api.deps import get_current_company_id, require_write
+from app.models.models import Category, CategoryGroup, User
 from app.api.v1.category_groups import ensure_system_groups
 from app.schemas.schemas import CategoryCreate
 
@@ -68,6 +68,7 @@ def create_category(
     item: CategoryCreate,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     ensure_system_groups(db, company_id)
 
@@ -163,6 +164,7 @@ def update_category(
     patch: CategoryUpdate,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     cat = _scoped(db, company_id, category_id)
     _refuse_if_system(cat, "alterada")
@@ -212,6 +214,7 @@ def delete_category(
     category_id: str,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     cat = _scoped(db, company_id, category_id)
     _refuse_if_system(cat, "eliminada")

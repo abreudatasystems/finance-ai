@@ -5,6 +5,7 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
 
 const TOKEN_KEY = 'finance_ai_token';
+const COMPANY_KEY = 'finance_ai_company';
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -28,6 +29,7 @@ export function clearToken(): void {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.removeItem(TOKEN_KEY);
+    window.localStorage.removeItem(COMPANY_KEY);
   } catch {
     /* noop */
   }
@@ -37,10 +39,44 @@ export function isAuthenticated(): boolean {
   return !!getToken();
 }
 
+/* ------------------------------------------------------------------ tenant */
+/* The active company travels in a header on every request. The backend only
+ * accepts it after checking the membership, so a login with several companies
+ * gets several isolated data sets and never a mixture of them.            */
+
+export function getActiveCompany(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(COMPANY_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveCompany(companyId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(COMPANY_KEY, companyId);
+  } catch {
+    /* storage unavailable — the backend falls back to the first company */
+  }
+}
+
+export function clearActiveCompany(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(COMPANY_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
 function authHeaders(extra: HeadersInit = {}): HeadersInit {
   const token = getToken();
+  const company = getActiveCompany();
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(company ? { 'X-Company-Id': company } : {}),
     ...extra,
   };
 }
@@ -60,6 +96,64 @@ export async function apiGet<T>(path: string): Promise<T | null> {
     /* fall through */
   }
   return null;
+}
+
+/** The API's error message for a failed call, or null when it succeeded. */
+export async function apiError(res: Response): Promise<string | null> {
+  if (res.ok) return null;
+  try {
+    const data = await res.json();
+    return typeof data.detail === 'string' ? data.detail : 'Ocorreu um erro.';
+  } catch {
+    return 'Ocorreu um erro.';
+  }
+}
+
+/** POST that surfaces the API's message instead of swallowing it. */
+export async function apiPostOrError<T>(
+  path: string,
+  body: unknown,
+): Promise<{ data?: T; error?: string }> {
+  try {
+    const res = await apiFetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return { data: (await res.json()) as T };
+    return { error: (await apiError(res)) || 'Ocorreu um erro.' };
+  } catch {
+    return { error: 'Não foi possível contactar o servidor.' };
+  }
+}
+
+/** PATCH that surfaces the API's message instead of swallowing it. */
+export async function apiPatchOrError<T>(
+  path: string,
+  body: unknown,
+): Promise<{ data?: T; error?: string }> {
+  try {
+    const res = await apiFetch(path, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return { data: (await res.json()) as T };
+    return { error: (await apiError(res)) || 'Ocorreu um erro.' };
+  } catch {
+    return { error: 'Não foi possível contactar o servidor.' };
+  }
+}
+
+/** DELETE that surfaces the API's message instead of swallowing it. */
+export async function apiDeleteOrError<T>(path: string): Promise<{ data?: T; error?: string }> {
+  try {
+    const res = await apiFetch(path, { method: 'DELETE' });
+    if (res.ok) return { data: (await res.json()) as T };
+    return { error: (await apiError(res)) || 'Ocorreu um erro.' };
+  } catch {
+    return { error: 'Não foi possível contactar o servidor.' };
+  }
 }
 
 /** Convenience JSON POST. */
@@ -121,6 +215,9 @@ export async function login(email: string, password: string): Promise<AuthResult
     if (res.ok) {
       const data = await res.json();
       setToken(data.access_token);
+      // A company remembered from whoever used this browser before is not this
+      // user's; drop it so the backend picks their own first company.
+      clearActiveCompany();
       return { ok: true };
     }
     const detail = await res.json().catch(() => ({}));
@@ -145,6 +242,7 @@ export async function register(
     if (res.ok) {
       const data = await res.json();
       setToken(data.access_token);
+      clearActiveCompany();
       return { ok: true };
     }
     const detail = await res.json().catch(() => ({}));

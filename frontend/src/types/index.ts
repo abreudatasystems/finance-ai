@@ -9,6 +9,15 @@ export interface Company {
   currency: Currency;
   fiscal_year_start: string;
   created_at: string;
+  country?: string;
+  legal_form?: string | null;
+  vat_regime?: string;
+  vat_periodicity?: string;
+  cae?: string | null;
+  /** The role the signed-in login holds in THIS company. */
+  role?: UserRole;
+  role_label?: string;
+  member_count?: number;
 }
 
 export interface VatRateLine {
@@ -57,16 +66,89 @@ export interface RealCash {
 
 export interface UserMembership {
   company_id: string;
+  company_name?: string;
   role: UserRole;
   joined_at: string;
 }
+
+/**
+ * How the account came to exist.
+ * `full` — registered on their own; may open as many companies as they want.
+ * `invited` — exists because a company invited them; participates only there.
+ */
+export type AccountType = 'full' | 'invited';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   avatar?: string;
+  account_type?: AccountType;
+  can_create_companies?: boolean;
   memberships: UserMembership[];
+}
+
+/** A person inside one company, with what they have been moving. */
+export interface TeamMember {
+  user_id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  account_type: AccountType;
+  role: UserRole;
+  role_label: string;
+  joined_at?: string | null;
+  invited_by?: string | null;
+  is_you: boolean;
+  movimentos: number;
+}
+
+export interface Invitation {
+  id: string;
+  company_id: string;
+  company_name?: string;
+  email: string;
+  role: UserRole;
+  role_label: string;
+  status: 'pending' | 'accepted' | 'revoked';
+  message?: string | null;
+  invited_by_name?: string | null;
+  created_at?: string | null;
+  expires_at?: string | null;
+  accepted_at?: string | null;
+  /** Only present while the invitation is still open. */
+  token?: string;
+  accept_path?: string;
+}
+
+export interface InvitationPreview {
+  company_name: string;
+  email: string;
+  role: UserRole;
+  role_label: string;
+  invited_by_name?: string | null;
+  message?: string | null;
+  expires_at?: string | null;
+  /** True when the invited email already has a login and should just sign in. */
+  account_exists: boolean;
+}
+
+export interface MemberActivity {
+  user_id: string;
+  name: string;
+  lancamentos: number;
+  total_entradas: number;
+  total_saidas: number;
+  ultimo_lancamento?: string | null;
+  movimentos: Array<{
+    id: string;
+    date: string;
+    description: string;
+    type: TransactionType;
+    amount: number;
+    status: string;
+  }>;
+  acoes: Array<{ timestamp: string; action: string; module: string; description: string }>;
 }
 
 export type TransactionType = 'income' | 'expense' | 'transfer';

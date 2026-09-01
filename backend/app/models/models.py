@@ -1,4 +1,7 @@
-from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text, Numeric
+from sqlalchemy import (
+    Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text, Numeric,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
@@ -28,6 +31,17 @@ class Company(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class User(Base):
+    """A login.
+
+    ``account_type`` separates the two ways an account comes into existence:
+
+    * ``full`` — someone who registered on their own. Owns companies and may
+      create as many as they want, each one a separate tenant.
+    * ``invited`` — someone who only exists because a company invited them.
+      They work inside the companies they were invited to and cannot open
+      companies of their own.
+    """
+
     __tablename__ = "users"
 
     id = Column(String, primary_key=True, index=True)
@@ -35,16 +49,52 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     avatar = Column(String, nullable=True)
+    account_type = Column(String, default="full", nullable=False)   # full | invited
+    active = Column(Boolean, default=True)
+    last_login_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
 class UserMembership(Base):
+    """A user's seat in one company — the row that grants access to a tenant.
+
+    Everything the API reads or writes is scoped by ``company_id``, so a user
+    with three memberships sees three completely separate sets of data.
+    """
+
     __tablename__ = "user_memberships"
+    __table_args__ = (UniqueConstraint("user_id", "company_id", name="uq_membership_user_company"),)
 
     id = Column(String, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
     role = Column(String, default="owner")  # owner, admin, finance_manager, viewer
+    invited_by = Column(String, ForeignKey("users.id"), nullable=True)
     joined_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Invitation(Base):
+    """An invitation to join a company.
+
+    The token is the secret: whoever holds it can accept the invitation for the
+    invited email address. It expires, can be revoked, and is single-use.
+    """
+
+    __tablename__ = "invitations"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
+    email = Column(String, nullable=False, index=True)
+    role = Column(String, nullable=False, default="viewer")
+    token = Column(String, unique=True, index=True, nullable=False)
+    # pending | accepted | revoked  (expiry is derived from expires_at)
+    status = Column(String, default="pending", nullable=False)
+    message = Column(Text, nullable=True)
+    invited_by = Column(String, ForeignKey("users.id"), nullable=True)
+    accepted_by = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    accepted_at = Column(DateTime, nullable=True)
 
 class CategoryGroup(Base):
     """Top level of the classification tree: Group > Category > Subcategory.

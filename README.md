@@ -37,6 +37,29 @@ python -m uvicorn app.main:app --port 8000 --reload
 ```
 API docs available at: `http://127.0.0.1:8000/docs`
 
+The schema is managed by **Alembic**, not `create_all`. Startup brings the
+database up to date on its own (a database created before migrations existed is
+stamped at the baseline first). To take control yourself — which is what you
+want when more than one process boots at the same time — set `AUTO_MIGRATE=0`
+and run the upgrade explicitly:
+
+```bash
+export AUTO_MIGRATE=0
+alembic upgrade head                       # apply pending migrations
+alembic revision --autogenerate -m "..."   # after changing a model
+alembic downgrade -1                       # step back one revision
+```
+
+### Multi-empresa e equipas
+
+A login can own several companies; each is a separate tenant. The active one
+travels in the `X-Company-Id` header and is only accepted after the membership
+is checked, so data from two companies never mixes. People are brought in by
+invitation (`/settings` → Equipa & Permissões) with a role — proprietário,
+administrador, gestor financeiro or consulta. An account created from an
+invitation participates in the companies that invited it and cannot open its
+own.
+
 ### 2. Start Frontend App
 ```bash
 cd frontend

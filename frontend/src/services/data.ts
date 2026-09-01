@@ -32,10 +32,18 @@ import {
   FinancialHealthScore,
   FinancialEvent,
   AIRule,
-  AuditLogItem
+  AuditLogItem,
+  UserRole,
+  TeamMember,
+  Invitation,
+  InvitationPreview,
+  MemberActivity,
 } from '@/types';
 
-import { apiGet, apiPatch, apiPost, apiDelete, apiFetch } from './api';
+import {
+  apiGet, apiPatch, apiPost, apiDelete, apiFetch,
+  apiPostOrError, apiPatchOrError, apiDeleteOrError, apiError, API_BASE,
+} from './api';
 
 export const delay = (ms: number = 100) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -46,17 +54,20 @@ export async function fetchCompanies(): Promise<Company[]> {
   return companiesData as Company[];
 }
 
+/** The signed-in login, with the real memberships the backend reports. */
+export async function fetchCurrentUser(): Promise<User | null> {
+  const u = await apiGet<User>('/auth/me');
+  if (!u) return null;
+  return {
+    ...u,
+    avatar: u.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+    memberships: u.memberships || [],
+  };
+}
+
 export async function fetchUsers(): Promise<User[]> {
-  const u = await apiGet<{ id: string; name: string; email: string; avatar?: string; role?: string }>('/auth/me');
-  if (u) {
-    return [{
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      avatar: u.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-      memberships: [{ company_id: 'COMP001', role: (u.role as User['memberships'][number]['role']) || 'owner', joined_at: '2026-01-15' }]
-    }];
-  }
+  const u = await fetchCurrentUser();
+  if (u) return [u];
   await delay(100);
   return usersData as User[];
 }
@@ -350,3 +361,111 @@ export async function deleteCategory(id: string): Promise<boolean> {
 }
 
 
+
+/* ------------------------------------------------------------------------ */
+/* Team & tenancy                                                            */
+/*                                                                           */
+/* A login can belong to several companies. The active one travels in the    */
+/* X-Company-Id header (see services/api.ts) and the backend only accepts it */
+/* after checking the membership — so switching company here can never leak  */
+/* data from another one.                                                    */
+/* ------------------------------------------------------------------------ */
+
+export async function createCompany(payload: {
+  name: string;
+  nif?: string;
+  currency?: string;
+  legal_form?: string;
+  vat_regime?: string;
+  vat_periodicity?: string;
+  cae?: string;
+}): Promise<{ data?: Company; error?: string }> {
+  return apiPostOrError<Company>('/companies/', payload);
+}
+
+export async function fetchTeamMembers(companyId: string): Promise<TeamMember[]> {
+  return (await apiGet<TeamMember[]>(`/companies/${companyId}/members`)) || [];
+}
+
+export async function updateMemberRole(
+  companyId: string,
+  userId: string,
+  role: UserRole,
+): Promise<{ data?: { role: UserRole; role_label: string }; error?: string }> {
+  return apiPatchOrError(`/companies/${companyId}/members/${userId}`, { role });
+}
+
+export async function removeMember(
+  companyId: string,
+  userId: string,
+): Promise<{ error?: string }> {
+  const res = await apiDeleteOrError(`/companies/${companyId}/members/${userId}`);
+  return { error: res.error };
+}
+
+export async function fetchMemberActivity(
+  companyId: string,
+  userId: string,
+): Promise<MemberActivity | null> {
+  return apiGet<MemberActivity>(`/companies/${companyId}/members/${userId}/activity`);
+}
+
+export async function fetchInvitations(companyId: string): Promise<Invitation[]> {
+  return (await apiGet<Invitation[]>(`/invitations/company/${companyId}`)) || [];
+}
+
+export async function createInvitation(
+  companyId: string,
+  payload: { email: string; role: UserRole; message?: string },
+): Promise<{ data?: Invitation; error?: string }> {
+  return apiPostOrError<Invitation>(`/invitations/company/${companyId}`, payload);
+}
+
+export async function revokeInvitation(invitationId: string): Promise<{ error?: string }> {
+  const res = await apiDeleteOrError(`/invitations/${invitationId}`);
+  return { error: res.error };
+}
+
+/** Public: what the invited person sees before deciding. */
+export async function previewInvitation(
+  token: string,
+): Promise<{ data?: InvitationPreview; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/invitations/token/${token}`);
+    if (res.ok) return { data: (await res.json()) as InvitationPreview };
+    return { error: (await apiError(res)) || 'Convite inválido.' };
+  } catch {
+    return { error: 'Não foi possível contactar o servidor.' };
+  }
+}
+
+/** Accept with the login you are already signed in as. */
+export async function acceptInvitation(
+  token: string,
+): Promise<{ data?: { company_id: string; company_name: string; role: UserRole }; error?: string }> {
+  return apiPostOrError('/invitations/accept', { token });
+}
+
+/** Create the invited account and join in one step. Returns a session token. */
+export async function registerFromInvitation(payload: {
+  token: string;
+  name: string;
+  password: string;
+}): Promise<{ data?: { access_token: string; company_id: string }; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/invitations/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return { data: await res.json() };
+    return { error: (await apiError(res)) || 'Não foi possível criar a conta.' };
+  } catch {
+    return { error: 'Não foi possível contactar o servidor.' };
+  }
+}
+
+/** Invitations waiting for the signed-in user's email. */
+export async function fetchMyInvitations(): Promise<Invitation[]> {
+  return (await apiGet<Invitation[]>('/invitations/mine')) || [];
+}
