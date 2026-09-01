@@ -18,8 +18,14 @@ interface AppContextType {
   toggleAiDrawer: () => void;
   isSidebarCollapsed: boolean;
   toggleSidebar: () => void;
+  isMobileMenuOpen: boolean;
+  toggleMobileMenu: () => void;
+  closeMobileMenu: () => void;
   switchCompany: (companyId: string) => void;
   formatMoney: (amount: number) => string;
+  pageTitle: string;
+  pageSubtitle: string;
+  setPageHeader: (title: string, subtitle?: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -32,6 +38,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [userRole, setUserRole] = useState<UserRole>('owner');
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [pageTitle, setPageTitle] = useState<string>('');
+  const [pageSubtitle, setPageSubtitle] = useState<string>('');
+
+  const setPageHeader = (title: string, subtitle: string = '') => {
+    setPageTitle(title);
+    setPageSubtitle(subtitle);
+  };
 
   useEffect(() => {
     async function initData() {
@@ -65,6 +79,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const closeAiDrawer = () => setIsAiDrawerOpen(false);
   const toggleAiDrawer = () => setIsAiDrawerOpen(prev => !prev);
   const toggleSidebar = () => setIsSidebarCollapsed(prev => !prev);
+  const toggleMobileMenu = () => setIsMobileMenuOpen(prev => !prev);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   const getSymbol = (curr: Currency) => {
     switch (curr) {
@@ -101,8 +117,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleAiDrawer,
         isSidebarCollapsed,
         toggleSidebar,
+        isMobileMenuOpen,
+        toggleMobileMenu,
+        closeMobileMenu,
         switchCompany,
-        formatMoney
+        formatMoney,
+        pageTitle,
+        pageSubtitle,
+        setPageHeader
       }}
     >
       {children}

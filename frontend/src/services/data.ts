@@ -213,6 +213,14 @@ export async function deleteCustomer(id: string): Promise<boolean> {
   return !!res;
 }
 
+export async function updateCustomer(id: string, patch: Partial<Customer>): Promise<Customer | null> {
+  return apiPatch<Customer>(`/customers/${id}`, patch);
+}
+
+export async function updateSupplier(id: string, patch: Partial<Supplier>): Promise<Supplier | null> {
+  return apiPatch<Supplier>(`/suppliers/${id}`, patch);
+}
+
 export async function deleteCategory(id: string): Promise<boolean> {
   const res = await apiDelete<Record<string, unknown>>(`/categories/${id}`);
   return !!res;

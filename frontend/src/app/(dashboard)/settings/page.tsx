@@ -3,14 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { fetchAIRules } from '@/services/data';
+import { fetchAIRules, fetchAuditLogs } from '@/services/data';
 import { clearToken } from '@/services/api';
-import { AIRule } from '@/types';
+import { AIRule, AuditLogItem } from '@/types';
 import {
-  Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, Mail, BadgeCheck,
+  Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, Mail, BadgeCheck, History
 } from 'lucide-react';
 
-type Tab = 'company' | 'ai' | 'profile' | 'users';
+type Tab = 'company' | 'ai' | 'profile' | 'users' | 'audit';
 
 const SETTINGS_KEY = 'finance_ai_settings';
 
@@ -31,20 +31,23 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'ai', label: 'Inteligência Artificial', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'profile', label: 'Perfil', icon: <User className="w-4 h-4" /> },
   { id: 'users', label: 'Utilizadores & Roles', icon: <Users className="w-4 h-4" /> },
+  { id: 'audit', label: 'Auditoria & Logs', icon: <History className="w-4 h-4" /> },
 ];
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { currentCompany, currency, setCurrency, currentUser, userRole } = useApp();
+  const { currentCompany, currency, setCurrency, currentUser, userRole, setPageHeader } = useApp();
 
   const [activeTab, setActiveTab] = useState<Tab>('company');
   const [aiRules, setAiRules] = useState<AIRule[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [settings, setSettings] = useState<StoredSettings>(DEFAULT_SETTINGS);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
     async function load() {
       setAiRules(await fetchAIRules());
+      setAuditLogs(await fetchAuditLogs());
     }
     load();
 
@@ -55,6 +58,10 @@ export default function SettingsPage() {
       /* ignore */
     }
   }, []);
+
+  useEffect(() => {
+    setPageHeader('Configurações da Plataforma', 'Gestão da empresa, preferências do motor de inteligência artificial e utilizadores');
+  }, [setPageHeader]);
 
   const patch = (p: Partial<StoredSettings>) => setSettings((s) => ({ ...s, ...p }));
 
@@ -79,15 +86,8 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">Configurações da Plataforma</h1>
-          <p className="text-xs text-slate-500 font-medium">
-            Gestão da empresa, preferências do motor de inteligência artificial e utilizadores
-          </p>
-        </div>
-
+      {/* Header Actions */}
+      <div className="flex justify-end pb-4">
         <button
           onClick={handleSave}
           className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 active:scale-95 shrink-0"
@@ -97,25 +97,35 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* Navigation Tabs — horizontally scrollable on small screens */}
-      <div className="overflow-x-auto -mx-1 px-1">
-        <div className="flex items-center bg-white p-1.5 rounded-2xl border border-slate-200/80 w-max text-xs font-semibold gap-1">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === t.id ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              {t.icon}
-              {t.label}
-            </button>
-          ))}
+      <div className="flex flex-col md:flex-row gap-6 items-start">
+        {/* Settings Sidebar */}
+        <div className="w-full md:w-[250px] shrink-0 bg-white rounded-3xl border border-slate-200/80 py-3 px-2 shadow-xs space-y-4 sticky top-4">
+          <div className="h-5 flex items-center px-4">
+            <h3 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap overflow-hidden">Menu de Configuração</h3>
+          </div>
+          <div className="space-y-0.5">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`w-full text-left h-11 px-3 rounded-xl transition-all flex items-center gap-3 text-xs font-semibold ${
+                  activeTab === t.id 
+                    ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-xs' 
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <div className={`w-[32px] flex items-center justify-center shrink-0 ${activeTab === t.id ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  {t.icon}
+                </div>
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* TAB: Empresa */}
+        {/* Settings Content */}
+        <div className="flex-1 min-w-0 w-full">
+          {/* TAB: Empresa */}
       {activeTab === 'company' && (
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4 max-w-2xl text-xs">
           <div className="flex items-center gap-2">
@@ -352,6 +362,53 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* TAB: Auditoria & Logs */}
+      {activeTab === 'audit' && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-6">
+          <div className="flex items-center gap-2">
+            <History className="w-4 h-4 text-indigo-600" />
+            <h3 className="font-bold text-sm text-slate-900">Auditoria &amp; Activity Log</h3>
+          </div>
+          <p className="text-xs text-slate-500 -mt-4">Histórico cronológico de todas as ações executadas por utilizadores e pelo motor autónomo de IA</p>
+
+          <div className="relative border-l-2 border-slate-200 pl-6 space-y-6">
+            {auditLogs.map((item) => {
+              const isAiAction = item.user.includes('AI') || item.user.includes('Engine');
+              return (
+                <div key={item.id} className="relative group">
+                  {/* Bullet node */}
+                  <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center ${
+                    isAiAction ? 'bg-indigo-600' : 'bg-slate-800'
+                  }`}>
+                    {isAiAction ? <Sparkles className="w-2.5 h-2.5 text-white" /> : <User className="w-2.5 h-2.5 text-white" />}
+                  </div>
+
+                  <div className="p-4 bg-slate-50 hover:bg-slate-100/80 transition-colors rounded-xl border border-slate-200/70 space-y-1 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">{item.user}</span>
+                        <span className="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded">
+                          {item.action}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-mono">{item.timestamp}</span>
+                    </div>
+
+                    <p className="text-slate-700 font-medium">{item.description}</p>
+                    
+                    <div className="pt-1 text-[10px] text-slate-400 font-mono">
+                      Módulo: {item.module} {item.entity_id && `• Entity ID: ${item.entity_id}`}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+        </div>
+      </div>
     </div>
   );
 }

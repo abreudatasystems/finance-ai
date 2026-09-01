@@ -31,10 +31,10 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         <Sidebar />
 
         {/* Main Right Content Area - Smoothly shifts when AI Side Panel is Open or Sidebar is Collapsed */}
-        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out ${
-          isSidebarCollapsed ? 'pl-[90px]' : 'pl-[265px] md:pl-[225px] lg:pl-[265px]'
+        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out pl-0 ${
+          isSidebarCollapsed ? 'md:pl-[110px]' : 'md:pl-[245px] lg:pl-[285px]'
         } ${
-          isAiDrawerOpen ? 'pr-[420px] md:pr-[360px] lg:pr-[420px]' : 'pr-0'
+          isAiDrawerOpen ? 'pr-0 xl:pr-[420px]' : 'pr-0'
         }`}>
           {/* Page Content Viewport */}
           <main className="flex-1 px-4 sm:px-6 py-5 max-w-[1750px] w-full mx-auto space-y-4">

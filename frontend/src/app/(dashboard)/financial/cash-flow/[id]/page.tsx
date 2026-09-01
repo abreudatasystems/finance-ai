@@ -7,7 +7,7 @@ import { fetchTransaction, updateTransaction } from '@/services/data';
 import { Transaction } from '@/types';
 import {
   ArrowLeft, Pencil, Save, X, Loader2, FileText, Sparkles, RefreshCcw, ShieldCheck,
-  Wallet, Calendar, Building2, Tag, Upload, ExternalLink, Check, AlertTriangle, Landmark,
+  Wallet, Calendar, Building2, Tag, Upload, ExternalLink, Check, AlertTriangle, Landmark, Bot, User
 } from 'lucide-react';
 
 /* ---------- helpers ---------- */
@@ -79,7 +79,7 @@ export default function TransactionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = String(params?.id || '');
-  const { formatMoney } = useApp();
+  const { formatMoney, setPageHeader } = useApp();
 
   const [trx, setTrx] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,10 +97,13 @@ export default function TransactionDetailPage() {
         setTrx(data);
         setForm(data || {});
         setLoading(false);
+        if (data) {
+          setPageHeader(data.description, `Detalhes da transação · ${data.document_number || data.id}`);
+        }
       }
     })();
     return () => { active = false; };
-  }, [id]);
+  }, [id, setPageHeader]);
 
   const set = (patch: Partial<Transaction>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -181,17 +184,12 @@ export default function TransactionDetailPage() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300 pb-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <button onClick={() => router.push('/financial/cash-flow')} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 shrink-0">
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold text-slate-900 tracking-tight truncate">{trx.description}</h1>
-            <p className="text-xs text-slate-500 font-mono">{trx.id} · {trx.document_number || 'sem nº de documento'}</p>
-          </div>
-        </div>
+      {/* Header Actions */}
+      <div className="flex justify-between gap-3 pb-3">
+        <button onClick={() => router.push('/financial/cash-flow')} className="px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 shadow-xs flex items-center gap-2 transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+          <span className="text-xs font-bold hidden sm:inline">Voltar</span>
+        </button>
 
         <div className="flex items-center gap-2 shrink-0">
           {savedToast && (
@@ -236,7 +234,13 @@ export default function TransactionDetailPage() {
             {payStatus.label}
           </span>
           <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border bg-white/10 text-white/80 border-white/20">
-            {trx.source === 'ai' ? '🤖 IA' : trx.source === 'bank' ? '🏦 Banco' : '✋ Manual'}
+            {trx.source === 'ai' ? (
+              <span className="flex items-center gap-1"><Bot className="w-3 h-3" /> IA</span>
+            ) : trx.source === 'bank' ? (
+              <span className="flex items-center gap-1"><Landmark className="w-3 h-3" /> Banco</span>
+            ) : (
+              <span className="flex items-center gap-1"><User className="w-3 h-3" /> Manual</span>
+            )}
           </span>
         </div>
       </div>

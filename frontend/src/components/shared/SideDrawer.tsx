@@ -3,19 +3,9 @@
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
-type Accent = 'indigo' | 'emerald' | 'slate';
-
-const ACCENT_HEADER: Record<Accent, string> = {
-  indigo: 'bg-indigo-600',
-  emerald: 'bg-emerald-600',
-  slate: 'bg-slate-900',
-};
-
 interface SideDrawerProps {
   title: string;
   subtitle?: string;
-  icon?: React.ReactNode;
-  accent?: Accent;
   onClose: () => void;
   /** Sticky footer content (typically the action buttons). */
   footer?: React.ReactNode;
@@ -31,8 +21,6 @@ interface SideDrawerProps {
 export const SideDrawer: React.FC<SideDrawerProps> = ({
   title,
   subtitle,
-  icon,
-  accent = 'indigo',
   onClose,
   footer,
   children,
@@ -52,12 +40,12 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end select-none">
+    <div className="fixed inset-0 z-50 flex justify-end select-none p-3 sm:p-4 md:p-5">
       {/* Backdrop */}
       <div
         onClick={onClose}
         aria-hidden="true"
-        className="fai-overlay absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"
+        className="fai-overlay fixed inset-0 bg-slate-900/40 backdrop-blur-[2px]"
       />
 
       {/* Panel */}
@@ -65,12 +53,11 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`fai-drawer relative h-full w-full ${widthClass} bg-white shadow-2xl border-l border-slate-200 flex flex-col`}
+        className={`fai-drawer relative h-full w-full ${widthClass} bg-white shadow-2xl rounded-2xl md:rounded-3xl overflow-hidden flex flex-col`}
       >
         {/* Header */}
-        <div className={`px-5 py-4 text-white flex items-center justify-between ${ACCENT_HEADER[accent]}`}>
+        <div className="px-5 py-4 text-white flex items-center justify-between bg-slate-900">
           <div className="flex items-center gap-2.5 min-w-0">
-            {icon && <span className="shrink-0 text-white/90">{icon}</span>}
             <div className="min-w-0">
               <h2 className="font-bold text-sm truncate">{title}</h2>
               {subtitle && <p className="text-[11px] text-white/70 truncate">{subtitle}</p>}

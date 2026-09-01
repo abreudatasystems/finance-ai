@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import func, and_, case, extract
 from sqlalchemy.orm import Session
 
-from app.models.models import Transaction
+from app.models.models import Transaction, FinancialEvent
 
 
 def _to_float(val) -> float:
@@ -135,6 +135,69 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
             Transaction.status.notin_(["cancelled"]),
         )
         .all()
+    )
+
+    # -- Generate System Notifications for Overdue --
+    for trx in overdue_payables:
+        evt_id = f"EVT-OVD-PAY-{trx.id}"
+        if not db.query(FinancialEvent).filter_by(id=evt_id).first():
+            db.add(FinancialEvent(
+                id=evt_id,
+                company_id=company_id,
+                type="payment_overdue",
+                severity="danger",
+                title="Despesa Vencida",
+                description=f"O pagamento a {trx.entity_name} no valor de €{_to_float(trx.outstanding_amount or trx.amount):,.2f} está vencido desde {trx.due_date}.",
+                entity_type="transaction",
+                entity_id=trx.id
+            ))
+
+    for trx in overdue_receivables:
+        evt_id = f"EVT-OVD-REC-{trx.id}"
+        if not db.query(FinancialEvent).filter_by(id=evt_id).first():
+            db.add(FinancialEvent(
+                id=evt_id,
+                company_id=company_id,
+                type="collection_overdue",
+                severity="warning",
+                title="Cobrança Atrasada",
+                description=f"A cobrança de {trx.entity_name} no valor de €{_to_float(trx.outstanding_amount or trx.amount):,.2f} está atrasada desde {trx.due_date}.",
+                entity_type="transaction",
+                entity_id=trx.id
+            ))
+
+    # Save any new events
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    # ── Upcoming (Future 30 days) ──
+    thirty_days_ahead = (today + timedelta(days=30)).isoformat()
+    upcoming_payables = (
+        db.query(func.coalesce(func.sum(Transaction.outstanding_amount), 0))
+        .filter(
+            Transaction.company_id == company_id,
+            Transaction.type == "expense",
+            Transaction.due_date >= today.isoformat(),
+            Transaction.due_date <= thirty_days_ahead,
+            Transaction.payment_status.in_(["pending", "partially_paid"]),
+            Transaction.status.notin_(["cancelled"]),
+        )
+        .scalar()
+    )
+
+    upcoming_receivables = (
+        db.query(func.coalesce(func.sum(Transaction.outstanding_amount), 0))
+        .filter(
+            Transaction.company_id == company_id,
+            Transaction.type == "income",
+            Transaction.due_date >= today.isoformat(),
+            Transaction.due_date <= thirty_days_ahead,
+            Transaction.payment_status.in_(["pending", "partially_paid"]),
+            Transaction.status.notin_(["cancelled"]),
+        )
+        .scalar()
     )
 
     # ── Top expense categories this month ──
@@ -277,6 +340,8 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
         "monthly_result": round(monthly_result, 2),
         "month_income": round(month_income, 2),
         "month_expense": round(month_expense, 2),
+        "upcoming_payables": round(_to_float(upcoming_payables), 2),
+        "upcoming_receivables": round(_to_float(upcoming_receivables), 2),
         "ai_explanation": ai_explanation,
         "key_insights": key_insights,
     }

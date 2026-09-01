@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Upload, Sparkles, Loader2 } from 'lucide-react';
+import { Check, Upload, Sparkles, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { apiPost } from '@/services/api';
 import { fetchCategories } from '@/services/data';
@@ -27,10 +27,15 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
   const [amount, setAmount] = useState('');
   const [vatRate, setVatRate] = useState<number>(23);
   const [dueDate, setDueDate] = useState('2026-08-30');
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid'>('pending');
   const [categoryId, setCategoryId] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [isSuccess, setIsSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [costCenter, setCostCenter] = useState('Sede');
+  const [notes, setNotes] = useState('');
+  const [tags, setTags] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -80,6 +85,10 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
         amount: parseFloat(amount) || 0,
         vat_rate: vatRate,
         due_date: dueDate,
+        is_paid: paymentStatus === 'paid',
+        cost_center_name: costCenter.trim() || undefined,
+        notes: notes.trim() || undefined,
+        tags: tags ? tags.split(',').map((t) => t.trim()) : undefined,
       });
     }
 
@@ -91,10 +100,10 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
   const title = isSuccess
     ? 'Concluído'
     : type === 'income'
-    ? 'Nova Receita'
+    ? 'Nova Receita / Cobrança'
     : type === 'document'
     ? 'Upload Documento IA'
-    : 'Nova Despesa / Lançamento';
+    : 'Nova Despesa / Obrigação';
 
   const showFooter = !isSuccess && type !== 'document';
 
@@ -102,8 +111,6 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
     <SideDrawer
       title={title}
       subtitle={isSuccess ? undefined : 'Registe um movimento no fluxo de caixa'}
-      icon={<Sparkles className="w-5 h-5" />}
-      accent="slate"
       onClose={onClose}
       footer={
         showFooter ? (
@@ -153,7 +160,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
         </div>
       ) : (
         <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
             <button
               type="button"
               onClick={() => setType('expense')}
@@ -170,6 +177,23 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             </button>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
+            <button
+              type="button"
+              onClick={() => setPaymentStatus('paid')}
+              className={`py-1.5 rounded-lg transition-colors ${paymentStatus === 'paid' ? 'bg-white text-indigo-600 font-bold' : ''}`}
+            >
+              Já Recebido / Pago
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentStatus('pending')}
+              className={`py-1.5 rounded-lg transition-colors ${paymentStatus === 'pending' ? 'bg-white text-orange-600 font-bold' : ''}`}
+            >
+              A Receber / A Pagar (Futuro)
+            </button>
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-slate-600">Descrição do Movimento *</label>
             <input
@@ -183,7 +207,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-slate-600">Fornecedor / Cliente</label>
               <input
@@ -211,7 +235,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-slate-600">Taxa de IVA</label>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {[0, 6, 13, 23].map((rate) => (
                 <button
                   key={rate}
@@ -244,7 +268,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             <p className="text-[10px] text-slate-400">O valor introduzido é o total com IVA; o líquido é calculado a partir da taxa.</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-slate-600">Categoria</label>
               {categoryOptions.length ? (
@@ -269,7 +293,9 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-600">Data de Vencimento</label>
+              <label className="text-[11px] font-semibold text-slate-600">
+                {paymentStatus === 'pending' ? 'Data de Vencimento (Prevista)' : 'Data do Pagamento'}
+              </label>
               <input
                 type="date"
                 value={dueDate}
@@ -277,6 +303,55 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                 className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
               />
             </div>
+          </div>
+
+          {/* Advanced Options Accordion */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
+            >
+              {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showAdvanced ? 'Ocultar opções avançadas' : 'Mostrar opções avançadas (Centro de Custo, Etiquetas...)'}
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-4 space-y-4 animate-in slide-in-from-top-2 duration-200 fade-in">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-600">Centro de Custo</label>
+                    <input
+                      type="text"
+                      value={costCenter}
+                      onChange={(e) => setCostCenter(e.target.value)}
+                      placeholder="Sede, Filial Porto..."
+                      className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-600">Etiquetas (separadas por vírgula)</label>
+                    <input
+                      type="text"
+                      value={tags}
+                      onChange={(e) => setTags(e.target.value)}
+                      placeholder="Projeto X, Urgente..."
+                      className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-600">Observações Internas (Notas)</label>
+                  <textarea
+                    rows={2}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Detalhes adicionais do lançamento..."
+                    className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 resize-none"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </form>
       )}

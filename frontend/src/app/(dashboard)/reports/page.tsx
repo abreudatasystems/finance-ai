@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { FileSpreadsheet, Download, Loader2 } from 'lucide-react';
+import { FileSpreadsheet, Download, Loader2, MapPin } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { fetchDashboardSummary, fetchVatSummary } from '@/services/data';
 import { apiFetch } from '@/services/api';
@@ -28,7 +28,7 @@ interface VatSummary {
 }
 
 export default function ReportsPage() {
-  const { formatMoney } = useApp();
+  const { formatMoney, setPageHeader } = useApp();
   const [reportData, setReportData] = useState<{ month: string; Receitas: number; Despesas: number }[]>([]);
   const [vatSummary, setVatSummary] = useState<VatSummary | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -62,6 +62,10 @@ export default function ReportsPage() {
     }
     loadData();
   }, []);
+
+  useEffect(() => {
+    setPageHeader('Relatórios Financeiros & Exportação', 'Análise consolidada do desempenho financeiro, IVA e exportação SAF-T (PT)');
+  }, [setPageHeader]);
 
   const totalReceitas = reportData.reduce((sum, d) => sum + d.Receitas, 0);
   const totalDespesas = reportData.reduce((sum, d) => sum + d.Despesas, 0);
@@ -103,17 +107,8 @@ export default function ReportsPage() {
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-3">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-            Relatórios Financeiros &amp; Exportação
-          </h1>
-          <p className="text-xs text-slate-500 font-medium">
-            Análise consolidada do desempenho financeiro, IVA e exportação SAF-T (PT)
-          </p>
-        </div>
-
+      {/* Header Actions */}
+      <div className="flex justify-end pb-3">
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportCsv}
@@ -184,8 +179,8 @@ export default function ReportsPage() {
               <h3 className="font-bold text-sm text-slate-900">Resumo de IVA</h3>
               <p className="text-xs text-slate-500">Período: {vatSummary.period}</p>
             </div>
-            <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">
-              🇵🇹 Portugal
+            <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+              <MapPin className="w-3 h-3" /> Portugal
             </span>
           </div>
 

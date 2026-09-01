@@ -16,7 +16,8 @@ import {
   CreditCard,
   UserCheck,
   Zap,
-  Settings
+  Settings,
+  Menu
 } from 'lucide-react';
 
 interface TopBarProps {
@@ -31,7 +32,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
     companies,
     switchCompany,
     toggleAiDrawer,
-    currentUser
+    toggleMobileMenu,
+    currentUser,
+    pageTitle,
+    pageSubtitle
   } = useApp();
 
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
@@ -43,28 +47,36 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
     }`}>
       
       {/* Left Section: Brand Logo + Company Switcher */}
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-3 sm:gap-5">
+        {/* Hamburger Menu (Mobile Only) */}
+        <button
+          onClick={toggleMobileMenu}
+          className="md:hidden p-1.5 rounded-lg text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+
         {/* Brand Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-xl bg-black flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-all border border-neutral-800">
-            <Zap className="w-4 h-4 fill-emerald-400 text-emerald-400" />
+        <Link href="/dashboard" className="flex items-center gap-2 sm:gap-2.5 group">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-black flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-all border border-neutral-800">
+            <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-emerald-400 text-emerald-400" />
           </div>
-          <div className="flex items-center gap-1 font-extrabold text-neutral-900 text-base tracking-tight">
+          <div className="hidden sm:flex items-center gap-1 font-extrabold text-neutral-900 text-base tracking-tight">
             Finance <span className="text-emerald-600">AI</span>
           </div>
         </Link>
 
-        <div className="h-5 w-px bg-neutral-200" />
+        <div className="hidden sm:block h-5 w-px bg-neutral-200" />
 
         {/* Company Dropdown */}
         <div className="relative">
           <button
             onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-neutral-200/80 hover:border-neutral-300 bg-neutral-50/80 hover:bg-neutral-100/80 text-xs font-semibold text-neutral-800 transition-colors cursor-pointer"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl border border-neutral-200/80 hover:border-neutral-300 bg-neutral-50/80 hover:bg-neutral-100/80 text-[10px] sm:text-xs font-semibold text-neutral-800 transition-colors cursor-pointer"
           >
-            <Building2 className="w-3.5 h-3.5 text-neutral-700" />
-            <span>{currentCompany?.name || 'Empresa'}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+            <Building2 className="w-3.5 h-3.5 text-neutral-700 hidden sm:block" />
+            <span className="truncate max-w-[100px] sm:max-w-none">{currentCompany?.name || 'Empresa'}</span>
+            <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-neutral-400" />
           </button>
 
           {isCompanyDropdownOpen && (
@@ -92,6 +104,18 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
             </div>
           )}
         </div>
+
+        {/* Dynamic Page Header */}
+        {(pageTitle || pageSubtitle) && (
+          <>
+            <div className="hidden lg:block h-6 w-px bg-neutral-200 ml-1" />
+            <div className="hidden lg:flex flex-col ml-1 border-l-2 border-emerald-400 pl-3 justify-center">
+              <span className="text-[13px] font-extrabold text-neutral-900 leading-none tracking-tight">{pageTitle}</span>
+              {pageSubtitle && <span className="text-[10px] font-medium text-neutral-500 leading-none mt-1">{pageSubtitle}</span>}
+            </div>
+          </>
+        )}
+
       </div>
 
       {/* Right Section: Actions & Utilities */}
@@ -100,11 +124,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         {/* Quick Search Ctrl+K */}
         <button
           onClick={onOpenSearch}
-          className="hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl border border-neutral-200/80 bg-neutral-50/80 hover:bg-neutral-100/80 text-neutral-400 text-xs transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-2 sm:px-3.5 py-2 rounded-xl border border-neutral-200/80 bg-neutral-50/80 hover:bg-neutral-100/80 text-neutral-400 text-xs transition-colors cursor-pointer"
         >
-          <Search className="w-3.5 h-3.5 text-neutral-400" />
-          <span className="text-neutral-500 font-medium">Pesquisar ou atalhos...</span>
-          <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white border border-neutral-200 rounded-md text-neutral-400 font-semibold shadow-2xs ml-2">
+          <Search className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-neutral-400" />
+          <span className="hidden sm:inline text-neutral-500 font-medium">Pesquisar ou atalhos...</span>
+          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-white border border-neutral-200 rounded-md text-neutral-400 font-semibold shadow-2xs ml-2">
             ⌘K
           </kbd>
         </button>
@@ -113,11 +137,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         <div className="relative">
           <button
             onClick={() => setIsCreateDropdownOpen(!isCreateDropdownOpen)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs shadow-xs border border-neutral-900 transition-all cursor-pointer"
+            className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs shadow-xs border border-neutral-900 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4 text-emerald-400" />
-            <span>Novo</span>
-            <ChevronDown className="w-3.5 h-3.5 opacity-70 ml-0.5" />
+            <span className="hidden sm:inline">Novo</span>
+            <ChevronDown className="w-3.5 h-3.5 opacity-70 ml-0.5 hidden sm:block" />
           </button>
 
           {isCreateDropdownOpen && (
@@ -201,7 +225,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         {/* AI Assistant Side Panel Trigger Button */}
         <button
           onClick={toggleAiDrawer}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border ${
+          className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border ${
             isAiDrawerOpen 
               ? 'bg-black text-white border-black shadow-xs' 
               : 'bg-neutral-100 hover:bg-neutral-200/80 text-neutral-900 border-neutral-200/80 shadow-2xs'
@@ -221,7 +245,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         {/* Settings Button */}
         <Link
           href="/settings"
-          className="p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer flex items-center justify-center"
+          className="hidden sm:flex p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer items-center justify-center"
           title="Configurações da Plataforma"
         >
           <Settings className="w-4 h-4" />

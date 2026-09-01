@@ -7,9 +7,11 @@ import { Supplier } from '@/types';
 import { Building2, Mail, Plus, Tag, Calendar, Trash2 } from 'lucide-react';
 import { CreateSupplierModal } from '@/components/shared/CreateSupplierModal';
 import { deleteSupplier } from '@/services/data';
+import { useRouter } from 'next/navigation';
 
 export default function SuppliersPage() {
-  const { formatMoney } = useApp();
+  const { formatMoney, setPageHeader } = useApp();
+  const router = useRouter();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -21,6 +23,10 @@ export default function SuppliersPage() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    setPageHeader('Gestão de Fornecedores', 'Cadastro inteligente com categorias padrão associadas automaticamente a faturas recebidas');
+  }, [setPageHeader]);
 
   const handleSupplierCreated = (newSup: Supplier) => {
     setSuppliers(prev => [...prev, newSup]);
@@ -37,17 +43,8 @@ export default function SuppliersPage() {
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200/80 pb-3">
-        <div>
-          <h1 className="text-lg font-bold text-neutral-900 tracking-tight">
-            Gestão de Fornecedores
-          </h1>
-          <p className="text-xs text-neutral-500 font-medium">
-            Cadastro inteligente com categorias padrão associadas automaticamente a faturas recebidas
-          </p>
-        </div>
-
+      {/* Header Actions */}
+      <div className="flex justify-end pb-3">
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-4 py-2 bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"
@@ -74,7 +71,11 @@ export default function SuppliersPage() {
             </thead>
             <tbody className="divide-y divide-neutral-100 text-xs font-medium text-neutral-800">
               {suppliers.map((s) => (
-                <tr key={s.id} className="hover:bg-neutral-50/60 transition-colors">
+                <tr 
+                  key={s.id} 
+                  onClick={() => router.push(`/registry/suppliers/${s.id}`)}
+                  className="hover:bg-neutral-50/60 transition-colors cursor-pointer"
+                >
                   <td className="py-3.5 px-4 font-bold text-neutral-900">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-neutral-100 text-neutral-800 flex items-center justify-center font-bold text-xs border border-neutral-200">
@@ -109,7 +110,10 @@ export default function SuppliersPage() {
                   </td>
                   <td className="py-3.5 px-4 text-right">
                     <button
-                      onClick={() => handleDelete(s.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(s.id);
+                      }}
                       disabled={deletingId === s.id}
                       className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                       title="Eliminar Fornecedor"

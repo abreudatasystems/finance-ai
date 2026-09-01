@@ -5,9 +5,11 @@ import { useApp } from '@/context/AppContext';
 import { fetchTransactions, updateTransaction } from '@/services/data';
 import { Transaction } from '@/types';
 import { CheckCircle2, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function ReceivablesPage() {
-  const { formatMoney } = useApp();
+  const { formatMoney, setPageHeader } = useApp();
+  const router = useRouter();
   const [receivables, setReceivables] = useState<Transaction[]>([]);
   const [receivedIds, setReceivedIds] = useState<string[]>([]);
   const [loadingReceivedId, setLoadingReceivedId] = useState<string | null>(null);
@@ -19,6 +21,10 @@ export default function ReceivablesPage() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    setPageHeader('Contas a Receber', 'Gestão de faturas emitidas e cobranças de clientes');
+  }, [setPageHeader]);
 
   const handleMarkReceived = async (id: string, amount: number) => {
     setLoadingReceivedId(id);
@@ -65,17 +71,6 @@ export default function ReceivablesPage() {
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-3">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-            Contas a Receber
-          </h1>
-          <p className="text-xs text-slate-500 font-medium">
-            Previsão e confirmação de recebimento de contratos e serviços
-          </p>
-        </div>
-      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -119,7 +114,11 @@ export default function ReceivablesPage() {
             {receivables.map((item) => {
               const isReceived = receivedIds.includes(item.id) || item.status === 'received' || item.status === 'paid';
               return (
-                <tr key={item.id} className="hover:bg-slate-50/80 transition-colors font-medium">
+                <tr 
+                  key={item.id} 
+                  onClick={() => router.push(`/financial/cash-flow/${item.id}`)}
+                  className="hover:bg-slate-50 transition-colors font-medium cursor-pointer"
+                >
                   <td className="p-3.5 text-slate-600 font-mono">{item.due_date || item.date}</td>
                   <td className="p-3.5 font-bold text-slate-900">{item.entity_name}</td>
                   <td className="p-3.5 text-slate-700">{item.description}</td>
@@ -139,7 +138,10 @@ export default function ReceivablesPage() {
                       </span>
                     ) : (
                       <button
-                        onClick={() => handleMarkReceived(item.id, item.amount)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkReceived(item.id, item.amount);
+                        }}
                         disabled={loadingReceivedId === item.id}
                         className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-colors shadow-2xs flex items-center gap-1.5 ml-auto disabled:opacity-50"
                       >

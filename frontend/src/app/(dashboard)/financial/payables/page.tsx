@@ -5,9 +5,11 @@ import { useApp } from '@/context/AppContext';
 import { fetchTransactions, updateTransaction } from '@/services/data';
 import { Transaction } from '@/types';
 import { CheckCircle2, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function PayablesPage() {
-  const { formatMoney } = useApp();
+  const { formatMoney, setPageHeader } = useApp();
+  const router = useRouter();
   const [payables, setPayables] = useState<Transaction[]>([]);
   const [paidIds, setPaidIds] = useState<string[]>([]);
   const [loadingPaymentId, setLoadingPaymentId] = useState<string | null>(null);
@@ -19,6 +21,10 @@ export default function PayablesPage() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    setPageHeader('Contas a Pagar', 'Gestão de obrigações e pagamentos a fornecedores');
+  }, [setPageHeader]);
 
   const handleMarkAsPaid = async (id: string, amount: number) => {
     setLoadingPaymentId(id);
@@ -57,17 +63,6 @@ export default function PayablesPage() {
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-3">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-            Contas a Pagar
-          </h1>
-          <p className="text-xs text-slate-500 font-medium">
-            Gestão proativa de faturas de fornecedores e datas de vencimento
-          </p>
-        </div>
-      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -112,7 +107,11 @@ export default function PayablesPage() {
             {payables.map((item) => {
               const isPaid = paidIds.includes(item.id) || item.status === 'paid';
               return (
-                <tr key={item.id} className="hover:bg-slate-50/80 transition-colors font-medium">
+                <tr 
+                  key={item.id} 
+                  onClick={() => router.push(`/financial/cash-flow/${item.id}`)}
+                  className="hover:bg-slate-50 transition-colors font-medium cursor-pointer"
+                >
                   <td className="p-3.5 text-slate-600 font-mono">{item.due_date || item.date}</td>
                   <td className="p-3.5 font-bold text-slate-900">{item.entity_name}</td>
                   <td className="p-3.5 text-slate-700">{item.description}</td>
@@ -132,7 +131,10 @@ export default function PayablesPage() {
                       </span>
                     ) : (
                       <button
-                        onClick={() => handleMarkAsPaid(item.id, item.amount)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkAsPaid(item.id, item.amount);
+                        }}
                         disabled={loadingPaymentId === item.id}
                         className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-xs transition-colors flex items-center gap-1.5 ml-auto disabled:opacity-50"
                       >

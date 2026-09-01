@@ -89,6 +89,7 @@ class TransactionCreate(BaseModel):
     document_type: Optional[str] = None
     document_date: Optional[str] = None
     is_recurring: Optional[bool] = False
+    is_paid: Optional[bool] = True
     notes: Optional[str] = None
     tags: Optional[List[str]] = None
 

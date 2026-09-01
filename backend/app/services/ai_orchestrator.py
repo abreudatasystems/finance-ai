@@ -170,10 +170,87 @@ async def process_ai_intent_and_action(
                 sender="ai",
                 text="Não encontrei faturas pendentes de pagamento"
                      + (f" para **{entity_filter}**" if entity_filter else "")
-                     + ". Todas as faturas estão liquidadas! ✅",
+                     + ". Todas as faturas estão liquidadas!",
                 type="analysis",
                 timestamp=timestamp,
             )
+
+    # ── Intent: create collection / cobrança ──
+    if any(k in lower for k in ["cobrança", "cobranca", "faturar", "nova receita"]):
+        import re
+        from datetime import timedelta
+
+        amount_match = re.search(r'(\d+(?:[.,]\d+)?)', prompt)
+        amount = float(amount_match.group(1).replace(',', '.')) if amount_match else 0.0
+
+        entity = ""
+        if "cliente" in lower:
+            idx = lower.find("cliente") + len("cliente")
+            words = prompt[idx:].strip().split()
+            if words:
+                entity = words[0]
+
+        next_month = (datetime.utcnow().date() + timedelta(days=30)).isoformat()
+
+        return AIChatResponse(
+            id=f"msg-{int(datetime.utcnow().timestamp())}",
+            sender="ai",
+            text=f"A preparar a cobrança de {cs}{amount:,.2f} ao cliente {entity or 'N/D'}. Confirme os detalhes.",
+            type="action",
+            timestamp=timestamp,
+            actionCard={
+                "type": "create_transaction",
+                "title": "Criar Nova Cobrança",
+                "status": "pending",
+                "data": {
+                    "type": "income",
+                    "amount": amount,
+                    "supplier": entity,
+                    "description": f"Cobrança a {entity}",
+                    "due_date": next_month,
+                    "is_paid": False
+                }
+            },
+            actions=[
+                AIChatAction(label="Abrir formulário", action="open_create_transaction", payload={"type": "income", "amount": amount, "entity_name": entity, "due_date": next_month})
+            ]
+        )
+
+    # ── Intent: forecast / previsão ──
+    if any(k in lower for k in ["previsão", "previsao", "a receber", "fluxo de caixa futuro"]):
+        from datetime import timedelta
+        thirty_days = (datetime.utcnow().date() + timedelta(days=30)).isoformat()
+        upcoming_receivables = db.query(func.coalesce(func.sum(Transaction.outstanding_amount), 0)).filter(
+            Transaction.company_id == company_id,
+            Transaction.type == "income",
+            Transaction.payment_status.in_(["pending", "partially_paid"]),
+            Transaction.due_date <= thirty_days,
+            Transaction.status.notin_(["cancelled"]),
+        ).scalar()
+
+        upcoming_payables = db.query(func.coalesce(func.sum(Transaction.outstanding_amount), 0)).filter(
+            Transaction.company_id == company_id,
+            Transaction.type == "expense",
+            Transaction.payment_status.in_(["pending", "partially_paid"]),
+            Transaction.due_date <= thirty_days,
+            Transaction.status.notin_(["cancelled"]),
+        ).scalar()
+
+        net_future = _to_float(upcoming_receivables) - _to_float(upcoming_payables)
+
+        return AIChatResponse(
+            id=f"msg-{int(datetime.utcnow().timestamp())}",
+            sender="ai",
+            text=f"Para os **próximos 30 dias**, a previsão é:\n\n"
+                 f"• **A Receber**: {cs}{_to_float(upcoming_receivables):,.2f}\n"
+                 f"• **A Pagar**: {cs}{_to_float(upcoming_payables):,.2f}\n\n"
+                 f"**Saldo Previsto do Período**: {cs}{net_future:,.2f}",
+            type="analysis",
+            timestamp=timestamp,
+            actions=[
+                AIChatAction(label="Ver Dashboard", action="navigate", payload={"path": "/dashboard"})
+            ]
+        )
 
     # ── Intent: create category ──
     if any(k in lower for k in ["categoria", "criar categoria", "nova categoria"]):
@@ -258,7 +335,7 @@ async def process_ai_intent_and_action(
         return AIChatResponse(
             id=f"msg-{int(datetime.utcnow().timestamp())}",
             sender="ai",
-            text=f"📊 **Resumo Financeiro** (dados em tempo real):\n\n"
+            text=f"**Resumo Financeiro** (dados em tempo real):\n\n"
                  f"• **Saldo total**: {cs}{total_balance:,.2f}\n"
                  f"• **Receitas do mês**: {cs}{income:,.2f}\n"
                  f"• **Despesas do mês**: {cs}{expense:,.2f}\n"

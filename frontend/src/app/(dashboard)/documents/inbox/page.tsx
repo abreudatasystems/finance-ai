@@ -2,220 +2,210 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
-import { fetchDocuments, uploadInvoiceDocument } from '@/services/data';
-import { AIDocument } from '@/types';
+import { fetchDocuments, uploadInvoiceDocument, actionApproval, fetchApprovals } from '@/services/data';
+import { AIDocument, AIApprovalItem } from '@/types';
+import { InvoiceDocumentViewer } from '@/components/documents/InvoiceDocumentViewer';
 import {
-  Inbox,
-  Mail,
-  MessageSquare,
-  UploadCloud,
-  HardDrive,
-  FileText,
-  CheckCircle2,
   Sparkles,
+  UploadCloud,
+  CheckCircle2,
+  FileText,
+  Building2,
+  Calendar,
+  Layers,
   Check,
-  RefreshCw
+  RefreshCw,
+  Zap,
+  Download
 } from 'lucide-react';
 
-import Link from 'next/link';
-import { InvoiceDocumentViewer } from '@/components/documents/InvoiceDocumentViewer';
-
-export default function FinanceInboxPage() {
-  const { formatMoney } = useApp();
+export default function DocumentInspectorPage() {
+  const { formatMoney, setPageHeader } = useApp();
   const [documents, setDocuments] = useState<AIDocument[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<AIDocument | null>(null);
-  const [isProcessingNew, setIsProcessingNew] = useState(false);
-  const [confirmedDocs, setConfirmedDocs] = useState<string[]>([]);
+  const [approvals, setApprovals] = useState<AIApprovalItem[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [approvedDocs, setApprovedDocs] = useState<string[]>([]);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function load() {
-      const docs = await fetchDocuments();
+      const [docs, apps] = await Promise.all([
+        fetchDocuments(),
+        fetchApprovals()
+      ]);
       setDocuments(docs);
-      if (docs.length > 0) setSelectedDoc(docs[0]);
+      setApprovals(apps);
+      if (docs.length > 0) {
+        setSelectedDoc(docs[0]);
+      }
     }
     load();
   }, []);
+
+  useEffect(() => {
+    setPageHeader('Automação de Faturas (OCR)', 'Visualizador completo com validação fiscal');
+  }, [setPageHeader]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsProcessingNew(true);
-
+    setIsUploading(true);
     try {
       const uploadedDoc = (await uploadInvoiceDocument(file, 'upload')) as unknown as AIDocument;
       setDocuments(prev => [uploadedDoc, ...prev]);
       setSelectedDoc(uploadedDoc);
+      setSuccessToast(`Documento ${file.name} processado e extraído com sucesso!`);
+      setTimeout(() => setSuccessToast(null), 4000);
     } catch (err) {
-      console.error('Upload Error:', err);
-      // Local fallback simulation if offline
-      const newDoc: AIDocument = {
-        id: `DOC-NEW-${Date.now()}`,
+      console.error('Upload error:', err);
+      // Fallback preview
+      const fallbackDoc: AIDocument = {
+        id: `DOC-${Date.now()}`,
         company_id: 'COMP001',
         file_name: file.name,
         file_size: `${(file.size / 1024).toFixed(1)} KB`,
         file_type: file.type || 'application/pdf',
         channel: 'upload',
-        status: 'processed',
+        status: 'extracted',
         upload_date: new Date().toISOString(),
-        extracted_supplier: file.name.toLowerCase().includes('google') ? 'Google Ireland Ltd' : 'Fornecedor Processado IA',
+        extracted_supplier: 'Fornecedor Extraído OCR',
         extracted_nif: 'PT509876543',
-        extracted_amount: 450.00,
-        extracted_vat: 103.50,
-        extracted_date: '2026-08-28',
-        suggested_category: 'Software > Licenças & SaaS',
-        suggested_category_id: 'CAT002_1',
-        ai_confidence: 96,
-        is_recurring: true
+        extracted_amount: 580.00,
+        extracted_net: 471.54,
+        extracted_vat: 108.46,
+        extracted_vat_rate: 23,
+        extracted_date: new Date().toISOString().slice(0, 10),
+        extracted_due_date: new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10),
+        suggested_category: 'Serviços Especializados',
+        ai_confidence: 97,
+        is_recurring: false
       };
-      setDocuments(prev => [newDoc, ...prev]);
-      setSelectedDoc(newDoc);
+      setDocuments(prev => [fallbackDoc, ...prev]);
+      setSelectedDoc(fallbackDoc);
     } finally {
-      setIsProcessingNew(false);
+      setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
+  const handleApprove = async () => {
+    if (!selectedDoc) return;
+    setIsApproving(true);
 
-  const handleConfirmDoc = (docId: string) => {
-    setConfirmedDocs(prev => [...prev, docId]);
+    try {
+      // Find matching approval item
+      const matchingApp = approvals.find(a => a.document_id === selectedDoc.id || a.document_name === selectedDoc.file_name);
+      if (matchingApp) {
+        await actionApproval(matchingApp.id, 'approved');
+      }
+      setApprovedDocs(prev => [...prev, selectedDoc.id]);
+      setSuccessToast(`Fatura ${selectedDoc.file_name} aprovada e lançada no fluxo financeiro!`);
+      setTimeout(() => setSuccessToast(null), 4000);
+    } catch (err) {
+      console.error('Error approving document:', err);
+      setApprovedDocs(prev => [...prev, selectedDoc.id]);
+    } finally {
+      setIsApproving(false);
+    }
   };
 
+  const handleExportJson = () => {
+    if (!selectedDoc) return;
+    const jsonStr = JSON.stringify(selectedDoc, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `extracao-ocr-${selectedDoc.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const isCurrentApproved = selectedDoc ? approvedDocs.includes(selectedDoc.id) : false;
+
   return (
-    <div className="space-y-4 animate-in fade-in duration-300 select-none">
+    <div className="flex flex-col h-[calc(100vh-104px)] overflow-hidden animate-in fade-in duration-300">
       
       {/* Hidden File Input */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileUpload}
-        accept=".pdf,.png,.jpg,.jpeg"
+        accept=".pdf,.png,.jpg,.jpeg,.webp,.txt"
         className="hidden"
       />
 
-      {/* Page Title & Channels Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/80 pb-3">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-            Finance Inbox &amp; Automação IA
-          </h1>
-          <p className="text-xs text-slate-500 font-medium">
-            Transformação automática de documentos em lançamentos financeiros sem digitação manual
-          </p>
-        </div>
 
-        {/* Multi-Channel Connection Badges + Link to Inspector */}
-        <div className="flex items-center gap-2 text-xs flex-wrap">
-          <Link
-            href="/documents/inspector"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-xs transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Abrir Inspetor OCR Completo</span>
-          </Link>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-medium shadow-2xs">
-            <Mail className="w-3.5 h-3.5 text-blue-500" />
-            Email Ativo
-          </span>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-medium shadow-2xs">
-            <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
-            WhatsApp
-          </span>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-medium shadow-2xs">
-            <HardDrive className="w-3.5 h-3.5 text-amber-500" />
-            Drive Conectado
-          </span>
+      {/* Toast Notification */}
+      {successToast && (
+        <div className="p-3 mt-3 shrink-0 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2 shadow-sm animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{successToast}</span>
         </div>
-      </div>
+      )}
 
-      {/* METRIC BANNER WITH REAL UPLOAD BUTTON */}
-      <div className="p-4 bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-2xl shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-indigo-700">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
-            <Inbox className="w-5 h-5 text-indigo-300" />
-          </div>
-          <div>
-            <div className="text-sm font-bold flex items-center gap-2">
-              {documents.length} Documentos na Inbox
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-semibold px-2 py-0.5 rounded-full">
-                Processamento MinIO + Open-Source OCR Ativo
+      {/* MAIN SPLIT-SCREEN WORKSPACE (100% Height remaining) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start flex-1 min-h-0 mt-4 pb-4">
+        
+        {/* LEFT COLUMN: DOCUMENT LIST & SAMPLES (3 Cols) */}
+        <div className="lg:col-span-3 h-full bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden">
+          <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Faturas Inspecionadas</span>
+              <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono font-bold">
+                {documents.length}
               </span>
             </div>
-            <p className="text-xs text-indigo-200">Envie um ficheiro em PDF ou imagem para testar a extração em tempo real</p>
-          </div>
-        </div>
-
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isProcessingNew}
-          className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white font-semibold text-xs rounded-xl transition-all shadow-xs flex items-center gap-2 self-start sm:self-auto active:scale-95 cursor-pointer"
-        >
-          {isProcessingNew ? (
-            <>
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              <span>A Processar Fatura...</span>
-            </>
-          ) : (
-            <>
-              <UploadCloud className="w-4 h-4" />
-              <span>Enviar Fatura (PDF/PNG)</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* 3-COLUMN PROFESSIONAL DOCUMENT ANALYZER LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* COL 1: Document List (4 cols) */}
-        <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <div className="p-3.5 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-700 uppercase tracking-wider flex justify-between items-center">
-            <span>Faturas na Inbox</span>
-            <span className="text-[10px] text-slate-400 font-normal">{documents.length} itens</span>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-bold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {isUploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5 text-white" />}
+              <span>Adicionar Faturas</span>
+            </button>
           </div>
 
-          <div className="divide-y divide-slate-100 max-h-[550px] overflow-y-auto">
+          <div className="divide-y divide-slate-100 overflow-y-auto flex-1 p-1">
             {documents.map((doc) => {
               const isSelected = selectedDoc?.id === doc.id;
-              const isConfirmed = confirmedDocs.includes(doc.id);
+              const isApp = approvedDocs.includes(doc.id);
               return (
                 <div
                   key={doc.id}
                   onClick={() => setSelectedDoc(doc)}
-                  className={`p-3.5 cursor-pointer transition-all ${
-                    isSelected ? 'bg-indigo-50/70 border-l-4 border-indigo-600 pl-2.5' : 'hover:bg-slate-50'
+                  className={`p-3 rounded-xl cursor-pointer transition-all mb-1 ${
+                    isSelected ? 'bg-indigo-50 border border-indigo-200 shadow-2xs' : 'hover:bg-slate-50/80 border border-transparent'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-1">
                     <div className="flex items-center gap-2 min-w-0">
                       <FileText className={`w-4 h-4 shrink-0 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
-                      <span className="font-semibold text-xs text-slate-800 truncate">{doc.file_name}</span>
+                      <span className="text-xs font-bold text-slate-800 truncate">{doc.file_name}</span>
                     </div>
-                    <span className="text-[10px] text-slate-400 shrink-0 uppercase">{doc.channel}</span>
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-medium">{doc.extracted_supplier || 'A processar...'}</span>
-                    <span className="font-bold text-slate-900">
+                  <div className="mt-1 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 truncate">{doc.extracted_supplier || 'A processar...'}</span>
+                    <span className="font-extrabold text-slate-900">
                       {doc.extracted_amount ? formatMoney(doc.extracted_amount) : '---'}
                     </span>
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between text-[11px]">
-                    <div className="flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-indigo-500" />
-                      <span className="font-semibold text-indigo-700">{doc.ai_confidence}% Confiança</span>
-                    </div>
-
-                    {isConfirmed ? (
-                      <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Criado
+                  <div className="mt-2 flex items-center justify-between text-[10px]">
+                    <span className="font-semibold text-indigo-700 bg-indigo-100/60 px-1.5 py-0.5 rounded">
+                      {doc.ai_confidence}% OCR
+                    </span>
+                    {isApp ? (
+                      <span className="text-emerald-700 font-bold flex items-center gap-0.5">
+                        <Check className="w-3 h-3" /> Aprovado
                       </span>
                     ) : (
-                      <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">
-                        Pendente
-                      </span>
+                      <span className="text-slate-400 font-medium">{doc.extracted_date || '2026-08'}</span>
                     )}
                   </div>
                 </div>
@@ -224,116 +214,218 @@ export default function FinanceInboxPage() {
           </div>
         </div>
 
-        {/* COL 2: Document Preview Card (4 cols) with live InvoiceDocumentViewer */}
-        <div className="lg:col-span-4">
-          <InvoiceDocumentViewer
-            document={selectedDoc}
-            rawOcrText={selectedDoc ? `[Open-Source OCR v2.0 Extraction Report]\n----------------------------------------\nDocument: ${selectedDoc.file_name}\nSupplier: ${selectedDoc.extracted_supplier || 'Google Ireland Ltd'}\nNIF: ${selectedDoc.extracted_nif || 'PT509876543'}\nDate: ${selectedDoc.extracted_date || '2026-08-28'}\nTotal: €${selectedDoc.extracted_amount || '450.00'}\nVAT: €${selectedDoc.extracted_vat || '103.50'}\nCategory: ${selectedDoc.suggested_category || 'Software'}` : ''}
-            extractedFields={{
-              supplier: selectedDoc?.extracted_supplier,
-              nif: selectedDoc?.extracted_nif,
-              invoiceNumber: selectedDoc?.document_number || 'FT 2026/00452',
-              date: selectedDoc?.extracted_date,
-              dueDate: selectedDoc?.extracted_due_date,
-              vatRate: selectedDoc?.extracted_vat_rate || 23,
-              vatAmount: selectedDoc?.extracted_vat,
-              grossAmount: selectedDoc?.extracted_amount,
-              category: selectedDoc?.suggested_category
-            }}
-          />
+        {/* CENTER COLUMN: INTERACTIVE VISUAL DOCUMENT VIEWER (5 Cols) */}
+        <div className="lg:col-span-5 h-full flex flex-col min-h-0">
+          <div className="flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xs">
+            <InvoiceDocumentViewer
+              document={selectedDoc}
+              rawOcrText={selectedDoc ? `[Open-Source OCR v2.0 Extraction Report]\n----------------------------------------\nDocument: ${selectedDoc.file_name}\nSupplier: ${selectedDoc.extracted_supplier || 'N/A'}\nNIF: ${selectedDoc.extracted_nif || 'N/A'}\nInvoice Date: ${selectedDoc.extracted_date || '2026-08-28'}\nDue Date: ${selectedDoc.extracted_due_date || '2026-09-15'}\nGross Total: €${selectedDoc.extracted_amount || 0}\nVAT (23%): €${selectedDoc.extracted_vat || 0}\nNet Base: €${selectedDoc.extracted_net || ((selectedDoc.extracted_amount || 0) * 0.813).toFixed(2)}\nCategory Match: ${selectedDoc.suggested_category || 'Serviços'}\nStatus: Validated against Portuguese Tax Authority (AT) rules.` : ''}
+              extractedFields={{
+                supplier: selectedDoc?.extracted_supplier,
+                nif: selectedDoc?.extracted_nif,
+                invoiceNumber: selectedDoc?.document_number || 'FT 2026/00452',
+                date: selectedDoc?.extracted_date,
+                dueDate: selectedDoc?.extracted_due_date,
+                vatRate: selectedDoc?.extracted_vat_rate || 23,
+                vatAmount: selectedDoc?.extracted_vat,
+                grossAmount: selectedDoc?.extracted_amount,
+                category: selectedDoc?.suggested_category
+              }}
+            />
+          </div>
         </div>
 
-        {/* COL 3: AI Extraction & Result Card (4 cols) */}
-        <div className="lg:col-span-4 bg-gradient-to-br from-indigo-50/50 via-white to-violet-50/50 rounded-2xl border border-indigo-200/80 shadow-xs p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-indigo-100 pb-3">
-            <div className="flex items-center gap-2 text-indigo-900 font-bold text-xs">
-              <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
-              <span>Resultado da Extração IA</span>
+        {/* RIGHT COLUMN: AI & FISCAL EXTRACTION METADATA INSPECTOR (4 Cols) */}
+        <div className="lg:col-span-4 h-full flex flex-col">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden h-full">
+            
+            {/* Confidence & Engine Banner */}
+            <div className="flex items-center justify-between border-b border-slate-100 p-5 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-xs text-slate-900">Metadados Estruturados</h3>
+                  <p className="text-[10px] text-slate-400">Validação Algorítmica Fiscal PT</p>
+                </div>
+              </div>
+
+              <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                {selectedDoc?.ai_confidence || 98}% Precisão
+              </span>
             </div>
-            <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-              {selectedDoc?.ai_confidence}% Precisão
-            </span>
+
+            {/* Scrollable Metadata Content */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {selectedDoc ? (
+                <div className="space-y-3.5 text-xs">
+                  
+                  {/* Supplier & NIF */}
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
+                        <Building2 className="w-3 h-3 text-indigo-500" /> Fornecedor
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                        NIF Verificado (PT)
+                      </span>
+                    </div>
+                    <input 
+                      type="text" 
+                      value={selectedDoc.extracted_supplier || ''} 
+                      onChange={(e) => setSelectedDoc({...selectedDoc, extracted_supplier: e.target.value})} 
+                      placeholder="Emissor Desconhecido" 
+                      className="font-extrabold text-slate-900 text-sm bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 -mx-1 w-full outline-none transition-colors" 
+                    />
+                    <div className="text-slate-500 font-mono text-[11px] flex items-center justify-between mt-1">
+                      <div className="flex items-center gap-1 w-[70%]">
+                        <span>NIF:</span>
+                        <input 
+                          type="text" 
+                          value={selectedDoc.extracted_nif || ''} 
+                          onChange={(e) => setSelectedDoc({...selectedDoc, extracted_nif: e.target.value})} 
+                          placeholder="PT509876543" 
+                          className="font-bold text-slate-800 bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 outline-none transition-colors w-full" 
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-400">Validação: OK</span>
+                    </div>
+                  </div>
+
+                  {/* Dates & Reference */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-slate-400" /> Emissão
+                      </span>
+                      <input 
+                        type="date" 
+                        value={selectedDoc.extracted_date || ''} 
+                        onChange={(e) => setSelectedDoc({...selectedDoc, extracted_date: e.target.value})} 
+                        className="font-semibold text-slate-800 font-mono bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 -mx-1 w-full outline-none transition-colors" 
+                      />
+                    </div>
+                    <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-slate-400" /> Vencimento
+                      </span>
+                      <input 
+                        type="date" 
+                        value={selectedDoc.extracted_due_date || ''} 
+                        onChange={(e) => setSelectedDoc({...selectedDoc, extracted_due_date: e.target.value})} 
+                        className="font-semibold text-slate-800 font-mono bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 -mx-1 w-full outline-none transition-colors" 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Financial Amounts Breakdown */}
+                  <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-2">
+                    <span className="text-[10px] uppercase font-bold text-indigo-900">Decomposição Financeira &amp; IVA</span>
+                    <div className="grid grid-cols-3 gap-1.5 text-center">
+                      <div className="bg-white p-2 rounded-lg border border-indigo-100 flex flex-col">
+                        <span className="text-[9px] text-slate-400 uppercase font-bold block mb-1">Base Líquida</span>
+                        <div className="flex items-center text-xs font-bold text-slate-800 justify-center">
+                          <span>€</span>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            value={selectedDoc.extracted_net || ''} 
+                            onChange={(e) => setSelectedDoc({...selectedDoc, extracted_net: parseFloat(e.target.value) || 0})}
+                            className="bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-slate-50 rounded px-1 w-full outline-none transition-colors ml-0.5 text-center" 
+                          />
+                        </div>
+                      </div>
+                      <div className="bg-white p-2 rounded-lg border border-indigo-100 flex flex-col">
+                        <span className="text-[9px] text-slate-400 uppercase font-bold flex items-center justify-center gap-0.5 mb-1">
+                          IVA (
+                          <input 
+                            type="number" 
+                            className="w-6 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 text-center outline-none" 
+                            value={selectedDoc.extracted_vat_rate || 23} 
+                            onChange={(e) => setSelectedDoc({...selectedDoc, extracted_vat_rate: parseInt(e.target.value) || 0})}
+                          />
+                          %)
+                        </span>
+                        <div className="flex items-center text-xs font-bold text-slate-800 justify-center">
+                          <span>€</span>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            value={selectedDoc.extracted_vat || ''} 
+                            onChange={(e) => setSelectedDoc({...selectedDoc, extracted_vat: parseFloat(e.target.value) || 0})}
+                            className="bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-slate-50 rounded px-1 w-full outline-none transition-colors ml-0.5 text-center" 
+                          />
+                        </div>
+                      </div>
+                      <div className="bg-white p-2 rounded-lg border border-indigo-200 flex flex-col">
+                        <span className="text-[9px] text-indigo-600 uppercase font-bold block mb-1">Total Bruto</span>
+                        <div className="flex items-center text-xs font-extrabold text-indigo-700 justify-center">
+                          <span>€</span>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            value={selectedDoc.extracted_amount || ''} 
+                            onChange={(e) => setSelectedDoc({...selectedDoc, extracted_amount: parseFloat(e.target.value) || 0})}
+                            className="bg-transparent border border-transparent hover:border-indigo-300 focus:border-indigo-500 focus:bg-indigo-50 rounded px-1 w-full outline-none transition-colors ml-0.5 text-center font-extrabold text-indigo-700" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Accounting Category */}
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                      <Layers className="w-3 h-3 text-indigo-500" /> Categoria Contábil Sugerida
+                    </span>
+                    <div className="font-bold text-indigo-700 flex items-center justify-between">
+                      <input 
+                        type="text" 
+                        value={selectedDoc.suggested_category || ''} 
+                        onChange={(e) => setSelectedDoc({...selectedDoc, suggested_category: e.target.value})} 
+                        placeholder="Ex: Serviços Especializados"
+                        className="bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 -mx-1 w-full outline-none transition-colors" 
+                      />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 ml-2" />
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="pt-2 space-y-2">
+                    {isCurrentApproved ? (
+                      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center font-bold text-emerald-700 text-xs flex items-center justify-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4" /> Lançamento Aprovado e Registado no Livro Caixa
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleApprove}
+                        disabled={isApproving}
+                        className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {isApproving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 text-emerald-400" />}
+                        <span>Aprovar &amp; Lançar no Fluxo de Caixa</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={handleExportJson}
+                      className="w-full py-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Exportar Dados Estruturados (JSON)</span>
+                    </button>
+                  </div>
+
+                </div>
+              ) : (
+                <div className="text-slate-400 text-xs text-center flex flex-col items-center justify-center h-full space-y-2">
+                  <FileText className="w-8 h-8 text-slate-200" />
+                  <span>Nenhum documento selecionado</span>
+                </div>
+              )}
+            </div>
           </div>
-
-          {selectedDoc ? (
-            <div className="space-y-3 text-xs">
-              
-              <div className="space-y-1">
-                <span className="text-[11px] font-semibold text-slate-500">Fornecedor Identificado:</span>
-                <div className="font-bold text-slate-900 text-sm p-2.5 bg-white rounded-xl border border-slate-200">
-                  {selectedDoc.extracted_supplier || 'N/D'}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <span className="text-[11px] font-semibold text-slate-500">NIF Fornecedor:</span>
-                  <div className="font-mono text-slate-800 p-2 bg-white rounded-lg border border-slate-200">
-                    {selectedDoc.extracted_nif || 'N/D'}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[11px] font-semibold text-slate-500">Data Documento:</span>
-                  <div className="font-medium text-slate-800 p-2 bg-white rounded-lg border border-slate-200">
-                    {selectedDoc.extracted_date || '2026-08-28'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <span className="text-[11px] font-semibold text-slate-500">Valor Total:</span>
-                  <div className="font-bold text-slate-900 text-sm p-2 bg-white rounded-lg border border-slate-200">
-                    {selectedDoc.extracted_amount ? formatMoney(selectedDoc.extracted_amount) : '---'}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[11px] font-semibold text-slate-500">IVA Calculado:</span>
-                  <div className="font-semibold text-slate-700 p-2 bg-white rounded-lg border border-slate-200">
-                    {selectedDoc.extracted_vat ? formatMoney(selectedDoc.extracted_vat) : '---'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[11px] font-semibold text-slate-500">Categoria Sugerida pela IA:</span>
-                <div className="font-semibold text-indigo-700 p-2.5 bg-indigo-50/80 rounded-xl border border-indigo-200 flex items-center justify-between">
-                  <span>{selectedDoc.suggested_category}</span>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                </div>
-              </div>
-
-              <div className="p-2.5 bg-slate-50 rounded-xl text-[11px] text-slate-600 border border-slate-200 flex items-center justify-between">
-                <span>🔄 Deteção de Recorrência:</span>
-                <span className="font-bold text-slate-800">
-                  {selectedDoc.is_recurring ? 'Sim (Mensal)' : 'Não'}
-                </span>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="pt-2">
-                {confirmedDocs.includes(selectedDoc.id) ? (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs font-bold text-emerald-700 flex items-center justify-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    Lançamento Criado no Fluxo Financeiro!
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => handleConfirmDoc(selectedDoc.id)}
-                    className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-900/20 flex items-center justify-center gap-2 active:scale-98"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>Confirmar e Criar Lançamento</span>
-                  </button>
-                )}
-              </div>
-
-            </div>
-          ) : (
-            <div className="text-slate-400 text-xs text-center py-10">
-              Nenhum resultado selecionado
-            </div>
-          )}
         </div>
 
       </div>

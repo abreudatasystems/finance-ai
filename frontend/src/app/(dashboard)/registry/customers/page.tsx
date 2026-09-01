@@ -7,9 +7,11 @@ import { Customer } from '@/types';
 import { Users, Mail, Phone, Plus, Tag, Trash2 } from 'lucide-react';
 import { CreateCustomerModal } from '@/components/shared/CreateCustomerModal';
 import { deleteCustomer } from '@/services/data';
+import { useRouter } from 'next/navigation';
 
 export default function CustomersPage() {
-  const { formatMoney } = useApp();
+  const { formatMoney, setPageHeader } = useApp();
+  const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -21,6 +23,10 @@ export default function CustomersPage() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    setPageHeader('Gestão de Clientes', 'Cadastro de clientes para emissão e reconciliação automática de recebimentos');
+  }, [setPageHeader]);
 
   const handleCustomerCreated = (newCust: Customer) => {
     setCustomers(prev => [...prev, newCust]);
@@ -37,17 +43,8 @@ export default function CustomersPage() {
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200/80 pb-3">
-        <div>
-          <h1 className="text-lg font-bold text-neutral-900 tracking-tight">
-            Gestão de Clientes
-          </h1>
-          <p className="text-xs text-neutral-500 font-medium">
-            Cadastro de clientes para emissão e reconciliação automática de recebimentos
-          </p>
-        </div>
-
+      {/* Header Actions */}
+      <div className="flex justify-end pb-3">
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-4 py-2 bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"
@@ -74,7 +71,11 @@ export default function CustomersPage() {
             </thead>
             <tbody className="divide-y divide-neutral-100 text-xs font-medium text-neutral-800">
               {customers.map((c) => (
-                <tr key={c.id} className="hover:bg-neutral-50/60 transition-colors">
+                <tr 
+                  key={c.id} 
+                  onClick={() => router.push(`/registry/customers/${c.id}`)}
+                  className="hover:bg-neutral-50/60 transition-colors cursor-pointer"
+                >
                   <td className="py-3.5 px-4 font-bold text-neutral-900">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs border border-emerald-200">
@@ -109,7 +110,10 @@ export default function CustomersPage() {
                   </td>
                   <td className="py-3.5 px-4 text-right">
                     <button
-                      onClick={() => handleDelete(c.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(c.id);
+                      }}
                       disabled={deletingId === c.id}
                       className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                       title="Eliminar Cliente"

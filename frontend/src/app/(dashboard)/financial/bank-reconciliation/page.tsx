@@ -13,7 +13,9 @@ import {
   Zap,
   ArrowRight,
   Loader2,
-  Building2
+  Building2,
+  Sparkles,
+  RefreshCcw
 } from 'lucide-react';
 
 interface Statement {
@@ -56,13 +58,21 @@ interface UploadResult {
 }
 
 export default function BankReconciliationPage() {
-  const { formatMoney } = useApp();
+  const { formatMoney, setPageHeader } = useApp();
   const [statements, setStatements] = useState<Statement[]>([]);
   const [selectedStatement, setSelectedStatement] = useState<Statement | null>(null);
   const [entries, setEntries] = useState<StatementEntry[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    // Simulate sync
+    await new Promise(r => setTimeout(r, 1500));
+    setIsSyncing(false);
+  };
 
   const loadStatements = async () => {
     const data = await fetchBankStatements<Statement>();
@@ -140,15 +150,20 @@ export default function BankReconciliationPage() {
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-            Conciliação Bancária Inteligente
-          </h1>
-          <p className="text-xs text-slate-500 font-medium">
-            Upload de extratos bancários (CSV/OFX) e conciliação automática com a IA
-          </p>
+      {/* Header Actions (Header moved to TopBar) */}
+      <div className="flex justify-end gap-4 pb-3">
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:flex px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-bold items-center gap-1">
+            <Sparkles className="w-3 h-3 text-indigo-500" /> Auto-Match 94%
+          </span>
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-900/20 flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCcw className={`w-4 h-4 text-white ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>Sincronizar Banco</span>
+          </button>
         </div>
       </div>
 

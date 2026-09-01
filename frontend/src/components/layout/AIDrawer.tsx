@@ -72,7 +72,7 @@ export const AIDrawer: React.FC = () => {
         {
           id: `msg-action-${Date.now()}`,
           sender: 'ai',
-          text: '✅ **Categoria "🤖 Inteligência Artificial" criada com sucesso!** Foram associadas as palavras-chave `openai`, `chatgpt`, `claude`, `anthropic`, `api`.',
+          text: '**Categoria "Inteligência Artificial" criada com sucesso!** Foram associadas as palavras-chave `openai`, `chatgpt`, `claude`, `anthropic`, `api`.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -82,7 +82,7 @@ export const AIDrawer: React.FC = () => {
         {
           id: `msg-action-${Date.now()}`,
           sender: 'ai',
-          text: '✅ **Pagamento de €4.500,00 para Microsoft Ireland registado!** O valor foi liquidado nas Contas a Pagar.',
+          text: '**Pagamento de €4.500,00 para Microsoft Ireland registado!** O valor foi liquidado nas Contas a Pagar.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -109,7 +109,7 @@ export const AIDrawer: React.FC = () => {
       {
         id: `msg-confirm-${Date.now()}`,
         sender: 'ai',
-        text: '✅ **Lançamento criado com sucesso!** O valor foi registado na API e refletido no Fluxo de Caixa.',
+        text: '**Lançamento criado com sucesso!** O valor foi registado na API e refletido no Fluxo de Caixa.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ]);
@@ -233,7 +233,7 @@ export const AIDrawer: React.FC = () => {
                             onClick={() => handleConfirmActionCard(msg.id)}
                             className="flex-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors shadow-xs"
                           >
-                            ✅ Confirmar Pagamento
+                            <CheckCircle2 className="w-4 h-4" /> Confirmar Pagamento
                           </button>
                         </div>
                       )}

@@ -53,8 +53,6 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
     <SideDrawer
       title="Criar Nova Categoria"
       subtitle="Organize os seus movimentos financeiros"
-      icon={<FolderTree className="w-5 h-5" />}
-      accent="indigo"
       onClose={onClose}
       footer={
         <>

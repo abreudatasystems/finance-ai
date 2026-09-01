@@ -4,10 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { fetchCategories } from '@/services/data';
 import { Category } from '@/types';
 import { Plus, Sparkles, Tag, CheckCircle2, ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
+import { useApp } from '@/context/AppContext';
 import { CreateCategoryModal } from '@/components/shared/CreateCategoryModal';
 import { deleteCategory } from '@/services/data';
 
 export default function CategoriesPage() {
+  const { setPageHeader } = useApp();
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeTab, setActiveTab] = useState<'expense' | 'income'>('expense');
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({ CAT001: true, CAT002: true });
@@ -21,6 +23,10 @@ export default function CategoriesPage() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    setPageHeader('Plano Financeiro & Categorias', 'Estrutura de plano de contas com palavras-chave que alimentam o motor de classificação automática IA');
+  }, [setPageHeader]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
@@ -44,17 +50,8 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200/80 pb-3">
-        <div>
-          <h1 className="text-lg font-bold text-neutral-900 tracking-tight">
-            Plano Financeiro &amp; Categorias
-          </h1>
-          <p className="text-xs text-neutral-500 font-medium">
-            Estrutura de plano de contas com palavras-chave que alimentam o motor de classificação automática IA
-          </p>
-        </div>
-
+      {/* Header Actions */}
+      <div className="flex justify-end pb-3">
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-4 py-2 bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"

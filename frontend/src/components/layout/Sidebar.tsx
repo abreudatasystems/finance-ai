@@ -36,7 +36,7 @@ interface NavGroup {
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
-  const { isSidebarCollapsed, toggleSidebar } = useApp();
+  const { isSidebarCollapsed, toggleSidebar, isMobileMenuOpen, closeMobileMenu } = useApp();
 
   const navGroups: NavGroup[] = [
     {
@@ -48,9 +48,7 @@ export const Sidebar: React.FC = () => {
     {
       group: 'AUTOMATION ENGINE',
       items: [
-        { label: 'Finance Inbox', href: '/documents/inbox', icon: Inbox, badge: '5' },
-        { label: 'Inspetor OCR', href: '/documents/inspector', icon: ScanText, highlight: true },
-        { label: 'Aprovações IA', href: '/approvals', icon: CheckSquare, badge: '3' }
+        { label: 'Automação de Faturas (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true }
       ]
     },
     {
@@ -68,18 +66,27 @@ export const Sidebar: React.FC = () => {
         { label: 'Relatórios', href: '/reports', icon: BarChart3 },
         { label: 'Categorias', href: '/registry/categories', icon: FolderTree },
         { label: 'Fornecedores', href: '/registry/suppliers', icon: Building2 },
-        { label: 'Clientes', href: '/registry/customers', icon: Users },
-        { label: 'Auditoria', href: '/audit', icon: History }
+        { label: 'Clientes', href: '/registry/customers', icon: Users }
       ]
     }
   ];
 
   return (
-    <aside
-      className={`fixed left-0 top-[74px] z-40 bg-black text-neutral-300 flex flex-col h-[calc(100vh-84px)] rounded-r-3xl border-r border-t border-b border-neutral-800/80 shadow-2xl transition-[width] duration-300 ease-in-out select-none overflow-hidden ${
-        isSidebarCollapsed ? 'w-[72px]' : 'w-[250px] lg:w-[250px] md:w-[210px]'
-      }`}
-    >
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-200"
+          onClick={closeMobileMenu}
+        />
+      )}
+
+      <aside
+        className={`fixed left-0 top-[64px] md:top-[74px] z-50 bg-black text-neutral-300 flex flex-col h-[calc(100vh-64px)] md:h-[calc(100vh-84px)] rounded-none md:rounded-r-3xl border-r border-t border-b border-neutral-800/80 shadow-2xl transition-all duration-300 ease-in-out select-none overflow-hidden
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          ${isSidebarCollapsed ? 'w-[72px]' : 'w-[250px] lg:w-[250px] md:w-[210px]'}
+        `}
+      >
       {/* Top Controls: Collapse / Expand Toggle Button */}
       <div className="h-12 border-b border-neutral-800/80 flex items-center bg-neutral-950/80 shrink-0">
         <div className="w-[52px] h-full flex items-center justify-center shrink-0">
@@ -162,5 +169,6 @@ export const Sidebar: React.FC = () => {
         ))}
       </div>
     </aside>
+    </>
   );
 };
