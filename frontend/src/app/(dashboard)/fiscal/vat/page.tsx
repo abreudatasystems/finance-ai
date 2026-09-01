@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { AccountingExport } from '@/components/exports/AccountingExport';
 import { fetchVatPosition, fetchRealCash } from '@/services/data';
 import { VatPosition, RealCash, VatSide } from '@/types';
 import {
@@ -119,6 +120,9 @@ export default function VatPage() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300 pb-6">
+      {/* O ficheiro que o contabilista aceita, para o período escolhido */}
+      <AccountingExport />
+
       {/* Regime + period */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
