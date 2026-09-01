@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from app.db.session import get_db
@@ -15,6 +15,23 @@ from app.api.v1.settlements import (
 router = APIRouter()
 
 CENTS = Decimal("0.01")
+
+#: The document's own lifecycle. Settlement state lives apart, derived from
+#: the payments (see app/api/v1/settlements.py).
+VALID_STATUSES = {
+    "draft", "pending_ai", "pending_approval", "approved",
+    "paid", "received", "cancelled",
+}
+
+
+def _valid_date(value: Optional[str]) -> Optional[str]:
+    """Accept a date only if it really is one; anything else falls back to today."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value[:10]).isoformat()
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Data inválida: '{value}'. Use AAAA-MM-DD.")
 
 
 def _d(value) -> Optional[Decimal]:
@@ -91,6 +108,11 @@ def create_transaction(
     trx_id = f"TRX-{int(now.timestamp() * 1000)}"
     today = now.strftime("%Y-%m-%d")
 
+    # The date the document belongs to, not the day it was typed: an invoice
+    # from August entered in September is an August document, and that is what
+    # decides its VAT period.
+    booking_date = _valid_date(item.date) or today
+
     # A zero default vat_amount must not shadow an explicit vat_rate.
     explicit_vat = _d(item.vat_amount) if item.vat_amount else None
     net, vat, gross = _derive_amounts(item.amount, item.vat_rate, explicit_vat, _d(item.net_amount))
@@ -98,8 +120,8 @@ def create_transaction(
     new_trx = Transaction(
         id=trx_id,
         company_id=company_id,
-        date=today,
-        due_date=item.due_date or today,
+        date=booking_date,
+        due_date=item.due_date or booking_date,
         type=item.type,
         description=item.description,
         entity_name=item.entity_name,
@@ -169,6 +191,21 @@ def update_transaction(
 ):
     trx = _scoped(db, company_id, trx_id)
     data = patch.model_dump(exclude_unset=True)
+
+    if "date" in data:
+        data["date"] = _valid_date(data["date"]) or trx.date
+
+    if "status" in data:
+        if data["status"] not in VALID_STATUSES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Estado inválido. Use um de: {', '.join(sorted(VALID_STATUSES))}.",
+            )
+        if data["status"] == "cancelled":
+            # A cancelled document owes nothing and is owed nothing.
+            trx.payment_status = "cancelled"
+        elif trx.payment_status == "cancelled":
+            trx.payment_status = "paid" if _d(trx.paid_amount) >= _d(trx.gross_amount) else "pending"
 
     if "tags" in data:
         tags = data.pop("tags")

@@ -84,6 +84,10 @@ class TransactionCreate(BaseModel):
     vat_rate: Optional[float] = None
     vat_amount: Optional[float] = 0.0
     currency: Optional[str] = "EUR"
+    #: Accounting date. Defaults to today, but an invoice from last month has
+    #: to be bookable in the month it belongs to — that is what decides which
+    #: VAT period it falls in.
+    date: Optional[str] = None
     due_date: Optional[str] = None
     payment_method: Optional[str] = None
     document_number: Optional[str] = None
@@ -110,11 +114,16 @@ class TransactionUpdate(BaseModel):
     vat_rate: Optional[float] = None
     vat_amount: Optional[float] = None
     currency: Optional[str] = None
+    date: Optional[str] = None
     due_date: Optional[str] = None
     payment_date: Optional[str] = None
     payment_method: Optional[str] = None
     payment_reference: Optional[str] = None
-    payment_status: Optional[str] = None
+    #: The document's own state (draft, approved, cancelled …). The settlement
+    #: state — payment_status, paid_amount, outstanding_amount — is derived from
+    #: the payments and is deliberately NOT patchable: marking something paid
+    #: without a payment is how books stop matching reality.
+    status: Optional[str] = None
     document_number: Optional[str] = None
     document_type: Optional[str] = None
     document_date: Optional[str] = None
@@ -149,6 +158,7 @@ class TransactionOut(BaseModel):
     exchange_rate: Optional[float] = None
     paid_amount: Optional[float] = None
     outstanding_amount: Optional[float] = None
+    #: Derived from the payments, never written directly.
     payment_status: Optional[str] = None
     status: str
     source: str
