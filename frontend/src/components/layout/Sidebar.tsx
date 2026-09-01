@@ -19,7 +19,8 @@ import {
   History,
   PanelLeftClose,
   PanelLeftOpen,
-  ScanText
+  ScanText,
+  CheckCheck
 } from 'lucide-react';
 
 interface NavItem {
@@ -49,7 +50,8 @@ export const Sidebar: React.FC = () => {
     {
       group: 'AUTOMATION ENGINE',
       items: [
-        { label: 'Automação de Faturas (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true }
+        { label: 'Automação de Faturas (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true },
+        { label: 'Aprovações', href: '/documents/approvals', icon: CheckCheck }
       ]
     },
     {

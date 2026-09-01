@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { fetchDocuments, uploadInvoiceDocument, actionApproval, fetchApprovals } from '@/services/data';
@@ -146,6 +148,20 @@ export default function DocumentInspectorPage() {
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{successToast}</span>
         </div>
+      )}
+
+      {/* The queue where documents wait for a human decision. */}
+      {approvals.length > 0 && (
+        <Link
+          href="/documents/approvals"
+          className="mt-3 shrink-0 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center justify-between gap-2 hover:bg-amber-100 transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
+            {approvals.length} documento(s) à espera de aprovação
+          </span>
+          <span className="font-bold underline">Rever agora</span>
+        </Link>
       )}
 
       {/* MAIN SPLIT-SCREEN WORKSPACE (100% Height remaining) */}
