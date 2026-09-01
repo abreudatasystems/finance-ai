@@ -391,6 +391,71 @@ class Payment(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Recurrence(Base):
+    """A cost or revenue that repeats — rent, salaries, subscriptions, avenças.
+
+    The transactions carried an ``is_recurring`` flag that nothing ever acted
+    on, so every month someone typed the rent again. This is the rule itself:
+    what to book, how often, from when, until when. Generation is idempotent
+    per period, so running it twice on the same month cannot produce the rent
+    twice.
+    """
+
+    __tablename__ = "recurrences"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
+
+    name = Column(String, nullable=False)                  # "Renda do escritório"
+    type = Column(String, nullable=False, default="expense")   # expense | income
+
+    # What each occurrence books.
+    description = Column(String, nullable=False)
+    entity_id = Column(String, ForeignKey("entities.id"), nullable=True)
+    entity_name = Column(String, nullable=True)
+    category_id = Column(String, nullable=True)
+    category_name = Column(String, nullable=True)
+    amount = Column(Numeric(14, 2), nullable=False)        # gross
+    vat_rate = Column(Float, nullable=True)
+    payment_method = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # How often, and when.
+    frequency = Column(String, nullable=False, default="monthly")  # monthly | quarterly | yearly | weekly
+    interval = Column(Integer, default=1)                  # every N periods
+    day_of_month = Column(Integer, nullable=True)          # 1-31, clamped to the month's length
+    start_date = Column(String, nullable=False)
+    end_date = Column(String, nullable=True)               # optional stop
+    #: How many days before the due date the entry is booked.
+    lead_days = Column(Integer, default=0)
+
+    active = Column(Boolean, default=True)
+    last_generated_period = Column(String, nullable=True)  # "2026-08" — the idempotency key
+    last_generated_at = Column(DateTime, nullable=True)
+    occurrences_created = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RecurrenceOccurrence(Base):
+    """One period of a recurrence, and the transaction it produced.
+
+    Kept so a period is generated exactly once, and so skipping a month is a
+    recorded decision rather than a gap nobody can explain.
+    """
+
+    __tablename__ = "recurrence_occurrences"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
+    recurrence_id = Column(String, ForeignKey("recurrences.id"), nullable=False, index=True)
+    period = Column(String, nullable=False, index=True)     # 2026-08
+    due_date = Column(String, nullable=False)
+    amount = Column(Numeric(14, 2), nullable=False)
+    status = Column(String, default="generated")            # generated | skipped
+    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class AIDocument(Base):
     __tablename__ = "ai_documents"
 
