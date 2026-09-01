@@ -238,6 +238,45 @@ class Transaction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class TransactionLine(Base):
+    """One line of a document — what makes mixed VAT possible.
+
+    A supermarket invoice carries 6%, 13% and 23% on the same paper. With a
+    single rate on the header, the only way to book it was to split it into
+    several transactions. Lines keep the document whole: each one has its own
+    base, rate and VAT, and the header totals are the sum of them.
+
+    Lines are optional. A transaction without any keeps behaving exactly as
+    before, which is what stops this from being a migration of every existing
+    record.
+    """
+
+    __tablename__ = "transaction_lines"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
+    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=False, index=True)
+    line_number = Column(Integer, nullable=False, default=1)
+
+    description = Column(String, nullable=False)
+    quantity = Column(Numeric(14, 3), default=1)
+    unit_price = Column(Numeric(14, 4), nullable=True)     # 4 decimals: unit prices are not cents
+
+    net_amount = Column(Numeric(14, 2), nullable=False)    # base tributável da linha
+    vat_rate = Column(Float, nullable=True)                # 0, 6, 13, 23 … or None when exempt
+    vat_amount = Column(Numeric(14, 2), default=0)
+    gross_amount = Column(Numeric(14, 2), nullable=False)
+    # CIVA requires the reason to be stated whenever VAT is not charged.
+    vat_exemption_reason = Column(String, nullable=True)
+
+    # A line may be classified on its own — a single invoice can hold both
+    # electricity and cleaning supplies.
+    category_id = Column(String, nullable=True)
+    category_name = Column(String, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class BankAccount(Base):
     """A company bank account. Payments move money in or out of one of these."""
 

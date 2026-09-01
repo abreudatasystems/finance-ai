@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { fetchTransaction, updateTransaction } from '@/services/data';
 import { Transaction } from '@/types';
 import { SettlementPanel } from '@/components/financial/SettlementPanel';
+import { InvoiceLinesEditor } from '@/components/lines/InvoiceLinesEditor';
 import {
   ArrowLeft, Pencil, Save, X, Loader2, FileText, Sparkles, RefreshCcw, ShieldCheck,
   Wallet, Calendar, Building2, Tag, Upload, ExternalLink, Check, AlertTriangle, Landmark, Bot, User
@@ -308,6 +309,13 @@ export default function TransactionDetailPage() {
               </div>
             )}
           </SectionCard>
+
+          {/* Detalhe por linhas: uma fatura com várias taxas de IVA */}
+          <InvoiceLinesEditor
+            transactionId={trx.id}
+            formatMoney={formatMoney}
+            onChanged={reload}
+          />
 
           {/* Liquidação: parcelas e movimentos reais */}
           <SettlementPanel
