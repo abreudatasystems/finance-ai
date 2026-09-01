@@ -20,10 +20,11 @@ from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Optional, Tuple
 
+from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.models import Company, Transaction
+from app.models.models import Company, Transaction, TransactionLine
 
 CENTS = Decimal("0.01")
 
@@ -62,27 +63,44 @@ def resolve_period(periodicity: str, period: Optional[str], today: Optional[date
 
     Accepts "2026-08" (month), "2026-T3" (quarter) or "2026" (year); when no
     period is given it uses the one currently open for this periodicity.
+
+    A period that cannot be read is a bad request, not a crash: anything the
+    client can type reaches this function.
     """
     today = today or date.today()
 
-    if period and len(period) >= 6 and period[5:6].upper() == "T":   # 2026-T3
-        year = int(period[:4])
-        quarter = int(period.upper().split("T")[1])
-        start_month = 3 * (quarter - 1) + 1
-        start = date(year, start_month, 1)
-        end = date(year + (1 if start_month + 3 > 12 else 0),
-                   ((start_month + 2) % 12) + 1, 1)
-        return f"{quarter}.º Trimestre de {year}", f"{year}-T{quarter}", start.isoformat(), end.isoformat()
+    try:
+        if period and len(period) >= 6 and period[5:6].upper() == "T":   # 2026-T3
+            year = int(period[:4])
+            quarter = int(period.upper().split("T")[1])
+            if not 1 <= quarter <= 4:
+                raise ValueError("trimestre fora de 1-4")
+            start_month = 3 * (quarter - 1) + 1
+            start = date(year, start_month, 1)
+            end = date(year + (1 if start_month + 3 > 12 else 0),
+                       ((start_month + 2) % 12) + 1, 1)
+            return f"{quarter}.º Trimestre de {year}", f"{year}-T{quarter}", start.isoformat(), end.isoformat()
 
-    if period and len(period) == 7 and period[4] == "-":   # 2026-08
-        year, month = int(period[:4]), int(period[5:7])
-        start = date(year, month, 1)
-        end = date(year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1)
-        return f"{start.strftime('%m/%Y')}", f"{year}-{month:02d}", start.isoformat(), end.isoformat()
+        if period and len(period) == 7 and period[4] == "-":   # 2026-08
+            year, month = int(period[:4]), int(period[5:7])
+            start = date(year, month, 1)
+            end = date(year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1)
+            return f"{start.strftime('%m/%Y')}", f"{year}-{month:02d}", start.isoformat(), end.isoformat()
 
-    if period and len(period) == 4:                        # 2026
-        year = int(period)
-        return f"Ano {year}", str(year), date(year, 1, 1).isoformat(), date(year + 1, 1, 1).isoformat()
+        if period and len(period) == 4:                        # 2026
+            year = int(period)
+            return f"Ano {year}", str(year), date(year, 1, 1).isoformat(), date(year + 1, 1, 1).isoformat()
+    except (ValueError, IndexError):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Período '{period}' não é válido. Use 2026-08 (mês), 2026-T3 (trimestre) ou 2026 (ano).",
+        )
+
+    if period:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Período '{period}' não é válido. Use 2026-08 (mês), 2026-T3 (trimestre) ou 2026 (ano).",
+        )
 
     # No period given: the one currently open.
     if periodicity == "monthly":
@@ -119,26 +137,85 @@ def statutory_deadlines(periodicity: str, end_exclusive: str) -> Dict[str, str]:
 
 # ───────────────────────── the settlement ─────────────────────────
 
+class _Row:
+    """A per-rate aggregate, whether it came from headers or from lines."""
+
+    __slots__ = ("vat_rate", "base", "iva", "bruto", "docs")
+
+    def __init__(self, vat_rate, base, iva, bruto, docs):
+        self.vat_rate = vat_rate
+        self.base = base
+        self.iva = iva
+        self.bruto = bruto
+        self.docs = docs
+
+
 def _rows_by_rate(db: Session, company_id: str, start: str, end: str, tx_type: str):
-    return (
-        db.query(
-            Transaction.vat_rate,
-            func.coalesce(func.sum(Transaction.net_amount), 0).label("base"),
-            func.coalesce(func.sum(Transaction.vat_amount), 0).label("iva"),
-            func.coalesce(func.sum(Transaction.amount), 0).label("bruto"),
-            func.count(Transaction.id).label("docs"),
-        )
-        .filter(
-            Transaction.company_id == company_id,
-            Transaction.type == tx_type,
-            Transaction.date >= start,
-            Transaction.date < end,
-            Transaction.status.notin_(EXCLUDED_STATUSES),
-        )
-        .group_by(Transaction.vat_rate)
-        .order_by(Transaction.vat_rate.desc())
-        .all()
+    """Per-rate totals for the period.
+
+    A document with lines is counted **from its lines** — that is the whole
+    point of having them, since one invoice can carry 6%, 13% and 23%. A
+    document without lines is counted from its header, exactly as before. The
+    two never overlap, so nothing is counted twice.
+    """
+    period_filter = (
+        Transaction.company_id == company_id,
+        Transaction.type == tx_type,
+        Transaction.date >= start,
+        Transaction.date < end,
+        Transaction.status.notin_(EXCLUDED_STATUSES),
     )
+
+    with_lines = {
+        row[0]
+        for row in db.query(TransactionLine.transaction_id)
+        .join(Transaction, Transaction.id == TransactionLine.transaction_id)
+        .filter(*period_filter)
+        .distinct()
+        .all()
+    }
+
+    header_query = db.query(
+        Transaction.vat_rate,
+        func.coalesce(func.sum(Transaction.net_amount), 0).label("base"),
+        func.coalesce(func.sum(Transaction.vat_amount), 0).label("iva"),
+        func.coalesce(func.sum(Transaction.amount), 0).label("bruto"),
+        func.count(Transaction.id).label("docs"),
+    ).filter(*period_filter)
+    if with_lines:
+        header_query = header_query.filter(Transaction.id.notin_(with_lines))
+
+    buckets: dict = {}
+
+    def _add(rate, base, iva, bruto, docs):
+        key = rate if rate is not None else 0.0
+        bucket = buckets.setdefault(key, _Row(key, Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), 0))
+        bucket.base += _d(base)
+        bucket.iva += _d(iva)
+        bucket.bruto += _d(bruto)
+        bucket.docs += docs
+
+    for r in header_query.group_by(Transaction.vat_rate).all():
+        _add(r.vat_rate, r.base, r.iva, r.bruto, r.docs)
+
+    if with_lines:
+        line_rows = (
+            db.query(
+                TransactionLine.vat_rate,
+                func.coalesce(func.sum(TransactionLine.net_amount), 0).label("base"),
+                func.coalesce(func.sum(TransactionLine.vat_amount), 0).label("iva"),
+                func.coalesce(func.sum(TransactionLine.gross_amount), 0).label("bruto"),
+                func.count(func.distinct(TransactionLine.transaction_id)).label("docs"),
+            )
+            .join(Transaction, Transaction.id == TransactionLine.transaction_id)
+            .filter(*period_filter)
+            .group_by(TransactionLine.vat_rate)
+            .all()
+        )
+        for r in line_rows:
+            _add(r.vat_rate, r.base, r.iva, r.bruto, r.docs)
+
+    return sorted(buckets.values(), key=lambda r: -(r.vat_rate or 0))
 
 
 def _summarise(rows) -> Tuple[List[dict], Decimal, Decimal, Decimal, int]:
