@@ -17,6 +17,9 @@ import {
   User,
   Category,
   CategoryGroup,
+  Installment,
+  PaymentRecord,
+  BankAccount,
   Supplier,
   Customer,
   CostCenter,
@@ -220,6 +223,55 @@ export async function updateCustomer(id: string, patch: Partial<Customer>): Prom
 
 export async function updateSupplier(id: string, patch: Partial<Supplier>): Promise<Supplier | null> {
   return apiPatch<Supplier>(`/suppliers/${id}`, patch);
+}
+
+export async function fetchInstallments(trxId: string): Promise<Installment[]> {
+  return (await apiGet<Installment[]>(`/transactions/${trxId}/installments`)) || [];
+}
+
+export async function previewInstallments(
+  trxId: string, count: number, firstDueDate?: string,
+): Promise<{ number: number; label: string; due_date: string; amount: number }[]> {
+  const q = new URLSearchParams({ count: String(count) });
+  if (firstDueDate) q.set('first_due_date', firstDueDate);
+  return (await apiGet(`/transactions/${trxId}/installments/preview?${q}`)) || [];
+}
+
+export async function createInstallments(
+  trxId: string, count: number, firstDueDate?: string,
+): Promise<Installment[] | null> {
+  return apiPost<Installment[]>(`/transactions/${trxId}/installments`, {
+    count, first_due_date: firstDueDate,
+  });
+}
+
+export async function fetchPayments(trxId: string): Promise<PaymentRecord[]> {
+  return (await apiGet<PaymentRecord[]>(`/transactions/${trxId}/payments`)) || [];
+}
+
+export interface SettlementResult {
+  payment: PaymentRecord;
+  transaction: { id: string; paid_amount: number; outstanding_amount: number; payment_status: string };
+}
+
+export async function registerPayment(trxId: string, payload: {
+  amount?: number;
+  payment_date?: string;
+  installment_id?: string;
+  bank_account_id?: string;
+  payment_method?: string;
+  reference?: string;
+  notes?: string;
+}): Promise<SettlementResult | null> {
+  return apiPost<SettlementResult>(`/transactions/${trxId}/payments`, payload);
+}
+
+export async function deletePayment(trxId: string, paymentId: string): Promise<boolean> {
+  return !!(await apiDelete<Record<string, unknown>>(`/transactions/${trxId}/payments/${paymentId}`));
+}
+
+export async function fetchBankAccounts(): Promise<BankAccount[]> {
+  return (await apiGet<BankAccount[]>('/bank-accounts/')) || [];
 }
 
 export async function fetchCategoryGroups(): Promise<CategoryGroup[]> {

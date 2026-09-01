@@ -156,6 +156,48 @@ export interface Transaction {
   updated_at: string;
 }
 
+export interface Installment {
+  id: string;
+  transaction_id: string;
+  number: number;
+  total_count: number;
+  label: string;
+  due_date: string;
+  amount: number;
+  paid_amount: number;
+  outstanding_amount: number;
+  status: 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
+}
+
+export interface PaymentRecord {
+  id: string;
+  transaction_id: string;
+  installment_id?: string | null;
+  bank_account_id?: string | null;
+  /** out = pagamento (saída), in = recebimento (entrada). */
+  direction: 'in' | 'out';
+  kind: 'pagamento' | 'recebimento';
+  amount: number;
+  payment_date: string;
+  payment_method?: string;
+  reference?: string;
+  notes?: string;
+  created_by?: string;
+}
+
+export interface BankAccount {
+  id: string;
+  company_id: string;
+  name: string;
+  bank_name?: string;
+  iban?: string;
+  currency: string;
+  opening_balance: number;
+  current_balance?: number | null;
+  is_default: boolean;
+  active: boolean;
+}
+
 export type PaymentStatus = 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
 
 export type DocumentChannel = 'email' | 'whatsapp' | 'upload' | 'drive';

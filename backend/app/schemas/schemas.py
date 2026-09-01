@@ -90,7 +90,8 @@ class TransactionCreate(BaseModel):
     document_type: Optional[str] = None
     document_date: Optional[str] = None
     is_recurring: Optional[bool] = False
-    is_paid: Optional[bool] = True
+    is_paid: Optional[bool] = True          # books an immediate settling payment
+    installment_count: Optional[int] = None  # split into N parcelas on creation
     notes: Optional[str] = None
     tags: Optional[List[str]] = None
 
@@ -114,7 +115,6 @@ class TransactionUpdate(BaseModel):
     payment_method: Optional[str] = None
     payment_reference: Optional[str] = None
     payment_status: Optional[str] = None
-    paid_amount: Optional[float] = None
     document_number: Optional[str] = None
     document_type: Optional[str] = None
     document_date: Optional[str] = None

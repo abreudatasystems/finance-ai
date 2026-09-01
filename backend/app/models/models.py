@@ -170,6 +170,72 @@ class Transaction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class BankAccount(Base):
+    """A company bank account. Payments move money in or out of one of these."""
+
+    __tablename__ = "bank_accounts"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    name = Column(String, nullable=False)
+    bank_name = Column(String, nullable=True)
+    iban = Column(String, nullable=True)
+    currency = Column(String, default="EUR")
+    opening_balance = Column(Numeric(14, 2), default=0)
+    is_default = Column(Boolean, default=False)
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Installment(Base):
+    """One scheduled due date of a transaction (parcela).
+
+    A transaction paid in one go has no installments; splitting it into N
+    creates N rows whose amounts always add back up to the gross total.
+    """
+
+    __tablename__ = "installments"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=False, index=True)
+    number = Column(Integer, nullable=False)          # 1, 2, 3 …
+    total_count = Column(Integer, nullable=False)     # of how many
+    due_date = Column(String, nullable=False)
+    amount = Column(Numeric(14, 2), nullable=False)
+    paid_amount = Column(Numeric(14, 2), default=0)
+    status = Column(String, default="pending")        # pending, partially_paid, paid, overdue, cancelled
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Payment(Base):
+    """An actual movement of money settling a transaction (or one installment).
+
+    This is the only place a settlement is recorded. The transaction's
+    paid/outstanding/payment_status are derived from these rows, never written
+    directly, so the history of partial payments is preserved.
+    """
+
+    __tablename__ = "payments"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=False, index=True)
+    installment_id = Column(String, ForeignKey("installments.id"), nullable=True)
+    bank_account_id = Column(String, ForeignKey("bank_accounts.id"), nullable=True)
+
+    direction = Column(String, nullable=False)        # out = pagamento, in = recebimento
+    amount = Column(Numeric(14, 2), nullable=False)
+    payment_date = Column(String, nullable=False)
+    payment_method = Column(String, nullable=True)    # bank_transfer, card, cash, direct_debit …
+    reference = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    reconciliation_status = Column(String, default="unmatched")  # unmatched, matched, manually_matched
+    created_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class AIDocument(Base):
     __tablename__ = "ai_documents"
 

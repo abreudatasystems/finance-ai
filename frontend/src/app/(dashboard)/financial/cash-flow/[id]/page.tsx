@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { fetchTransaction, updateTransaction } from '@/services/data';
 import { Transaction } from '@/types';
+import { SettlementPanel } from '@/components/financial/SettlementPanel';
 import {
   ArrowLeft, Pencil, Save, X, Loader2, FileText, Sparkles, RefreshCcw, ShieldCheck,
   Wallet, Calendar, Building2, Tag, Upload, ExternalLink, Check, AlertTriangle, Landmark, Bot, User
@@ -88,22 +89,24 @@ export default function TransactionDetailPage() {
   const [saving, setSaving] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
 
+  const reload = useCallback(async () => {
+    const data = await fetchTransaction(id);
+    setTrx(data);
+    setForm(data || {});
+    if (data) {
+      setPageHeader(data.description, `Detalhes da transação · ${data.document_number || data.id}`);
+    }
+  }, [id, setPageHeader]);
+
   useEffect(() => {
     let active = true;
     (async () => {
       setLoading(true);
-      const data = await fetchTransaction(id);
-      if (active) {
-        setTrx(data);
-        setForm(data || {});
-        setLoading(false);
-        if (data) {
-          setPageHeader(data.description, `Detalhes da transação · ${data.document_number || data.id}`);
-        }
-      }
+      await reload();
+      if (active) setLoading(false);
     })();
     return () => { active = false; };
-  }, [id, setPageHeader]);
+  }, [reload]);
 
   const set = (patch: Partial<Transaction>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -130,8 +133,6 @@ export default function TransactionDetailPage() {
       due_date: form.due_date,
       payment_date: form.payment_date,
       payment_method: form.payment_method,
-      payment_status: form.payment_status,
-      paid_amount: form.paid_amount != null ? Number(form.paid_amount) : undefined,
       document_number: form.document_number,
       document_type: form.document_type,
       document_date: form.document_date,
@@ -260,16 +261,35 @@ export default function TransactionDetailPage() {
                   </div>
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Taxa IVA (%)</span>
-                    <select
-                      value={form.vat_rate ?? 0}
-                      onChange={(e) => set({ vat_rate: Number(e.target.value) })}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
-                    >
-                      <option value={0}>0% (Isento)</option>
-                      <option value={6}>6%</option>
-                      <option value={13}>13%</option>
-                      <option value={23}>23%</option>
-                    </select>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        value={form.vat_rate ?? 0}
+                        onChange={(e) => set({ vat_rate: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                        placeholder="ex: 17.5"
+                        className="w-20 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
+                      />
+                      <span className="text-[11px] font-bold text-slate-400">%</span>
+                      <div className="flex gap-1">
+                        {[0, 6, 13, 23].map((r) => (
+                          <button
+                            key={r}
+                            type="button"
+                            onClick={() => set({ vat_rate: r })}
+                            className={`px-1.5 py-1 rounded border text-[10px] font-bold transition-colors ${
+                              Number(form.vat_rate ?? 0) === r
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300'
+                            }`}
+                          >
+                            {r === 0 ? 'Isento' : `${r}%`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl text-center">
@@ -289,52 +309,12 @@ export default function TransactionDetailPage() {
             )}
           </SectionCard>
 
-          {/* Pagamento */}
-          <SectionCard title="Pagamento & Liquidação" icon={<Landmark className="w-4 h-4" />}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {editMode ? (
-                <>
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Estado financeiro</span>
-                    <select value={form.payment_status ?? 'pending'} onChange={(e) => set({ payment_status: e.target.value as Transaction['payment_status'] })}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                      <option value="pending">Pendente</option>
-                      <option value="partially_paid">Parcialmente pago</option>
-                      <option value="paid">Pago</option>
-                      <option value="overdue">Vencido</option>
-                      <option value="cancelled">Cancelado</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Valor pago</span>
-                    <EditInput type="number" value={form.paid_amount} onChange={(x) => set({ paid_amount: Number(x) })} />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Data pagamento</span>
-                    <EditInput type="date" value={form.payment_date} onChange={(x) => set({ payment_date: x })} />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Método</span>
-                    <EditInput value={form.payment_method} onChange={(x) => set({ payment_method: x })} />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Vencimento</span>
-                    <EditInput type="date" value={form.due_date} onChange={(x) => set({ due_date: x })} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Field label="Estado financeiro">{payStatus.label}</Field>
-                  <Field label="Valor pago">{formatMoney(Number(v.paid_amount ?? 0))}</Field>
-                  <Field label="Em aberto">{formatMoney(Number(v.outstanding_amount ?? 0))}</Field>
-                  <Field label="Vencimento">{v.due_date}</Field>
-                  <Field label="Data pagamento">{v.payment_date}</Field>
-                  <Field label="Método">{v.payment_method}</Field>
-                  <Field label="Referência">{v.payment_reference}</Field>
-                </>
-              )}
-            </div>
-          </SectionCard>
+          {/* Liquidação: parcelas e movimentos reais */}
+          <SettlementPanel
+            transaction={trx}
+            formatMoney={formatMoney}
+            onChanged={reload}
+          />
 
           {/* Classificação & Entidade */}
           <SectionCard title="Classificação & Entidade" icon={<Building2 className="w-4 h-4" />}>
