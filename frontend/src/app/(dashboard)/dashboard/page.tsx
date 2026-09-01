@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { AlertsPanel } from '@/components/alerts/AlertsPanel';
 import { fetchHealthScore, fetchTransactions, fetchFinancialEvents, fetchDashboardSummary, fetchExpensesByCategory } from '@/services/data';
 import { FinancialHealthScore, Transaction } from '@/types';
 import {
@@ -102,6 +103,11 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-104px)] space-y-3 overflow-hidden animate-in fade-in duration-300">
       
+      {/* O que precisa de atenção, antes de qualquer número */}
+      <div className="shrink-0">
+        <AlertsPanel limit={2} />
+      </div>
+
       {/* CEO TOP KPI CARDS ROW */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {/* Card 1: Saldo Disponível */}

@@ -21,7 +21,8 @@ import {
   PanelLeftOpen,
   ScanText,
   CheckCheck,
-  Repeat
+  Repeat,
+  BellRing
 } from 'lucide-react';
 
 interface NavItem {
@@ -45,7 +46,8 @@ export const Sidebar: React.FC = () => {
     {
       group: 'COMMAND CENTER',
       items: [
-        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }
+        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Alertas', href: '/alerts', icon: BellRing }
       ]
     },
     {
