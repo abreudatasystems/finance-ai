@@ -20,7 +20,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ScanText,
-  CheckCheck
+  CheckCheck,
+  Repeat
 } from 'lucide-react';
 
 interface NavItem {
@@ -60,7 +61,8 @@ export const Sidebar: React.FC = () => {
         { label: 'Fluxo de Caixa', href: '/financial/cash-flow', icon: Wallet },
         { label: 'Contas a Pagar', href: '/financial/payables', icon: ArrowDownLeft },
         { label: 'Contas a Receber', href: '/financial/receivables', icon: ArrowUpRight },
-        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 }
+        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 },
+        { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat }
       ]
     },
     {
