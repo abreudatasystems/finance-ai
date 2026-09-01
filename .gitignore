@@ -34,3 +34,6 @@ Thumbs.db
 *.log
 data/
 minio_data/
+
+# pytest
+.pytest_cache/
