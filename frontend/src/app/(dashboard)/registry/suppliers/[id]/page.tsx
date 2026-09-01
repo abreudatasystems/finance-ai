@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { EntityAccount } from '@/components/entities/EntityAccount';
 import { fetchSuppliers, updateSupplier, fetchTransactions } from '@/services/data';
 import { Supplier, Transaction } from '@/types';
 import {
@@ -230,6 +231,9 @@ export default function SupplierProfilePage() {
               <p className="text-[11px] text-indigo-100/70 mt-1">Total de despesas registadas para este fornecedor.</p>
             </div>
           </div>
+
+          {/* Conta-corrente: os dois lados da relação, derivados dos documentos */}
+          <EntityAccount entityId={supplier.id} formatMoney={formatMoney} focus="compras" />
 
           <SectionCard title="Histórico de Movimentos" icon={<Wallet className="w-4 h-4" />}>
             {history.length > 0 ? (

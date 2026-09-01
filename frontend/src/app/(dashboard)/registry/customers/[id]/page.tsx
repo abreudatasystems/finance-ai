@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { EntityAccount } from '@/components/entities/EntityAccount';
 import { fetchCustomers, updateCustomer, fetchTransactions } from '@/services/data';
 import { Customer, Transaction } from '@/types';
 import {
@@ -214,6 +215,9 @@ export default function CustomerProfilePage() {
               <p className="text-[11px] text-emerald-100/70 mt-1">Total de receitas registadas para este cliente.</p>
             </div>
           </div>
+
+          {/* Conta-corrente: os dois lados da relação, derivados dos documentos */}
+          <EntityAccount entityId={customer.id} formatMoney={formatMoney} focus="vendas" />
 
           <SectionCard title="Histórico de Movimentos" icon={<Wallet className="w-4 h-4" />}>
             {history.length > 0 ? (
