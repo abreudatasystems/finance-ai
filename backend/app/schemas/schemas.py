@@ -41,9 +41,10 @@ class CompanyOut(BaseModel):
 
 # Category
 class CategoryCreate(BaseModel):
-    type: str  # income, expense
     name: str
-    parent_id: Optional[str] = None
+    group_id: Optional[str] = None      # top-level group; type is derived from it
+    type: Optional[str] = None          # fallback when no group is given
+    parent_id: Optional[str] = None     # set to create a subcategory
     description: Optional[str] = None
     keywords: Optional[List[str]] = None
 

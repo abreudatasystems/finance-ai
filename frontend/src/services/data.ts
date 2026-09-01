@@ -16,6 +16,7 @@ import {
   Company,
   User,
   Category,
+  CategoryGroup,
   Supplier,
   Customer,
   CostCenter,
@@ -219,6 +220,37 @@ export async function updateCustomer(id: string, patch: Partial<Customer>): Prom
 
 export async function updateSupplier(id: string, patch: Partial<Supplier>): Promise<Supplier | null> {
   return apiPatch<Supplier>(`/suppliers/${id}`, patch);
+}
+
+export async function fetchCategoryGroups(): Promise<CategoryGroup[]> {
+  return (await apiGet<CategoryGroup[]>('/category-groups/')) || [];
+}
+
+export async function createCategoryGroup(
+  payload: { name: string; kind: 'income' | 'expense'; icon?: string; color?: string; description?: string },
+): Promise<CategoryGroup | null> {
+  return apiPost<CategoryGroup>('/category-groups/', payload);
+}
+
+export async function updateCategoryGroup(
+  id: string,
+  patch: Partial<Pick<CategoryGroup, 'name' | 'kind' | 'icon' | 'color' | 'description' | 'active'>>,
+): Promise<CategoryGroup | null> {
+  return apiPatch<CategoryGroup>(`/category-groups/${id}`, patch);
+}
+
+export async function deleteCategoryGroup(id: string): Promise<boolean> {
+  return !!(await apiDelete<Record<string, unknown>>(`/category-groups/${id}`));
+}
+
+export async function createCategory(payload: {
+  name: string;
+  group_id?: string;
+  parent_id?: string;
+  description?: string;
+  keywords?: string[];
+}): Promise<Category | null> {
+  return apiPost<Category>('/categories/', payload);
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {

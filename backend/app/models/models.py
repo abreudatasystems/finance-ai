@@ -32,12 +32,38 @@ class UserMembership(Base):
     role = Column(String, default="owner")  # owner, admin, finance_manager, viewer
     joined_at = Column(DateTime, default=datetime.utcnow)
 
+class CategoryGroup(Base):
+    """Top level of the classification tree: Group > Category > Subcategory.
+
+    "Receita" and "Despesa" ship with every company as system groups and cannot
+    be renamed or deleted. A company may add its own groups (e.g. Investimento),
+    but every group must declare the financial nature it behaves as via ``kind``
+    — that is what keeps the cash-flow, dashboard and fiscal aggregations
+    working, since those reason in terms of income vs expense.
+    """
+
+    __tablename__ = "category_groups"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    name = Column(String, nullable=False)
+    kind = Column(String, nullable=False)          # income | expense
+    icon = Column(String, nullable=True)           # emoji shown in the UI
+    color = Column(String, nullable=True)          # accent token, e.g. "emerald"
+    description = Column(String, nullable=True)
+    is_system = Column(Boolean, default=False)     # system groups are protected
+    sort_order = Column(Integer, default=0)
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Category(Base):
     __tablename__ = "categories"
 
     id = Column(String, primary_key=True, index=True)
     company_id = Column(String, ForeignKey("companies.id"), nullable=False)
-    type = Column(String, nullable=False)  # income, expense
+    type = Column(String, nullable=False)  # income, expense — mirrors group.kind
+    group_id = Column(String, ForeignKey("category_groups.id"), nullable=True)
     name = Column(String, nullable=False)
     parent_id = Column(String, ForeignKey("categories.id"), nullable=True)
     description = Column(String, nullable=True)

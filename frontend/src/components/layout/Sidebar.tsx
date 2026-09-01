@@ -64,7 +64,6 @@ export const Sidebar: React.FC = () => {
       group: 'GESTÃO & AUDITORIA',
       items: [
         { label: 'Relatórios', href: '/reports', icon: BarChart3 },
-        { label: 'Categorias', href: '/registry/categories', icon: FolderTree },
         { label: 'Fornecedores', href: '/registry/suppliers', icon: Building2 },
         { label: 'Clientes', href: '/registry/customers', icon: Users }
       ]

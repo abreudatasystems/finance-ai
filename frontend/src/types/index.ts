@@ -38,10 +38,27 @@ export type TransactionStatus =
 
 export type TransactionSource = 'manual' | 'ai' | 'bank' | 'import';
 
+export interface CategoryGroup {
+  id: string;
+  company_id: string;
+  name: string;
+  /** The financial nature the group behaves as in cash flow, dashboard and VAT reports. */
+  kind: 'income' | 'expense';
+  icon?: string;
+  color?: string;
+  description?: string;
+  /** System groups (Receita, Despesa) cannot be renamed, re-typed or deleted. */
+  is_system: boolean;
+  sort_order: number;
+  active: boolean;
+  category_count?: number;
+}
+
 export interface Category {
   id: string;
   company_id: string;
   type: 'income' | 'expense';
+  group_id?: string | null;
   name: string;
   parent_id?: string | null;
   description?: string;
