@@ -12,3 +12,4 @@ psycopg2-binary>=2.9.9
 pillow>=10.2.0
 pypdf>=4.1.0
 alembic>=1.13.0
+pytest>=8.0.0

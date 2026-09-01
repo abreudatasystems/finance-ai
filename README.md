@@ -50,6 +50,20 @@ alembic revision --autogenerate -m "..."   # after changing a model
 alembic downgrade -1                       # step back one revision
 ```
 
+### Testes
+
+The suite covers the rules that are expensive to get wrong — VAT arithmetic,
+tenant isolation, approval-is-not-payment, reconciliation, recurrence
+idempotency and the migrations themselves:
+
+```bash
+cd backend
+python -m pytest -q
+```
+
+CI runs it on every push and pull request, together with the frontend
+typecheck and build (`.github/workflows/ci.yml`).
+
 ### Multi-empresa e equipas
 
 A login can own several companies; each is a separate tenant. The active one
