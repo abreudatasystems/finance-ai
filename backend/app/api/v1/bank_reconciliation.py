@@ -2,81 +2,44 @@
 import uuid
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.api.deps import get_current_company_id, require_write
+from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.models.models import BankStatement, BankStatementEntry, Transaction, User
 from app.services.bank_parser import parse_csv, parse_ofx, detect_bank_name
+from app.services import reconciliation as recon
 
 router = APIRouter()
 
 
-def _fuzzy_match(a: str, b: str) -> float:
-    """Simple word-overlap similarity between two strings (0-100)."""
-    wa = set(a.lower().split())
-    wb = set(b.lower().split())
-    if not wa or not wb:
-        return 0
-    overlap = wa & wb
-    return round(len(overlap) / max(len(wa), len(wb)) * 100)
-
-
 def _auto_match_entries(entries: list, company_id: str, db: Session) -> int:
-    """Try to match each bank entry against existing transactions."""
-    matched = 0
+    """Propose a counterpart for each imported bank line.
+
+    Proposals only. A line becomes ``matched`` when a payment is actually
+    linked to it (see app/services/reconciliation.py) — marking it matched here
+    would claim money was accounted for when nothing had been settled.
+    """
+    from app.models.models import BankStatementEntry as Entry
+
+    suggested = 0
     for entry in entries:
-        # Search transactions with same amount (±0.01) and date ±3 days
-        candidates = (
-            db.query(Transaction)
-            .filter(
-                Transaction.company_id == company_id,
-                Transaction.amount.between(entry.amount - 0.01, entry.amount + 0.01),
-                Transaction.status.notin_(["cancelled"]),
-            )
-            .all()
-        )
+        db_entry = db.query(Entry).filter(Entry.id == entry.id).first()
+        if not db_entry or db_entry.status == "matched":
+            continue
 
-        best_match = None
-        best_score = 0
-
-        for trx in candidates:
-            # Date proximity bonus
-            try:
-                trx_date = datetime.strptime(trx.date[:10], "%Y-%m-%d").date()
-                entry_date = datetime.strptime(entry.date[:10], "%Y-%m-%d").date()
-                day_diff = abs((trx_date - entry_date).days)
-            except (ValueError, TypeError):
-                day_diff = 999
-
-            if day_diff > 5:
-                continue
-
-            # Description similarity
-            desc_score = _fuzzy_match(entry.description, trx.description)
-            entity_score = _fuzzy_match(entry.description, trx.entity_name)
-
-            score = max(desc_score, entity_score)
-            # Date proximity bonus
-            if day_diff == 0:
-                score += 30
-            elif day_diff <= 2:
-                score += 15
-            elif day_diff <= 5:
-                score += 5
-
-            if score > best_score:
-                best_score = score
-                best_match = trx
-
-        db_entry = db.query(BankStatementEntry).filter(BankStatementEntry.id == entry.id).first()
-        if db_entry and best_match and best_score >= 50:
-            db_entry.matched_transaction_id = best_match.id
-            db_entry.match_confidence = min(99, best_score)
-            db_entry.status = "matched" if best_score >= 75 else "suggested"
-            matched += 1
+        proposals = recon.suggestions(db, company_id, db_entry, limit=1)
+        if proposals:
+            best = proposals[0]
+            db_entry.matched_transaction_id = best["transaction_id"]
+            db_entry.match_confidence = best["score"]
+            db_entry.status = "suggested"
+            suggested += 1
 
     db.commit()
     return matched
@@ -147,9 +110,9 @@ async def upload_bank_statement(
 
     db.commit()
 
-    # Auto-match
-    matched_count = _auto_match_entries(parsed_entries, company_id, db)
-    statement.matched_entries = matched_count
+    # Propose counterparts. Nothing is reconciled until a payment is linked.
+    suggested_count = _auto_match_entries(parsed_entries, company_id, db)
+    statement.matched_entries = 0
     statement.status = "completed"
     db.commit()
 
@@ -158,7 +121,8 @@ async def upload_bank_statement(
         "bank_name": bank_name,
         "file_name": file_name,
         "total_entries": len(parsed_entries),
-        "matched_entries": matched_count,
+        "suggested_entries": suggested_count,
+        "matched_entries": 0,
         "status": "completed",
     }
 
@@ -245,38 +209,94 @@ def confirm_match(
     transaction_id: str,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    current_user: User = Depends(get_current_user),
     _writer: User = Depends(require_write),
 ):
-    """Manually confirm a match between a bank entry and a transaction."""
-    entry = (
-        db.query(BankStatementEntry)
-        .filter(
-            BankStatementEntry.id == entry_id,
-            BankStatementEntry.statement_id == statement_id,
-            BankStatementEntry.company_id == company_id,
-        )
-        .first()
-    )
-    if not entry:
+    """Confirm a match (kept for older clients).
+
+    Delegates to the reconciliation service, so this path settles the payment
+    like every other one instead of only labelling the line.
+    """
+    entry = recon.scoped_entry(db, company_id, entry_id)
+    if entry.statement_id != statement_id:
         raise HTTPException(status_code=404, detail="Entrada não encontrada.")
+    return recon.match(db, company_id, current_user, entry_id, transaction_id=transaction_id)
 
-    trx = db.query(Transaction).filter(
-        Transaction.id == transaction_id,
-        Transaction.company_id == company_id,
-    ).first()
-    if not trx:
-        raise HTTPException(status_code=404, detail="Transação não encontrada.")
 
-    was_unmatched = entry.status in ("unmatched", "suggested")
-    entry.matched_transaction_id = transaction_id
-    entry.match_confidence = 100
-    entry.status = "matched"
+# ---------------------------------------------------------------------------
+# Reconciliation — see app/services/reconciliation.py for the rules.
+#
+# Matching a bank line settles the obligation behind it through the settlement
+# layer: it reuses an existing payment of the right amount, or creates the
+# payment the bank line describes. The transaction's paid / outstanding /
+# payment_status are re-derived, never written here.
+# ---------------------------------------------------------------------------
 
-    # Update statement counter
-    if was_unmatched:
-        stmt = db.query(BankStatement).filter(BankStatement.id == statement_id).first()
-        if stmt:
-            stmt.matched_entries = (stmt.matched_entries or 0) + 1
+class MatchRequest(BaseModel):
+    transaction_id: Optional[str] = None
+    payment_id: Optional[str] = None
 
-    db.commit()
-    return {"status": "ok", "entry_id": entry_id, "transaction_id": transaction_id}
+
+@router.get("/entries")
+def list_entries(
+    status: str = Query("all", description="all | unmatched | suggested | matched | ignored"),
+    statement_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    """Every bank line, with the payment and transaction behind it when matched."""
+    return recon.list_entries(db, company_id, status, statement_id)
+
+
+@router.get("/reconciliation/overview")
+def reconciliation_overview(
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    return recon.overview(db, company_id)
+
+
+@router.get("/entries/{entry_id}/suggestions")
+def entry_suggestions(
+    entry_id: str,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    """Transactions this line could be settling, with why each was proposed."""
+    entry = recon.scoped_entry(db, company_id, entry_id)
+    return recon.suggestions(db, company_id, entry)
+
+
+@router.post("/entries/{entry_id}/match")
+def match_entry(
+    entry_id: str,
+    body: MatchRequest,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    current_user: User = Depends(get_current_user),
+    _writer: User = Depends(require_write),
+):
+    return recon.match(db, company_id, current_user, entry_id, body.transaction_id, body.payment_id)
+
+
+@router.post("/entries/{entry_id}/unmatch")
+def unmatch_entry(
+    entry_id: str,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
+):
+    """Undo a reconciliation — a payment created from the bank line is removed."""
+    return recon.unmatch(db, company_id, entry_id)
+
+
+@router.post("/entries/{entry_id}/ignore")
+def ignore_entry(
+    entry_id: str,
+    ignored: bool = Query(True),
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
+):
+    """Park a line with no counterpart in the books (fees, internal transfers)."""
+    return recon.ignore(db, company_id, entry_id, ignored)

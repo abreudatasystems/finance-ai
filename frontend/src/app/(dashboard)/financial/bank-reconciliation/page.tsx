@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { fetchBankStatements, fetchBankStatementEntries } from '@/services/data';
 import { apiFetch } from '@/services/api';
+import { ReconciliationPanel } from '@/components/reconciliation/ReconciliationPanel';
 import {
   Upload,
   FileSpreadsheet,
@@ -14,7 +15,6 @@ import {
   ArrowRight,
   Loader2,
   Building2,
-  Sparkles,
   RefreshCcw
 } from 'lucide-react';
 
@@ -153,9 +153,6 @@ export default function BankReconciliationPage() {
       {/* Header Actions (Header moved to TopBar) */}
       <div className="flex justify-end gap-4 pb-3">
         <div className="flex items-center gap-2">
-          <span className="hidden sm:flex px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md text-[10px] font-bold items-center gap-1">
-            <Sparkles className="w-3 h-3 text-indigo-500" /> Auto-Match 94%
-          </span>
           <button
             onClick={handleSync}
             disabled={isSyncing}
@@ -166,6 +163,10 @@ export default function BankReconciliationPage() {
           </button>
         </div>
       </div>
+
+      {/* The working surface: match a bank line and the obligation behind it
+          gets settled. See src/components/reconciliation. */}
+      <ReconciliationPanel />
 
       {/* Upload Zone */}
       <div
