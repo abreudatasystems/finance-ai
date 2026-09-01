@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, dashboard, transactions, documents, ai_assistant, categories, suppliers, customers, approvals, events, audit, settings, companies, webhooks, reports, bank_reconciliation, fiscal
+from app.api.v1 import auth, dashboard, transactions, documents, ai_assistant, categories, suppliers, customers, approvals, events, audit, settings, companies, webhooks, reports, bank_reconciliation, fiscal, category_groups, settlements, bank_accounts, chart_templates, invitations
 
 api_router = APIRouter()
 
@@ -7,8 +7,13 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(companies.router, prefix="/companies", tags=["companies"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
+api_router.include_router(settlements.router, prefix="/transactions", tags=["settlements"])
+api_router.include_router(bank_accounts.router, prefix="/bank-accounts", tags=["bank-accounts"])
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_router.include_router(ai_assistant.router, prefix="/ai", tags=["ai"])
+api_router.include_router(category_groups.router, prefix="/category-groups", tags=["categories"])
+api_router.include_router(chart_templates.router, prefix="/chart-templates", tags=["categories"])
+api_router.include_router(invitations.router, prefix="/invitations", tags=["team"])
 api_router.include_router(categories.router, prefix="/categories", tags=["categories"])
 api_router.include_router(suppliers.router, prefix="/suppliers", tags=["suppliers"])
 api_router.include_router(customers.router, prefix="/customers", tags=["customers"])

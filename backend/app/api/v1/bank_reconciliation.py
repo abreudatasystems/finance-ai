@@ -7,8 +7,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.api.deps import get_current_company_id
-from app.models.models import BankStatement, BankStatementEntry, Transaction
+from app.api.deps import get_current_company_id, require_write
+from app.models.models import BankStatement, BankStatementEntry, Transaction, User
 from app.services.bank_parser import parse_csv, parse_ofx, detect_bank_name
 
 router = APIRouter()
@@ -167,6 +167,7 @@ async def upload_bank_statement(
 def list_statements(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     """List all uploaded bank statements."""
     stmts = (
@@ -244,6 +245,7 @@ def confirm_match(
     transaction_id: str,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     """Manually confirm a match between a bank entry and a transaction."""
     entry = (

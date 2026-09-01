@@ -1,4 +1,7 @@
-from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text, Numeric
+from sqlalchemy import (
+    Column, String, Float, Integer, Boolean, DateTime, ForeignKey, Text, Numeric,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
@@ -11,9 +14,34 @@ class Company(Base):
     nif = Column(String, nullable=False)
     currency = Column(String, default="EUR")
     fiscal_year_start = Column(String, default="01")
+
+    # --- Portuguese tax profile ---
+    country = Column(String, default="PT")
+    legal_form = Column(String, nullable=True)        # ENI, Unipessoal Lda, Lda, SA …
+    # normal = liquida e deduz IVA; isencao_art53 = isento (não liquida nem deduz)
+    vat_regime = Column(String, default="normal")
+    # Regime normal: mensal (volume ≥ 650k€) ou trimestral (< 650k€)
+    vat_periodicity = Column(String, default="quarterly")
+    cae = Column(String, nullable=True)               # código de atividade económica
+
+    # Chart of accounts provisioning
+    chart_template = Column(String, nullable=True)
+    chart_provisioned = Column(Boolean, default=False)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class User(Base):
+    """A login.
+
+    ``account_type`` separates the two ways an account comes into existence:
+
+    * ``full`` — someone who registered on their own. Owns companies and may
+      create as many as they want, each one a separate tenant.
+    * ``invited`` — someone who only exists because a company invited them.
+      They work inside the companies they were invited to and cannot open
+      companies of their own.
+    """
+
     __tablename__ = "users"
 
     id = Column(String, primary_key=True, index=True)
@@ -21,28 +49,94 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     avatar = Column(String, nullable=True)
+    account_type = Column(String, default="full", nullable=False)   # full | invited
+    active = Column(Boolean, default=True)
+    last_login_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
 class UserMembership(Base):
+    """A user's seat in one company — the row that grants access to a tenant.
+
+    Everything the API reads or writes is scoped by ``company_id``, so a user
+    with three memberships sees three completely separate sets of data.
+    """
+
     __tablename__ = "user_memberships"
+    __table_args__ = (UniqueConstraint("user_id", "company_id", name="uq_membership_user_company"),)
 
     id = Column(String, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
     role = Column(String, default="owner")  # owner, admin, finance_manager, viewer
+    invited_by = Column(String, ForeignKey("users.id"), nullable=True)
     joined_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Invitation(Base):
+    """An invitation to join a company.
+
+    The token is the secret: whoever holds it can accept the invitation for the
+    invited email address. It expires, can be revoked, and is single-use.
+    """
+
+    __tablename__ = "invitations"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
+    email = Column(String, nullable=False, index=True)
+    role = Column(String, nullable=False, default="viewer")
+    token = Column(String, unique=True, index=True, nullable=False)
+    # pending | accepted | revoked  (expiry is derived from expires_at)
+    status = Column(String, default="pending", nullable=False)
+    message = Column(Text, nullable=True)
+    invited_by = Column(String, ForeignKey("users.id"), nullable=True)
+    accepted_by = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    accepted_at = Column(DateTime, nullable=True)
+
+class CategoryGroup(Base):
+    """Top level of the classification tree: Group > Category > Subcategory.
+
+    "Receita" and "Despesa" ship with every company as system groups and cannot
+    be renamed or deleted. A company may add its own groups (e.g. Investimento),
+    but every group must declare the financial nature it behaves as via ``kind``
+    — that is what keeps the cash-flow, dashboard and fiscal aggregations
+    working, since those reason in terms of income vs expense.
+    """
+
+    __tablename__ = "category_groups"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    name = Column(String, nullable=False)
+    kind = Column(String, nullable=False)          # income | expense
+    icon = Column(String, nullable=True)           # emoji shown in the UI
+    color = Column(String, nullable=True)          # accent token, e.g. "emerald"
+    description = Column(String, nullable=True)
+    is_system = Column(Boolean, default=False)     # system groups are protected
+    sort_order = Column(Integer, default=0)
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 
 class Category(Base):
     __tablename__ = "categories"
 
     id = Column(String, primary_key=True, index=True)
     company_id = Column(String, ForeignKey("companies.id"), nullable=False)
-    type = Column(String, nullable=False)  # income, expense
+    type = Column(String, nullable=False)  # income, expense — mirrors group.kind
+    group_id = Column(String, ForeignKey("category_groups.id"), nullable=True)
     name = Column(String, nullable=False)
     parent_id = Column(String, ForeignKey("categories.id"), nullable=True)
     description = Column(String, nullable=True)
     keywords = Column(Text, nullable=True)  # comma separated
     active = Column(Boolean, default=True)
+    # Provenance: came from a chart template (editable and deletable, just labelled)
+    is_system = Column(Boolean, default=False)
+    source_key = Column(String, nullable=True, index=True)
+    snc_code = Column(String, nullable=True)   # SNC account, e.g. "62"
 
 class Supplier(Base):
     __tablename__ = "suppliers"
@@ -143,6 +237,72 @@ class Transaction(Base):
     rejection_reason = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class BankAccount(Base):
+    """A company bank account. Payments move money in or out of one of these."""
+
+    __tablename__ = "bank_accounts"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    name = Column(String, nullable=False)
+    bank_name = Column(String, nullable=True)
+    iban = Column(String, nullable=True)
+    currency = Column(String, default="EUR")
+    opening_balance = Column(Numeric(14, 2), default=0)
+    is_default = Column(Boolean, default=False)
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Installment(Base):
+    """One scheduled due date of a transaction (parcela).
+
+    A transaction paid in one go has no installments; splitting it into N
+    creates N rows whose amounts always add back up to the gross total.
+    """
+
+    __tablename__ = "installments"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=False, index=True)
+    number = Column(Integer, nullable=False)          # 1, 2, 3 …
+    total_count = Column(Integer, nullable=False)     # of how many
+    due_date = Column(String, nullable=False)
+    amount = Column(Numeric(14, 2), nullable=False)
+    paid_amount = Column(Numeric(14, 2), default=0)
+    status = Column(String, default="pending")        # pending, partially_paid, paid, overdue, cancelled
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Payment(Base):
+    """An actual movement of money settling a transaction (or one installment).
+
+    This is the only place a settlement is recorded. The transaction's
+    paid/outstanding/payment_status are derived from these rows, never written
+    directly, so the history of partial payments is preserved.
+    """
+
+    __tablename__ = "payments"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    transaction_id = Column(String, ForeignKey("transactions.id"), nullable=False, index=True)
+    installment_id = Column(String, ForeignKey("installments.id"), nullable=True)
+    bank_account_id = Column(String, ForeignKey("bank_accounts.id"), nullable=True)
+
+    direction = Column(String, nullable=False)        # out = pagamento, in = recebimento
+    amount = Column(Numeric(14, 2), nullable=False)
+    payment_date = Column(String, nullable=False)
+    payment_method = Column(String, nullable=True)    # bank_transfer, card, cash, direct_debit …
+    reference = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    reconciliation_status = Column(String, default="unmatched")  # unmatched, matched, manually_matched
+    created_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 
 class AIDocument(Base):
     __tablename__ = "ai_documents"

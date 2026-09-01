@@ -5,9 +5,12 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from app.db.session import get_db
-from app.api.deps import get_current_company_id, get_current_user
+from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.models.models import Transaction, User
 from app.schemas.schemas import TransactionCreate, TransactionUpdate, TransactionOut
+from app.api.v1.settlements import (
+    InstallmentPlan, PaymentCreate, create_installments, create_payment, recompute_settlement,
+)
 
 router = APIRouter()
 
@@ -82,6 +85,7 @@ def create_transaction(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
     current_user: User = Depends(get_current_user),
+    _writer: User = Depends(require_write),
 ):
     now = datetime.now(timezone.utc)
     trx_id = f"TRX-{int(now.timestamp() * 1000)}"
@@ -110,9 +114,9 @@ def create_transaction(
         vat_amount=vat,
         gross_amount=gross,
         currency=item.currency or "EUR",
-        paid_amount=gross if item.is_paid else Decimal("0.00"),
-        outstanding_amount=Decimal("0.00") if item.is_paid else gross,
-        payment_status="paid" if item.is_paid else "pending",
+        paid_amount=Decimal("0.00"),
+        outstanding_amount=gross,
+        payment_status="pending",
         status="approved",
         source="manual",
         document_number=item.document_number,
@@ -125,6 +129,30 @@ def create_transaction(
         created_by=current_user.name,
     )
     db.add(new_trx)
+    db.flush()
+
+    # Optional plan of parcelas requested at creation time.
+    if item.installment_count and item.installment_count > 1:
+        create_installments(
+            trx_id,
+            InstallmentPlan(count=item.installment_count, first_due_date=new_trx.due_date),
+            db=db,
+            company_id=company_id,
+        )
+        db.refresh(new_trx)
+
+    # "Already paid" books a real payment rather than writing the totals by hand,
+    # so the settlement state stays derived from actual movements.
+    if item.is_paid:
+        create_payment(
+            trx_id,
+            PaymentCreate(payment_date=today, payment_method=new_trx.payment_method),
+            db=db,
+            company_id=company_id,
+            current_user=current_user,
+        )
+        db.refresh(new_trx)
+
     db.commit()
     db.refresh(new_trx)
     return new_trx
@@ -137,6 +165,7 @@ def update_transaction(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
     current_user: User = Depends(get_current_user),
+    _writer: User = Depends(require_write),
 ):
     trx = _scoped(db, company_id, trx_id)
     data = patch.model_dump(exclude_unset=True)

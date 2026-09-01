@@ -26,6 +26,8 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
   const [categoryName, setCategoryName] = useState('Marketing > Google Ads');
   const [amount, setAmount] = useState('');
   const [vatRate, setVatRate] = useState<number>(23);
+  const [customVat, setCustomVat] = useState(false);
+  const [installmentCount, setInstallmentCount] = useState<number>(1);
   const [dueDate, setDueDate] = useState('2026-08-30');
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid'>('pending');
   const [categoryId, setCategoryId] = useState('');
@@ -71,6 +73,24 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
     return { net, vat: Math.round((gross - net) * 100) / 100, gross };
   }, [amount, vatRate]);
 
+  // Mirrors the backend split: equal parts, last one absorbs the rounding.
+  const schedulePreview = useMemo(() => {
+    const gross = parseFloat(amount) || 0;
+    if (installmentCount < 2 || gross <= 0) return [];
+    const base = Math.round((gross / installmentCount) * 100) / 100;
+    const start = dueDate ? new Date(dueDate) : new Date();
+    const rows: { number: number; due_date: string; amount: number }[] = [];
+    let running = 0;
+    for (let n = 1; n <= Math.min(installmentCount, 6); n++) {
+      const value = n < installmentCount ? base : Math.round((gross - running) * 100) / 100;
+      running = Math.round((running + value) * 100) / 100;
+      const d = new Date(start);
+      d.setMonth(d.getMonth() + (n - 1));
+      rows.push({ number: n, due_date: d.toISOString().split('T')[0], amount: value });
+    }
+    return rows;
+  }, [amount, installmentCount, dueDate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -84,6 +104,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
         category_name: categoryOptions.find((o) => o.id === categoryId)?.label || categoryName,
         amount: parseFloat(amount) || 0,
         vat_rate: vatRate,
+        installment_count: installmentCount > 1 ? installmentCount : undefined,
         due_date: dueDate,
         is_paid: paymentStatus === 'paid',
         cost_center_name: costCenter.trim() || undefined,
@@ -235,14 +256,14 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-slate-600">Taxa de IVA</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
               {[0, 6, 13, 23].map((rate) => (
                 <button
                   key={rate}
                   type="button"
-                  onClick={() => setVatRate(rate)}
+                  onClick={() => { setCustomVat(false); setVatRate(rate); }}
                   className={`py-2 rounded-lg border text-[11px] font-bold transition-all ${
-                    vatRate === rate
+                    !customVat && vatRate === rate
                       ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
                       : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
@@ -250,7 +271,36 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                   {rate === 0 ? 'Isento' : `${rate}%`}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setCustomVat(true)}
+                className={`py-2 rounded-lg border text-[11px] font-bold transition-all ${
+                  customVat
+                    ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                Outra
+              </button>
             </div>
+
+            {customVat && (
+              <div className="flex items-center gap-2 pt-0.5">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  autoFocus
+                  value={vatRate}
+                  onChange={(e) => setVatRate(Math.min(100, Math.max(0, Number(e.target.value))))}
+                  placeholder="17.5"
+                  className="w-24 px-3 py-2 text-xs rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-bold"
+                />
+                <span className="text-xs font-bold text-slate-500">%</span>
+                <span className="text-[10px] text-slate-400">Qualquer percentagem entre 0 e 100 (aceita decimais).</span>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 rounded-xl text-center border border-slate-200/80">
               <div>
                 <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Líquido</div>
@@ -266,6 +316,58 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
               </div>
             </div>
             <p className="text-[10px] text-slate-400">O valor introduzido é o total com IVA; o líquido é calculado a partir da taxa.</p>
+          </div>
+
+          {/* Parcelas */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-slate-600">Parcelas</label>
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+              {[1, 2, 3, 4, 6, 12].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setInstallmentCount(n)}
+                  className={`py-2 rounded-lg border text-[11px] font-bold transition-all ${
+                    installmentCount === n
+                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  {n === 1 ? 'À vista' : `${n}x`}
+                </button>
+              ))}
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={installmentCount}
+                onChange={(e) => setInstallmentCount(Math.min(120, Math.max(1, Number(e.target.value) || 1)))}
+                aria-label="Número de parcelas"
+                className="py-2 px-2 rounded-lg border border-slate-200 text-[11px] font-bold text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
+              />
+            </div>
+
+            {installmentCount > 1 && (
+              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  <span>Plano de {installmentCount} parcelas</span>
+                  <span>Mensal, a partir do vencimento</span>
+                </div>
+                {schedulePreview.map((p) => (
+                  <div key={p.number} className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 font-mono">
+                      {p.number}/{installmentCount} · {p.due_date}
+                    </span>
+                    <span className="font-bold text-slate-800">{currencySymbol}{p.amount.toFixed(2)}</span>
+                  </div>
+                ))}
+                {installmentCount > 6 && (
+                  <p className="text-[10px] text-slate-400 pt-0.5">
+                    …e mais {installmentCount - 6} parcela(s). A última absorve o arredondamento para somar exatamente o total.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

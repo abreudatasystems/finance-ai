@@ -9,20 +9,146 @@ export interface Company {
   currency: Currency;
   fiscal_year_start: string;
   created_at: string;
+  country?: string;
+  legal_form?: string | null;
+  vat_regime?: string;
+  vat_periodicity?: string;
+  cae?: string | null;
+  /** The role the signed-in login holds in THIS company. */
+  role?: UserRole;
+  role_label?: string;
+  member_count?: number;
+}
+
+export interface VatRateLine {
+  vat_rate: number | null;
+  label: string;
+  base_tributavel: number;
+  iva: number;
+  total: number;
+  num_documentos: number;
+}
+
+export interface VatSide {
+  total: number;
+  base_tributavel: number;
+  num_documentos: number;
+  breakdown: VatRateLine[];
+}
+
+/** Apuramento do IVA: liquidado − dedutível = a entregar (ou a recuperar). */
+export interface VatPosition {
+  period: { key: string; label: string; start: string; end: string; periodicity: string; periodicity_label: string };
+  regime: { code: string; label: string; exempt: boolean; legal_form?: string | null; nif?: string | null };
+  iva_liquidado: VatSide;
+  iva_dedutivel: VatSide;
+  apuramento: {
+    saldo: number;
+    a_entregar: number;
+    a_recuperar: number;
+    situacao: 'a_entregar' | 'a_recuperar' | 'neutro' | 'isento';
+  };
+  prazos: { declaracao_ate: string; pagamento_ate: string };
+  nota: string;
+}
+
+export interface RealCash {
+  saldo_caixa: number;
+  recebido: number;
+  pago: number;
+  iva_a_entregar: number;
+  iva_a_recuperar: number;
+  dinheiro_real: number;
+  periodo_iva: string;
+  prazo_pagamento_iva: string;
+  alerta: string | null;
 }
 
 export interface UserMembership {
   company_id: string;
+  company_name?: string;
   role: UserRole;
   joined_at: string;
 }
+
+/**
+ * How the account came to exist.
+ * `full` — registered on their own; may open as many companies as they want.
+ * `invited` — exists because a company invited them; participates only there.
+ */
+export type AccountType = 'full' | 'invited';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   avatar?: string;
+  account_type?: AccountType;
+  can_create_companies?: boolean;
   memberships: UserMembership[];
+}
+
+/** A person inside one company, with what they have been moving. */
+export interface TeamMember {
+  user_id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  account_type: AccountType;
+  role: UserRole;
+  role_label: string;
+  joined_at?: string | null;
+  invited_by?: string | null;
+  is_you: boolean;
+  movimentos: number;
+}
+
+export interface Invitation {
+  id: string;
+  company_id: string;
+  company_name?: string;
+  email: string;
+  role: UserRole;
+  role_label: string;
+  status: 'pending' | 'accepted' | 'revoked';
+  message?: string | null;
+  invited_by_name?: string | null;
+  created_at?: string | null;
+  expires_at?: string | null;
+  accepted_at?: string | null;
+  /** Only present while the invitation is still open. */
+  token?: string;
+  accept_path?: string;
+}
+
+export interface InvitationPreview {
+  company_name: string;
+  email: string;
+  role: UserRole;
+  role_label: string;
+  invited_by_name?: string | null;
+  message?: string | null;
+  expires_at?: string | null;
+  /** True when the invited email already has a login and should just sign in. */
+  account_exists: boolean;
+}
+
+export interface MemberActivity {
+  user_id: string;
+  name: string;
+  lancamentos: number;
+  total_entradas: number;
+  total_saidas: number;
+  ultimo_lancamento?: string | null;
+  movimentos: Array<{
+    id: string;
+    date: string;
+    description: string;
+    type: TransactionType;
+    amount: number;
+    status: string;
+  }>;
+  acoes: Array<{ timestamp: string; action: string; module: string; description: string }>;
 }
 
 export type TransactionType = 'income' | 'expense' | 'transfer';
@@ -38,16 +164,47 @@ export type TransactionStatus =
 
 export type TransactionSource = 'manual' | 'ai' | 'bank' | 'import';
 
+export interface CategoryGroup {
+  id: string;
+  company_id: string;
+  name: string;
+  /** The financial nature the group behaves as in cash flow, dashboard and VAT reports. */
+  kind: 'income' | 'expense';
+  icon?: string;
+  color?: string;
+  description?: string;
+  /** System groups (Receita, Despesa) cannot be renamed, re-typed or deleted. */
+  is_system: boolean;
+  sort_order: number;
+  active: boolean;
+  category_count?: number;
+}
+
 export interface Category {
   id: string;
   company_id: string;
   type: 'income' | 'expense';
+  group_id?: string | null;
   name: string;
   parent_id?: string | null;
   description?: string;
   keywords?: string[];
   active: boolean;
+  /** Came from the standard chart template: read-only (cannot be edited or deleted). */
+  is_system?: boolean;
+  source_key?: string | null;
+  snc_code?: string | null;
   children?: Category[];
+}
+
+export interface ChartTemplate {
+  code: string;
+  name: string;
+  description: string;
+  country: string;
+  standard?: string | null;
+  category_count: number;
+  active?: boolean;
 }
 
 export interface Supplier {
@@ -137,6 +294,48 @@ export interface Transaction {
   rejection_reason?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface Installment {
+  id: string;
+  transaction_id: string;
+  number: number;
+  total_count: number;
+  label: string;
+  due_date: string;
+  amount: number;
+  paid_amount: number;
+  outstanding_amount: number;
+  status: 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
+}
+
+export interface PaymentRecord {
+  id: string;
+  transaction_id: string;
+  installment_id?: string | null;
+  bank_account_id?: string | null;
+  /** out = pagamento (saída), in = recebimento (entrada). */
+  direction: 'in' | 'out';
+  kind: 'pagamento' | 'recebimento';
+  amount: number;
+  payment_date: string;
+  payment_method?: string;
+  reference?: string;
+  notes?: string;
+  created_by?: string;
+}
+
+export interface BankAccount {
+  id: string;
+  company_id: string;
+  name: string;
+  bank_name?: string;
+  iban?: string;
+  currency: string;
+  opening_balance: number;
+  current_balance?: number | null;
+  is_default: boolean;
+  active: boolean;
 }
 
 export type PaymentStatus = 'pending' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FolderTree, Sparkles, Loader2 } from 'lucide-react';
-import { Category } from '@/types';
+import { Category, CategoryGroup } from '@/types';
+import { fetchCategoryGroups } from '@/services/data';
 import { apiPost } from '@/services/api';
 import { SideDrawer } from './SideDrawer';
 
@@ -19,6 +20,20 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
   const [description, setDescription] = useState('');
   const [keywords, setKeywords] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [groups, setGroups] = useState<CategoryGroup[]>([]);
+  const [groupId, setGroupId] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    fetchCategoryGroups().then((g) => {
+      if (!active) return;
+      setGroups(g);
+      // Default to the first group matching the selected nature.
+      const match = g.find((x) => x.kind === type);
+      if (match) setGroupId((cur) => cur || match.id);
+    });
+    return () => { active = false; };
+  }, [type]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +43,7 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
     const keywordList = keywords ? keywords.split(',').map(k => k.trim()).filter(Boolean) : [];
 
     const created = await apiPost<Category>('/categories/', {
+      group_id: groupId || undefined,
       type,
       name: name.trim(),
       description: description.trim() || undefined,
@@ -77,27 +93,46 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
     >
       <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Categoria</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setType('expense')}
-              className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                type === 'expense' ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-slate-50 border-slate-200 text-slate-600'
-              }`}
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Grupo</label>
+          {groups.length ? (
+            <select
+              value={groupId}
+              onChange={(e) => {
+                const g = groups.find((x) => x.id === e.target.value);
+                setGroupId(e.target.value);
+                if (g) setType(g.kind);
+              }}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
             >
-              Despesa (- €)
-            </button>
-            <button
-              type="button"
-              onClick={() => setType('income')}
-              className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${
-                type === 'income' ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'
-              }`}
-            >
-              Receita (+ €)
-            </button>
-          </div>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.icon ? `${g.icon} ` : ''}{g.name} ({g.kind === 'income' ? 'entra' : 'sai'})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setType('expense')}
+                className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                  type === 'expense' ? 'bg-rose-50 border-rose-300 text-rose-700' : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}
+              >
+                Despesa (- €)
+              </button>
+              <button
+                type="button"
+                onClick={() => setType('income')}
+                className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                  type === 'income' ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}
+              >
+                Receita (+ €)
+              </button>
+            </div>
+          )}
+          <p className="text-[10px] text-slate-400 mt-1.5">O grupo define a natureza (entra/sai) da categoria.</p>
         </div>
 
         <div>

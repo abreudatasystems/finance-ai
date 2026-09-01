@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from app.db.session import get_db
-from app.api.deps import get_current_company_id
-from app.models.models import Supplier
+from app.api.deps import get_current_company_id, require_write
+from app.models.models import Supplier, User
 from app.schemas.schemas import SupplierCreate
 
 router = APIRouter()
@@ -23,6 +23,7 @@ def create_supplier(
     item: SupplierCreate,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     sup_id = f"SUP-{int(datetime.now(timezone.utc).timestamp() * 1000)}"
     new_sup = Supplier(
@@ -49,6 +50,7 @@ def delete_supplier(
     supplier_id: str,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     sup = db.query(Supplier).filter(Supplier.id == supplier_id, Supplier.company_id == company_id).first()
     if not sup:

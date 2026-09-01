@@ -3,14 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { fetchAIRules, fetchAuditLogs } from '@/services/data';
+import { fetchAIRules, fetchAuditLogs, updateCompany } from '@/services/data';
 import { clearToken } from '@/services/api';
 import { AIRule, AuditLogItem } from '@/types';
+import Link from 'next/link';
+import { ChartOfAccounts } from '@/components/settings/ChartOfAccounts';
+import { TeamPanel } from '@/components/settings/TeamPanel';
 import {
-  Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, Mail, BadgeCheck, History
+  Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, Mail, BadgeCheck, History,
+  FolderTree
 } from 'lucide-react';
 
-type Tab = 'company' | 'ai' | 'profile' | 'users' | 'audit';
+type Tab = 'company' | 'categories' | 'ai' | 'profile' | 'users' | 'audit';
 
 const SETTINGS_KEY = 'finance_ai_settings';
 
@@ -28,9 +32,10 @@ const DEFAULT_SETTINGS: StoredSettings = {
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'company', label: 'Empresa', icon: <Building2 className="w-4 h-4" /> },
+  { id: 'categories', label: 'Categorias', icon: <FolderTree className="w-4 h-4" /> },
   { id: 'ai', label: 'Inteligência Artificial', icon: <Sparkles className="w-4 h-4" /> },
   { id: 'profile', label: 'Perfil', icon: <User className="w-4 h-4" /> },
-  { id: 'users', label: 'Utilizadores & Roles', icon: <Users className="w-4 h-4" /> },
+  { id: 'users', label: 'Equipa & Permissões', icon: <Users className="w-4 h-4" /> },
   { id: 'audit', label: 'Auditoria & Logs', icon: <History className="w-4 h-4" /> },
 ];
 
@@ -43,6 +48,17 @@ export default function SettingsPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [settings, setSettings] = useState<StoredSettings>(DEFAULT_SETTINGS);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [vatRegime, setVatRegime] = useState('normal');
+  const [vatPeriodicity, setVatPeriodicity] = useState('quarterly');
+  const [legalForm, setLegalForm] = useState('');
+
+  useEffect(() => {
+    const comp = currentCompany as unknown as Record<string, string> | null;
+    if (!comp) return;
+    setVatRegime(comp.vat_regime || 'normal');
+    setVatPeriodicity(comp.vat_periodicity || 'quarterly');
+    setLegalForm(comp.legal_form || '');
+  }, [currentCompany]);
 
   useEffect(() => {
     async function load() {
@@ -65,7 +81,14 @@ export default function SettingsPage() {
 
   const patch = (p: Partial<StoredSettings>) => setSettings((s) => ({ ...s, ...p }));
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (currentCompany?.id) {
+      await updateCompany(currentCompany.id, {
+        vat_regime: vatRegime,
+        vat_periodicity: vatPeriodicity,
+        legal_form: legalForm || undefined,
+      });
+    }
     try {
       window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch {
@@ -167,6 +190,60 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <div className="pt-2 border-t border-slate-100 space-y-3">
+            <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" /> Perfil Fiscal (Portugal)
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label className="font-semibold text-slate-600">Forma jurídica</label>
+                <select
+                  value={legalForm}
+                  onChange={(e) => setLegalForm(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                >
+                  <option value="">Não definida</option>
+                  <option value="ENI">ENI — Empresário em Nome Individual</option>
+                  <option value="Unipessoal Lda">Unipessoal Lda</option>
+                  <option value="Lda">Lda</option>
+                  <option value="SA">SA</option>
+                  <option value="Associação">Associação</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-semibold text-slate-600">Regime de IVA</label>
+                <select
+                  value={vatRegime}
+                  onChange={(e) => setVatRegime(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                >
+                  <option value="normal">Regime Normal (liquida e deduz)</option>
+                  <option value="isencao_art53">Isenção — art.º 53.º do CIVA</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-semibold text-slate-600">Periodicidade</label>
+                <select
+                  value={vatPeriodicity}
+                  onChange={(e) => setVatPeriodicity(e.target.value)}
+                  disabled={vatRegime === 'isencao_art53'}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium disabled:bg-slate-50 disabled:text-slate-400"
+                >
+                  <option value="quarterly">Trimestral (volume &lt; 650 mil €)</option>
+                  <option value="monthly">Mensal (volume ≥ 650 mil €)</option>
+                </select>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-slate-400">
+              Define como o <Link href="/fiscal/vat" className="text-indigo-600 font-semibold hover:underline">apuramento do IVA</Link> é
+              calculado e os prazos de entrega. Na isenção do art.º 53.º não se liquida nem deduz IVA.
+            </p>
+          </div>
+
           <div className="flex items-start gap-2 p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 text-[11px] text-indigo-800">
             <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-indigo-600" />
             <span>
@@ -178,6 +255,9 @@ export default function SettingsPage() {
       )}
 
       {/* TAB: Inteligência Artificial */}
+      {/* TAB: Categorias */}
+      {activeTab === 'categories' && <ChartOfAccounts />}
+
       {activeTab === 'ai' && (
         <div className="space-y-5">
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4 max-w-2xl text-xs">
@@ -323,45 +403,7 @@ export default function SettingsPage() {
       )}
 
       {/* TAB: Utilizadores & Roles */}
-      {activeTab === 'users' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4 text-xs">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-slate-900">Membros da Equipa e Permissões</h3>
-            <span className="text-slate-400 font-mono">2 Membros</span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[560px]">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
-                  <th className="p-3">Nome</th>
-                  <th className="p-3">Email</th>
-                  <th className="p-3">Role / Permissão</th>
-                  <th className="p-3">Data de Entrada</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                <tr className="hover:bg-slate-50 font-medium">
-                  <td className="p-3 font-bold text-slate-900">{displayName}</td>
-                  <td className="p-3 text-slate-600">{displayEmail}</td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-bold rounded text-[10px] uppercase">Owner</span>
-                  </td>
-                  <td className="p-3 text-slate-500">15/01/2026</td>
-                </tr>
-                <tr className="hover:bg-slate-50 font-medium">
-                  <td className="p-3 font-bold text-slate-900">Ana Costa</td>
-                  <td className="p-3 text-slate-600">ana@techstart.pt</td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-bold rounded text-[10px] uppercase">Finance Manager</span>
-                  </td>
-                  <td className="p-3 text-slate-500">10/02/2026</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {activeTab === 'users' && <TeamPanel />}
 
       {/* TAB: Auditoria & Logs */}
       {activeTab === 'audit' && (

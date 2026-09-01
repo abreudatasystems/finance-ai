@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Currency, Company, UserRole, User } from '@/types';
-import { fetchCompanies, fetchUsers } from '@/services/data';
+import { fetchCompanies, fetchCurrentUser } from '@/services/data';
+import { getActiveCompany, setActiveCompany } from '@/services/api';
 
 interface AppContextType {
   currentCompany: Company | null;
@@ -22,6 +23,10 @@ interface AppContextType {
   toggleMobileMenu: () => void;
   closeMobileMenu: () => void;
   switchCompany: (companyId: string) => void;
+  /** Re-reads the companies this login belongs to (after creating or joining one). */
+  refreshCompanies: () => Promise<Company[]>;
+  /** False for accounts that only exist because they were invited. */
+  canCreateCompanies: boolean;
   formatMoney: (amount: number) => string;
   pageTitle: string;
   pageSubtitle: string;
@@ -47,32 +52,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPageSubtitle(subtitle);
   };
 
+  /** Pick the company this session works in: the remembered one, else the first. */
+  const applyActive = (comps: Company[], preferred?: string | null) => {
+    if (comps.length === 0) return;
+    const chosen = comps.find((c) => c.id === preferred) || comps[0];
+    setCurrentCompany(chosen);
+    setCurrency(chosen.currency);
+    setUserRole((chosen.role as UserRole) || 'owner');
+    setActiveCompany(chosen.id);
+  };
+
+  const refreshCompanies = async (): Promise<Company[]> => {
+    const comps = await fetchCompanies();
+    setCompanies(comps);
+    applyActive(comps, currentCompany?.id || getActiveCompany());
+    return comps;
+  };
+
   useEffect(() => {
     async function initData() {
       const comps = await fetchCompanies();
       setCompanies(comps);
-      if (comps.length > 0) {
-        setCurrentCompany(comps[0]);
-        setCurrency(comps[0].currency);
-      }
-      const users = await fetchUsers();
-      if (users.length > 0) {
-        setCurrentUser(users[0]);
-      }
+      applyActive(comps, getActiveCompany());
+      setCurrentUser(await fetchCurrentUser());
     }
     initData();
   }, []);
 
+  /**
+   * Switch tenant. The company id is stored before reloading so every request
+   * of the next session carries the new X-Company-Id from the first byte — no
+   * window in which a page still shows the previous company's numbers.
+   */
   const switchCompany = (companyId: string) => {
-    const comp = companies.find(c => c.id === companyId);
-    if (comp) {
-      setCurrentCompany(comp);
-      setCurrency(comp.currency);
-      if (currentUser) {
-        const mem = currentUser.memberships.find(m => m.company_id === companyId);
-        if (mem) setUserRole(mem.role);
-      }
-    }
+    const comp = companies.find((c) => c.id === companyId);
+    if (!comp || comp.id === currentCompany?.id) return;
+    setActiveCompany(comp.id);
+    setCurrentCompany(comp);
+    setCurrency(comp.currency);
+    setUserRole((comp.role as UserRole) || 'owner');
+    if (typeof window !== 'undefined') window.location.reload();
   };
 
   const openAiDrawer = () => setIsAiDrawerOpen(true);
@@ -121,6 +140,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleMobileMenu,
         closeMobileMenu,
         switchCompany,
+        refreshCompanies,
+        canCreateCompanies: currentUser?.can_create_companies !== false,
         formatMoney,
         pageTitle,
         pageSubtitle,

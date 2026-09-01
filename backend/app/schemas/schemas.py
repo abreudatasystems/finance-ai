@@ -41,9 +41,10 @@ class CompanyOut(BaseModel):
 
 # Category
 class CategoryCreate(BaseModel):
-    type: str  # income, expense
     name: str
-    parent_id: Optional[str] = None
+    group_id: Optional[str] = None      # top-level group; type is derived from it
+    type: Optional[str] = None          # fallback when no group is given
+    parent_id: Optional[str] = None     # set to create a subcategory
     description: Optional[str] = None
     keywords: Optional[List[str]] = None
 
@@ -89,7 +90,8 @@ class TransactionCreate(BaseModel):
     document_type: Optional[str] = None
     document_date: Optional[str] = None
     is_recurring: Optional[bool] = False
-    is_paid: Optional[bool] = True
+    is_paid: Optional[bool] = True          # books an immediate settling payment
+    installment_count: Optional[int] = None  # split into N parcelas on creation
     notes: Optional[str] = None
     tags: Optional[List[str]] = None
 
@@ -113,7 +115,6 @@ class TransactionUpdate(BaseModel):
     payment_method: Optional[str] = None
     payment_reference: Optional[str] = None
     payment_status: Optional[str] = None
-    paid_amount: Optional[float] = None
     document_number: Optional[str] = None
     document_type: Optional[str] = None
     document_date: Optional[str] = None
