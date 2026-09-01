@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   BarChart3,
+  Scale,
   FolderTree,
   Users,
   Building2,
@@ -64,6 +65,7 @@ export const Sidebar: React.FC = () => {
       group: 'GESTÃO & AUDITORIA',
       items: [
         { label: 'Relatórios', href: '/reports', icon: BarChart3 },
+        { label: 'Apuramento do IVA', href: '/fiscal/vat', icon: Scale },
         { label: 'Fornecedores', href: '/registry/suppliers', icon: Building2 },
         { label: 'Clientes', href: '/registry/customers', icon: Users }
       ]

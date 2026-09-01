@@ -11,6 +11,50 @@ export interface Company {
   created_at: string;
 }
 
+export interface VatRateLine {
+  vat_rate: number | null;
+  label: string;
+  base_tributavel: number;
+  iva: number;
+  total: number;
+  num_documentos: number;
+}
+
+export interface VatSide {
+  total: number;
+  base_tributavel: number;
+  num_documentos: number;
+  breakdown: VatRateLine[];
+}
+
+/** Apuramento do IVA: liquidado − dedutível = a entregar (ou a recuperar). */
+export interface VatPosition {
+  period: { key: string; label: string; start: string; end: string; periodicity: string; periodicity_label: string };
+  regime: { code: string; label: string; exempt: boolean; legal_form?: string | null; nif?: string | null };
+  iva_liquidado: VatSide;
+  iva_dedutivel: VatSide;
+  apuramento: {
+    saldo: number;
+    a_entregar: number;
+    a_recuperar: number;
+    situacao: 'a_entregar' | 'a_recuperar' | 'neutro' | 'isento';
+  };
+  prazos: { declaracao_ate: string; pagamento_ate: string };
+  nota: string;
+}
+
+export interface RealCash {
+  saldo_caixa: number;
+  recebido: number;
+  pago: number;
+  iva_a_entregar: number;
+  iva_a_recuperar: number;
+  dinheiro_real: number;
+  periodo_iva: string;
+  prazo_pagamento_iva: string;
+  alerta: string | null;
+}
+
 export interface UserMembership {
   company_id: string;
   role: UserRole;

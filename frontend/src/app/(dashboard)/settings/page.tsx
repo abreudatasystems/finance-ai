@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { fetchAIRules, fetchAuditLogs, fetchCategories, fetchCategoryGroups } from '@/services/data';
+import { fetchAIRules, fetchAuditLogs, fetchCategories, fetchCategoryGroups, updateCompany } from '@/services/data';
 import { clearToken } from '@/services/api';
 import { AIRule, AuditLogItem, Category, CategoryGroup } from '@/types';
 import Link from 'next/link';
@@ -50,6 +50,17 @@ export default function SettingsPage() {
   const [catModalOpen, setCatModalOpen] = useState(false);
   const [settings, setSettings] = useState<StoredSettings>(DEFAULT_SETTINGS);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [vatRegime, setVatRegime] = useState('normal');
+  const [vatPeriodicity, setVatPeriodicity] = useState('quarterly');
+  const [legalForm, setLegalForm] = useState('');
+
+  useEffect(() => {
+    const comp = currentCompany as unknown as Record<string, string> | null;
+    if (!comp) return;
+    setVatRegime(comp.vat_regime || 'normal');
+    setVatPeriodicity(comp.vat_periodicity || 'quarterly');
+    setLegalForm(comp.legal_form || '');
+  }, [currentCompany]);
 
   useEffect(() => {
     async function load() {
@@ -74,7 +85,14 @@ export default function SettingsPage() {
 
   const patch = (p: Partial<StoredSettings>) => setSettings((s) => ({ ...s, ...p }));
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (currentCompany?.id) {
+      await updateCompany(currentCompany.id, {
+        vat_regime: vatRegime,
+        vat_periodicity: vatPeriodicity,
+        legal_form: legalForm || undefined,
+      });
+    }
     try {
       window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch {
@@ -174,6 +192,60 @@ export default function SettingsPage() {
                 <option value="GBP">GBP (£) - Libra Esterlina</option>
               </select>
             </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-100 space-y-3">
+            <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" /> Perfil Fiscal (Portugal)
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label className="font-semibold text-slate-600">Forma jurídica</label>
+                <select
+                  value={legalForm}
+                  onChange={(e) => setLegalForm(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                >
+                  <option value="">Não definida</option>
+                  <option value="ENI">ENI — Empresário em Nome Individual</option>
+                  <option value="Unipessoal Lda">Unipessoal Lda</option>
+                  <option value="Lda">Lda</option>
+                  <option value="SA">SA</option>
+                  <option value="Associação">Associação</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-semibold text-slate-600">Regime de IVA</label>
+                <select
+                  value={vatRegime}
+                  onChange={(e) => setVatRegime(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                >
+                  <option value="normal">Regime Normal (liquida e deduz)</option>
+                  <option value="isencao_art53">Isenção — art.º 53.º do CIVA</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-semibold text-slate-600">Periodicidade</label>
+                <select
+                  value={vatPeriodicity}
+                  onChange={(e) => setVatPeriodicity(e.target.value)}
+                  disabled={vatRegime === 'isencao_art53'}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium disabled:bg-slate-50 disabled:text-slate-400"
+                >
+                  <option value="quarterly">Trimestral (volume &lt; 650 mil €)</option>
+                  <option value="monthly">Mensal (volume ≥ 650 mil €)</option>
+                </select>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-slate-400">
+              Define como o <Link href="/fiscal/vat" className="text-indigo-600 font-semibold hover:underline">apuramento do IVA</Link> é
+              calculado e os prazos de entrega. Na isenção do art.º 53.º não se liquida nem deduz IVA.
+            </p>
           </div>
 
           <div className="flex items-start gap-2 p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 text-[11px] text-indigo-800">

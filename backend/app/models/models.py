@@ -11,6 +11,16 @@ class Company(Base):
     nif = Column(String, nullable=False)
     currency = Column(String, default="EUR")
     fiscal_year_start = Column(String, default="01")
+
+    # --- Portuguese tax profile ---
+    country = Column(String, default="PT")
+    legal_form = Column(String, nullable=True)        # ENI, Unipessoal Lda, Lda, SA …
+    # normal = liquida e deduz IVA; isencao_art53 = isento (não liquida nem deduz)
+    vat_regime = Column(String, default="normal")
+    # Regime normal: mensal (volume ≥ 650k€) ou trimestral (< 650k€)
+    vat_periodicity = Column(String, default="quarterly")
+    cae = Column(String, nullable=True)               # código de atividade económica
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class User(Base):

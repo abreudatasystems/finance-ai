@@ -8,9 +8,29 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.api.deps import get_current_company_id
+from app.services.vat_engine import compute_vat_position, compute_real_cash
 from app.models.models import Transaction, Company, Supplier, Customer
 
 router = APIRouter()
+
+
+@router.get("/vat-position")
+def get_vat_position(
+    period: Optional[str] = None,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    """Apuramento do IVA: liquidado − dedutível, with the statutory deadlines."""
+    return compute_vat_position(db, company_id, period)
+
+
+@router.get("/real-cash")
+def get_real_cash(
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    """Cash split into what belongs to the company and what belongs to the State."""
+    return compute_real_cash(db, company_id)
 
 
 def _to_float(val) -> float:
@@ -23,90 +43,28 @@ def get_vat_summary(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
 ):
-    """IVA (VAT) summary broken down by tax rate for the given period."""
-    today = datetime.utcnow().date()
-    if period:
-        # period = "2026-08" or "2026"
-        date_start = period + "-01" if len(period) == 7 else period + "-01-01"
-        if len(period) == 7:
-            month = int(period.split("-")[1])
-            year = int(period.split("-")[0])
-            if month == 12:
-                date_end = f"{year + 1}-01-01"
-            else:
-                date_end = f"{year}-{month + 1:02d}-01"
-        else:
-            date_end = f"{int(period) + 1}-01-01"
-    else:
-        date_start = today.replace(day=1).isoformat()
-        date_end = today.isoformat()
+    """IVA summary by rate.
 
-    rows = (
-        db.query(
-            Transaction.vat_rate,
-            func.coalesce(func.sum(Transaction.net_amount), 0).label("base_tributavel"),
-            func.coalesce(func.sum(Transaction.vat_amount), 0).label("iva_total"),
-            func.coalesce(func.sum(Transaction.amount), 0).label("total_bruto"),
-            func.count(Transaction.id).label("num_docs"),
-        )
-        .filter(
-            Transaction.company_id == company_id,
-            Transaction.date >= date_start,
-            Transaction.date <= date_end,
-            Transaction.status.notin_(["cancelled", "draft"]),
-        )
-        .group_by(Transaction.vat_rate)
-        .order_by(Transaction.vat_rate.desc())
-        .all()
-    )
-
-    vat_labels = {
-        23.0: "Taxa Normal (23%)",
-        13.0: "Taxa Intermédia (13%)",
-        6.0: "Taxa Reduzida (6%)",
-        0.0: "Isento / 0%",
-        None: "Sem IVA definido",
-    }
-
-    breakdown = []
-    total_base = 0.0
-    total_iva = 0.0
-    total_bruto = 0.0
-    total_docs = 0
-
-    for row in rows:
-        rate = row.vat_rate
-        base = _to_float(row.base_tributavel)
-        iva = _to_float(row.iva_total)
-        bruto = _to_float(row.total_bruto)
-        docs = row.num_docs
-
-        total_base += base
-        total_iva += iva
-        total_bruto += bruto
-        total_docs += docs
-
-        label = vat_labels.get(rate, f"Taxa {rate}%" if rate else "Sem IVA")
-        breakdown.append({
-            "vat_rate": rate,
-            "label": label,
-            "base_tributavel": round(base, 2),
-            "iva_total": round(iva, 2),
-            "total_bruto": round(bruto, 2),
-            "num_documentos": docs,
-        })
-
+    Delegates to the apuramento so sales and purchases stay separated — adding
+    IVA liquidado to IVA dedutível produces a figure that means nothing.
+    """
+    position = compute_vat_position(db, company_id, period)
     return {
-        "period": period or today.strftime("%Y-%m"),
-        "breakdown": breakdown,
+        "period": position["period"]["key"],
+        "period_label": position["period"]["label"],
+        "regime": position["regime"],
+        "breakdown": position["iva_liquidado"]["breakdown"] + position["iva_dedutivel"]["breakdown"],
+        "iva_liquidado": position["iva_liquidado"],
+        "iva_dedutivel": position["iva_dedutivel"],
+        "apuramento": position["apuramento"],
+        "prazos": position["prazos"],
         "totals": {
-            "base_tributavel": round(total_base, 2),
-            "iva_total": round(total_iva, 2),
-            "total_bruto": round(total_bruto, 2),
-            "num_documentos": total_docs,
+            "base_tributavel": round(
+                position["iva_liquidado"]["base_tributavel"] + position["iva_dedutivel"]["base_tributavel"], 2),
+            "iva_total": position["apuramento"]["saldo"],
+            "num_documentos": position["iva_liquidado"]["num_documentos"] + position["iva_dedutivel"]["num_documentos"],
         },
     }
-
 
 @router.get("/saft-export")
 def export_saft_xml(

@@ -20,6 +20,8 @@ import {
   Installment,
   PaymentRecord,
   BankAccount,
+  VatPosition,
+  RealCash,
   Supplier,
   Customer,
   CostCenter,
@@ -162,6 +164,21 @@ export async function fetchVatSummary<T = Record<string, unknown>>(period?: stri
   const url = period ? `/fiscal/vat-summary?period=${period}` : '/fiscal/vat-summary';
   const data = await apiGet<T>(url);
   return data || ({ breakdown: [], totals: {} } as unknown as T);
+}
+
+export async function fetchVatPosition(period?: string): Promise<VatPosition | null> {
+  return apiGet<VatPosition>(period ? `/fiscal/vat-position?period=${period}` : '/fiscal/vat-position');
+}
+
+export async function fetchRealCash(): Promise<RealCash | null> {
+  return apiGet<RealCash>('/fiscal/real-cash');
+}
+
+export async function updateCompany(
+  companyId: string,
+  patch: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  return apiPatch<Record<string, unknown>>(`/companies/${companyId}`, patch);
 }
 
 // ── Bank Reconciliation ──
