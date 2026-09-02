@@ -81,6 +81,10 @@ class TransactionCreate(BaseModel):
     cost_center_name: Optional[str] = None
     amount: float                       # total (gross); net/vat derived if not sent
     net_amount: Optional[float] = None
+    #: Withholding at source: a slug from app/catalog/retentions.py.
+    #: The rate follows the catalog unless retention_rate overrides it.
+    retention_code: Optional[str] = None
+    retention_rate: Optional[float] = None
     vat_rate: Optional[float] = None
     vat_amount: Optional[float] = 0.0
     currency: Optional[str] = "EUR"
@@ -111,6 +115,8 @@ class TransactionUpdate(BaseModel):
     cost_center_name: Optional[str] = None
     amount: Optional[float] = None
     net_amount: Optional[float] = None
+    retention_code: Optional[str] = None
+    retention_rate: Optional[float] = None
     vat_rate: Optional[float] = None
     vat_amount: Optional[float] = None
     currency: Optional[str] = None
@@ -150,6 +156,11 @@ class TransactionOut(BaseModel):
     cost_center_name: Optional[str] = None
     amount: float
     net_amount: Optional[float] = None
+    retention_code: Optional[str] = None
+    retention_rate: Optional[float] = None
+    retention_amount: Optional[float] = 0.0
+    #: gross - retention: what actually moves through the bank.
+    payable_amount: Optional[float] = None
     vat_rate: Optional[float] = None
     vat_amount: Optional[float] = 0.0
     gross_amount: Optional[float] = None

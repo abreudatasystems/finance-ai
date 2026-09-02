@@ -25,7 +25,8 @@ import {
   BellRing,
   FileText,
   HandCoins,
-  Target
+  Target,
+  Landmark
 } from 'lucide-react';
 
 interface NavItem {
@@ -78,6 +79,7 @@ export const Sidebar: React.FC = () => {
         { label: 'Relatórios', href: '/reports', icon: BarChart3 },
         { label: 'Demonstração de Resultados', href: '/reports/dre', icon: FileText },
         { label: 'Apuramento do IVA', href: '/fiscal/vat', icon: Scale },
+        { label: 'Retenções na Fonte', href: '/fiscal/retentions', icon: Landmark },
         { label: 'Fornecedores', href: '/registry/suppliers', icon: Building2 },
         { label: 'Clientes', href: '/registry/customers', icon: Users }
       ]

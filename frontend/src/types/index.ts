@@ -274,6 +274,12 @@ export interface Transaction {
   vat_exemption_reason?: string;
   currency?: Currency;
   exchange_rate?: number;
+  // Retenção na fonte: o total do documento não é o que se move no banco.
+  retention_code?: string | null;
+  retention_rate?: number | null;
+  retention_amount?: number;
+  /** gross - retention: o valor que entra ou sai da conta. */
+  payable_amount?: number;
   // Payment settlement (separate from approval)
   paid_amount?: number;
   outstanding_amount?: number;
