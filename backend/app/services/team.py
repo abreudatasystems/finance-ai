@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import ROLE_ORDER, ROLE_OWNER, VALID_ROLES, ROLE_LABELS
 from app.models.models import (
-    AuditLog, Company, Invitation, Transaction, User, UserMembership,
+    PLACEHOLDER_NIF, AuditLog, Company, Invitation, Transaction, User, UserMembership,
 )
 from app.services.provisioning import apply_template
 
@@ -92,7 +92,7 @@ def create_company(db: Session, user: User, name: str, **profile) -> Company:
     company = Company(
         id=_uid("COMP"),
         name=name,
-        nif=profile.get("nif") or "PT500000000",
+        nif=profile.get("nif") or PLACEHOLDER_NIF,
         currency=profile.get("currency") or "EUR",
         country=profile.get("country") or "PT",
         legal_form=profile.get("legal_form"),

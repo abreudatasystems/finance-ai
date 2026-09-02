@@ -6,6 +6,11 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.base import Base
 
+#: The NIF a company is created with before anyone has typed the real one.
+#: Anything that asks "has this company been set up" must treat it as absent.
+PLACEHOLDER_NIF = "PT500000000"
+
+
 class Company(Base):
     __tablename__ = "companies"
 

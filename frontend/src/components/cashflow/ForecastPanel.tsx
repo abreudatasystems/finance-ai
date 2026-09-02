@@ -152,6 +152,7 @@ export const ForecastPanel: React.FC = () => {
   if (!data) return null;
 
   const tight = data.resumo.aperta;
+  const empty = data.resumo.sem_dados;
 
   return (
     <div className="space-y-4 text-xs">
@@ -179,15 +180,23 @@ export const ForecastPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* The sentence first: it is the whole answer. */}
+        {/* The sentence first: it is the whole answer. On an empty company the
+            honest answer is that there is not one yet — a flat line at zero
+            must never be dressed as good news. */}
         <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl border ${
-          tight ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-emerald-50 border-emerald-100 text-emerald-900'
+          empty ? 'bg-slate-50 border-slate-200 text-slate-700'
+            : tight ? 'bg-rose-50 border-rose-200 text-rose-900'
+            : 'bg-emerald-50 border-emerald-100 text-emerald-900'
         }`}>
-          {tight ? <TrendingDown className="w-4 h-4 shrink-0 mt-0.5" /> : <Check className="w-4 h-4 shrink-0 mt-0.5" />}
+          {empty ? <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
+            : tight ? <TrendingDown className="w-4 h-4 shrink-0 mt-0.5" />
+            : <Check className="w-4 h-4 shrink-0 mt-0.5" />}
           <p className="font-semibold">{data.resumo.mensagem}</p>
         </div>
 
-        <BalanceChart weeks={data.semanas} opening={data.saldo_inicial} formatMoney={formatMoney} />
+        {!empty && (
+          <BalanceChart weeks={data.semanas} opening={data.saldo_inicial} formatMoney={formatMoney} />
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-3 rounded-xl border border-slate-200 bg-slate-50">

@@ -312,18 +312,29 @@ def overview(db: Session, company_id: str, today: Optional[date] = None) -> dict
     receivable = aging(db, company_id, "income", today)
     payable = aging(db, company_id, "expense", today)
 
+    # Nothing overdue on a company with no documents is not good news; it is
+    # no news. The screens must not confuse the two.
+    from app.services.onboarding import readiness
+    has_data = readiness(db, company_id)["cobrancas"]
+
     return {
         "hoje": today.isoformat(),
         "a_receber": receivable,
         "a_pagar": payable,
-        "mensagem": _message(receivable, payable),
+        "sem_dados": not has_data,
+        "mensagem": _message(receivable, payable, has_data),
     }
 
 
-def _message(receivable: dict, payable: dict) -> str:
+def _message(receivable: dict, payable: dict, has_data: bool = True) -> str:
     overdue_in = receivable["vencido"]
     overdue_out = payable["vencido"]
 
+    if not has_data:
+        return (
+            "Ainda não há documentos registados, por isso não há nada a cobrar "
+            "nem a pagar. Registe a primeira fatura para começar."
+        )
     if overdue_in <= 0 and overdue_out <= 0:
         return "Nada vencido dos dois lados. Continue assim."
 

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { AlertsPanel } from '@/components/alerts/AlertsPanel';
+import { FirstSteps } from '@/components/onboarding/FirstSteps';
 import { fetchHealthScore, fetchTransactions, fetchFinancialEvents, fetchDashboardSummary, fetchExpensesByCategory } from '@/services/data';
 import { FinancialHealthScore, Transaction } from '@/types';
 import {
@@ -103,6 +104,11 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-104px)] space-y-3 overflow-hidden animate-in fade-in duration-300">
       
+      {/* O que ainda falta configurar, antes de acreditar em qualquer número */}
+      <div className="shrink-0">
+        <FirstSteps />
+      </div>
+
       {/* O que precisa de atenção, antes de qualquer número */}
       <div className="shrink-0">
         <AlertsPanel limit={2} />

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.api.deps import get_current_user
-from app.models.models import User, Company, UserMembership
+from app.models.models import PLACEHOLDER_NIF, User, Company, UserMembership
 from pydantic import BaseModel
 
 from app.schemas.schemas import LoginRequest, UserCreate, Token
@@ -114,7 +114,7 @@ def register(request: UserCreate, db: Session = Depends(get_db)):
     user_id = f"USR-{stamp}"
     comp_id = f"COMP-{stamp}"
 
-    new_comp = Company(id=comp_id, name=request.company_name, nif="PT500000000")
+    new_comp = Company(id=comp_id, name=request.company_name, nif=PLACEHOLDER_NIF)
     new_user = User(
         id=user_id,
         name=request.name,

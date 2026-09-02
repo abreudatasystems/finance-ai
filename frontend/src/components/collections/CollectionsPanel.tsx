@@ -16,7 +16,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Loader2, AlertTriangle, ChevronDown, Copy, Check, Mail, Phone,
-  HandCoins, Clock, X,
+  HandCoins, Clock, X, Circle,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Aging, AgingEntity, BucketKey, CollectionsOverview, ReminderDraft } from './types';
@@ -215,15 +215,21 @@ export const CollectionsPanel: React.FC = () => {
 
   return (
     <div className="space-y-4 text-xs">
-      {/* The sentence first: it says what to do before any number does. */}
+      {/* The sentence first: it says what to do before any number does. With no
+          documents at all there is nothing to congratulate, and it says that
+          instead. */}
       <div className={`rounded-2xl border p-4 flex items-start gap-3 ${
-        data.a_receber.vencido > 0
-          ? 'bg-amber-50 border-amber-200 text-amber-900'
-          : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+        data.sem_dados
+          ? 'bg-slate-50 border-slate-200 text-slate-700'
+          : data.a_receber.vencido > 0
+            ? 'bg-amber-50 border-amber-200 text-amber-900'
+            : 'bg-emerald-50 border-emerald-200 text-emerald-900'
       }`}>
-        {data.a_receber.vencido > 0
-          ? <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          : <Check className="w-4 h-4 shrink-0 mt-0.5" />}
+        {data.sem_dados
+          ? <Circle className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
+          : data.a_receber.vencido > 0
+            ? <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            : <Check className="w-4 h-4 shrink-0 mt-0.5" />}
         <p className="font-semibold leading-relaxed">{data.mensagem}</p>
       </div>
 

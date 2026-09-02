@@ -318,6 +318,13 @@ def collect(db: Session, company_id: str, today: Optional[date] = None) -> dict:
             alerts.append(result)
 
     alerts.sort(key=lambda a: (SEVERITY_ORDER.get(a["severity"], 9), -a["amount"]))
+
+    # No alerts on an empty company means nothing was checked, not that
+    # everything is in order. Saying "tudo em dia" there is a lie the product
+    # would be caught in the first time it mattered.
+    from app.services.onboarding import readiness
+    has_data = readiness(db, company_id)["alertas"]
+
     return {
         "data": today.isoformat(),
         "alertas": alerts,
@@ -326,6 +333,7 @@ def collect(db: Session, company_id: str, today: Optional[date] = None) -> dict:
             "criticos": len([a for a in alerts if a["severity"] == "danger"]),
             "avisos": len([a for a in alerts if a["severity"] == "warning"]),
             "informativos": len([a for a in alerts if a["severity"] == "info"]),
-            "tudo_em_dia": not alerts,
+            "tudo_em_dia": bool(has_data) and not alerts,
+            "sem_dados": not has_data,
         },
     }
