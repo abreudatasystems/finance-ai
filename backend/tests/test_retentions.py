@@ -386,3 +386,32 @@ def test_the_catalogue_only_offers_what_fits_the_side(tenant):
 
 def test_an_unparseable_period_is_refused(tenant):
     assert tenant.get("/api/v1/retentions/position?period=setembro").status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# What the accountant receives
+# ---------------------------------------------------------------------------
+
+def test_the_ledger_carries_the_retention_and_the_payable(tenant):
+    _book(tenant, code="irs_b_25", when="2026-09-10", description="Avença")
+
+    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?start=2026-09-01"
+                     "&end=2026-09-30").text
+    header, *rows = [line for line in csv.splitlines() if line.strip()]
+
+    assert "Retenção" in header and "Valor a pagar" in header
+    row = next(r for r in rows if "Avença" in r)
+    # O que o documento diz e o que passou pelo banco, lado a lado.
+    assert "184,50" in row
+    assert "37,50" in row
+    assert "147,00" in row
+
+
+def test_a_document_without_retention_exports_zero_and_the_full_amount(tenant):
+    _book(tenant, amount=123.00, when="2026-09-10", description="Sem retenção")
+
+    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?start=2026-09-01"
+                     "&end=2026-09-30").text
+    row = next(r for r in csv.splitlines() if "Sem retenção" in r)
+    assert "0,00" in row
+    assert "123,00" in row

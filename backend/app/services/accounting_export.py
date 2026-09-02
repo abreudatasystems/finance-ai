@@ -34,6 +34,9 @@ EXCLUDED_STATUSES = ("cancelled", "draft", "pending_approval", "pending_ai")
 LEDGER_HEADERS = [
     "Data", "Vencimento", "Tipo", "Nº Documento", "Descrição", "Entidade", "NIF",
     "Categoria", "Conta SNC", "Base tributável", "Taxa IVA", "IVA", "Total",
+    # Retenção e valor a pagar juntos: o razão tem de dizer o que o documento
+    # diz e o que passou pelo banco, ou é corrigido à mão em cada fatura retida.
+    "Retenção", "Valor a pagar",
     "Estado", "Pago", "Em aberto", "Data pagamento", "Origem", "ID",
 ]
 
@@ -76,6 +79,12 @@ def _nif_map(db: Session, company_id: str) -> dict:
         out[e.id] = e.nif or ""
         out[e.name] = e.nif or ""
     return out
+
+
+def _payable(trx: Transaction) -> Decimal:
+    """What moved through the bank: the gross less any withholding at source."""
+    from app.services.retentions import payable_of
+    return payable_of(trx)
 
 
 def ledger_rows(db: Session, company_id: str, start: str, end: str) -> list[dict]:
@@ -137,7 +146,10 @@ def ledger_rows(db: Session, company_id: str, start: str, end: str) -> list[dict
                     "Taxa IVA": line.vat_rate if line.vat_rate is not None else 0,
                     "IVA": _d(line.vat_amount),
                     "Total": _d(line.gross_amount),
-                    # Settlement belongs to the document, not to one of its lines.
+                    # Settlement and withholding belong to the document, not
+                    # to one of its lines.
+                    "Retenção": Decimal("0.00"),
+                    "Valor a pagar": Decimal("0.00"),
                     "Pago": Decimal("0.00"),
                     "Em aberto": Decimal("0.00"),
                 })
@@ -152,6 +164,8 @@ def ledger_rows(db: Session, company_id: str, start: str, end: str) -> list[dict
                 "Taxa IVA": "misto",
                 "IVA": _d(trx.vat_amount),
                 "Total": _d(trx.gross_amount if trx.gross_amount is not None else trx.amount),
+                "Retenção": _d(trx.retention_amount),
+                "Valor a pagar": _payable(trx),
                 "Pago": _d(trx.paid_amount),
                 "Em aberto": _d(trx.outstanding_amount),
             })
@@ -165,6 +179,11 @@ def ledger_rows(db: Session, company_id: str, start: str, end: str) -> list[dict
                 "Taxa IVA": trx.vat_rate if trx.vat_rate is not None else 0,
                 "IVA": _d(trx.vat_amount),
                 "Total": _d(trx.gross_amount if trx.gross_amount is not None else trx.amount),
+                # The accountant needs both: what the document says, and what
+                # went through the bank. Without the withholding the ledger has
+                # to be corrected by hand on every retained invoice.
+                "Retenção": _d(trx.retention_amount),
+                "Valor a pagar": _payable(trx),
                 "Pago": _d(trx.paid_amount),
                 "Em aberto": _d(trx.outstanding_amount),
             })
