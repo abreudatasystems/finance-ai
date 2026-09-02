@@ -61,11 +61,23 @@ def _add_months(d: date, months: int) -> date:
     return date(year, month, min(d.day, last_day))
 
 
+def _settleable(trx: Transaction) -> Decimal:
+    """What can ever move through the bank for this document.
+
+    The gross, less any withholding at source. A document of 184,50 EUR with
+    37,50 EUR withheld is settled in full at 147,00 EUR: the remaining 37,50 EUR
+    goes to the State, not to the supplier, so treating the gross as the target
+    leaves every such document permanently "partially paid".
+    """
+    from app.services import retentions as retention_service
+    return retention_service.payable_of(trx)
+
+
 def recompute_settlement(db: Session, trx: Transaction) -> None:
     """Re-derive the transaction's settlement state from its payments."""
     payments = db.query(Payment).filter(Payment.transaction_id == trx.id).all()
     paid = sum((_d(p.amount) for p in payments), Decimal("0.00"))
-    gross = _d(trx.gross_amount if trx.gross_amount is not None else trx.amount)
+    gross = _settleable(trx)
     outstanding = (gross - paid).quantize(CENTS, rounding=ROUND_HALF_UP)
 
     trx.paid_amount = paid
@@ -183,7 +195,9 @@ def create_installments(
     for i in existing:
         db.delete(i)
 
-    gross = _d(trx.gross_amount if trx.gross_amount is not None else trx.amount)
+    # Parcelas split what is payable. Splitting the gross would produce a plan
+    # that can never be settled, because the withheld part never moves.
+    gross = _settleable(trx)
     if gross <= 0:
         raise HTTPException(status_code=400, detail="O lançamento não tem valor para parcelar")
 
@@ -226,7 +240,7 @@ def preview_installments(
     trx = _scoped_trx(db, company_id, trx_id)
     if count < 1 or count > MAX_INSTALLMENTS:
         raise HTTPException(status_code=400, detail=f"O número de parcelas tem de estar entre 1 e {MAX_INSTALLMENTS}")
-    gross = _d(trx.gross_amount if trx.gross_amount is not None else trx.amount)
+    gross = _settleable(trx)
     first_due = first_due_date or trx.due_date or trx.date
     rows = build_schedule(gross, count, first_due, interval_days)
     return [
@@ -293,7 +307,9 @@ def create_payment(
     """Register a payment (expense) or a receipt (income), full or partial."""
     trx = _scoped_trx(db, company_id, trx_id)
 
-    gross = _d(trx.gross_amount if trx.gross_amount is not None else trx.amount)
+    # What is settled is what is payable: the withholding never reaches the
+    # supplier's bank account.
+    gross = _settleable(trx)
     already = _d(trx.paid_amount)
     outstanding = (gross - already).quantize(CENTS, rounding=ROUND_HALF_UP)
 

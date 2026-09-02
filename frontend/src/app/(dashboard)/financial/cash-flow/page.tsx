@@ -83,15 +83,22 @@ export default function CashFlowPage() {
     return matchesPeriod && matchesTab && matchesSearch && matchesOpen;
   });
 
+  /* What actually moves through the bank. Not the document total: any
+     retention at source goes to the State, so a cash flow that sums the gross
+     overstates every retained invoice by the withholding. */
+  const moves = (t: Transaction) =>
+    Number(t.payable_amount ?? t.gross_amount ?? t.amount ?? 0);
+
   /* Totals for what is on screen — a cash flow without them is a list. */
   const totals = filteredTransactions.reduce(
     (acc, t) => {
-      const gross = Number(t.gross_amount ?? t.amount ?? 0);
-      if (t.type === 'income') acc.entradas += gross; else acc.saidas += gross;
+      const amount = moves(t);
+      if (t.type === 'income') acc.entradas += amount; else acc.saidas += amount;
       acc.aberto += Number(t.outstanding_amount ?? 0);
+      acc.retido += Number(t.retention_amount ?? 0);
       return acc;
     },
-    { entradas: 0, saidas: 0, aberto: 0 },
+    { entradas: 0, saidas: 0, aberto: 0, retido: 0 },
   );
 
   /* Oldest first, carrying a running balance — how a cash flow is read. */
@@ -100,9 +107,8 @@ export default function CashFlowPage() {
     let running = 0;
     const map = new Map<string, number>();
     ordered.forEach((t) => {
-      running += t.type === 'income'
-        ? Number(t.gross_amount ?? t.amount ?? 0)
-        : -Number(t.gross_amount ?? t.amount ?? 0);
+      const amount = Number(t.payable_amount ?? t.gross_amount ?? t.amount ?? 0);
+      running += t.type === 'income' ? amount : -amount;
       map.set(t.id, running);
     });
     return map;
@@ -230,6 +236,12 @@ export default function CashFlowPage() {
         <div className="p-3 rounded-xl bg-white border border-slate-200">
           <p className="text-[9px] uppercase font-bold text-slate-500">Ainda em aberto</p>
           <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(totals.aberto)}</p>
+          {/* Money that never reaches either side: it goes to the State. */}
+          {totals.retido > 0 && (
+            <p className="text-[10px] font-bold text-amber-700 mt-0.5">
+              {formatMoney(totals.retido)} retidos na fonte
+            </p>
+          )}
         </div>
       </div>
 
@@ -308,7 +320,15 @@ export default function CashFlowPage() {
                     )}
                   </td>
                   <td className={`p-3.5 font-extrabold ${trx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                    {trx.type === 'income' ? '+' : '-'}{formatMoney(Number(trx.gross_amount ?? trx.amount))}
+                    {trx.type === 'income' ? '+' : '-'}{formatMoney(moves(trx))}
+                    {Number(trx.retention_amount ?? 0) > 0 && (
+                      <span
+                        className="block text-[9px] font-bold text-amber-700 normal-case"
+                        title={`Documento de ${formatMoney(Number(trx.gross_amount ?? trx.amount))}, com ${formatMoney(Number(trx.retention_amount))} de retenção na fonte`}
+                      >
+                        ret. −{formatMoney(Number(trx.retention_amount))}
+                      </span>
+                    )}
                   </td>
                   <td className="p-3.5">
                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase whitespace-nowrap ${

@@ -31,6 +31,8 @@ DUE_SOON_DAYS = 7
 STALE_RECONCILIATION_DAYS = 15
 #: The VAT payment deadline starts warning this many days out.
 VAT_WARNING_DAYS = 10
+#: Retentions are monthly, so the warning window is shorter.
+RETENTION_WARNING_DAYS = 7
 
 SEVERITY_ORDER = {"danger": 0, "warning": 1, "info": 2}
 
@@ -175,6 +177,44 @@ def vat_deadline(db: Session, company_id: str, today: date) -> Optional[dict]:
     )
 
 
+def retention_deadline(db: Session, company_id: str, today: date) -> Optional[dict]:
+    """Retenções still to hand over to the State, and by when.
+
+    Monthly, not quarterly, and easy to forget precisely because the money was
+    never in the supplier's hands: it sat in the account looking like the
+    company's own.
+    """
+    from app.services.retentions import outstanding_deliveries
+
+    pending = outstanding_deliveries(db, company_id, today)
+    if not pending:
+        return None
+
+    late = [d for d in pending if d["em_atraso"]]
+    if late:
+        total = sum(d["valor"] for d in late)
+        periods = ", ".join(d["periodo"] for d in late[:3])
+        return _alert(
+            "retencoes_em_atraso", "danger",
+            f"Retenções na fonte fora de prazo ({len(late)} mês/meses)",
+            f"{total:,.2f} € de {periods} deviam ter sido entregues ao Estado.",
+            amount=round(total, 2),
+            action="/fiscal/retentions", action_label="Ver retenções",
+        )
+
+    soonest = pending[0]
+    days_left = (date.fromisoformat(soonest["ate"]) - today).days
+    if days_left > RETENTION_WARNING_DAYS:
+        return None
+    return _alert(
+        "retencoes_a_entregar", "warning",
+        f"Retenções de {soonest['periodo']} a entregar em {days_left} dia(s)",
+        f"{soonest['valor']:,.2f} € a entregar ao Estado até {soonest['ate']}.",
+        amount=soonest["valor"],
+        action="/fiscal/retentions", action_label="Ver retenções",
+    )
+
+
 def pending_approvals(db: Session, company_id: str, today: date) -> Optional[dict]:
     rows = (
         db.query(AIApprovalItem)
@@ -299,6 +339,7 @@ CHECKS = (
     overdue_payables,
     overdue_receivables,
     vat_deadline,
+    retention_deadline,
     payables_due_soon,
     pending_approvals,
     stale_reconciliation,

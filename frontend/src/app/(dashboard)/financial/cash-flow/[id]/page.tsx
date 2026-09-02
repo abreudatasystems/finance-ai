@@ -227,6 +227,21 @@ export default function TransactionDetailPage() {
             Líquido {formatMoney(Number(trx.net_amount ?? trx.amount))} · IVA {formatMoney(Number(trx.vat_amount ?? 0))}
             {trx.vat_rate ? ` (${trx.vat_rate}%)` : ''}
           </div>
+          {/* O total do documento não é o que se move: a retenção vai para o
+              Estado, por isso o valor do banco aparece ao lado dele. */}
+          {Number(trx.retention_amount ?? 0) > 0 && (
+            <div className="text-[11px] mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-200 text-[9px] font-bold uppercase">
+                Retenção {trx.retention_rate ? `${trx.retention_rate}%` : ''}
+              </span>
+              <span className="text-amber-200">−{formatMoney(Number(trx.retention_amount))}</span>
+              <span className="text-white/40">·</span>
+              <span className="text-white/80 font-bold">
+                {isIncome ? 'o cliente transfere' : 'sai do banco'}{' '}
+                {formatMoney(Number(trx.payable_amount ?? trx.gross_amount ?? trx.amount))}
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${STATUS_STYLES[trx.status] || STATUS_STYLES.draft}`}>
@@ -305,6 +320,16 @@ export default function TransactionDetailPage() {
                 <Field label="Valor líquido">{formatMoney(Number(v.net_amount ?? v.amount))}</Field>
                 <Field label={`IVA${v.vat_rate ? ` (${v.vat_rate}%)` : ''}`}>{formatMoney(Number(v.vat_amount ?? 0))}</Field>
                 <Field label="Total">{formatMoney(Number(v.gross_amount ?? v.amount))}</Field>
+                {Number(v.retention_amount ?? 0) > 0 ? (
+                  <>
+                    <Field label={`Retenção${v.retention_rate ? ` (${v.retention_rate}%)` : ''}`}>
+                      −{formatMoney(Number(v.retention_amount))}
+                    </Field>
+                    <Field label="Move no banco">
+                      {formatMoney(Number(v.payable_amount ?? v.gross_amount ?? v.amount))}
+                    </Field>
+                  </>
+                ) : null}
                 <Field label="Moeda">{v.currency || 'EUR'}</Field>
               </div>
             )}

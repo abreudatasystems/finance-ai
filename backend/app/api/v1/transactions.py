@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.models.models import Transaction, User
 from app.schemas.schemas import TransactionCreate, TransactionUpdate, TransactionOut
-from app.services import cash_forecast as forecast_service
+from app.services import cash_forecast as forecast_service, retentions as retention_service
 from app.api.v1.settlements import (
     InstallmentPlan, PaymentCreate, create_installments, create_payment, recompute_settlement,
 )
@@ -230,6 +230,18 @@ def create_transaction(
         tags=",".join(item.tags) if item.tags else None,
         created_by=current_user.name,
     )
+    # Withholding at source: what the document says and what moves through the
+    # bank are not the same figure. Proposed from the counterparty when the
+    # document does not say, because a supplier's retention is a property of
+    # the supplier rather than of each invoice.
+    code = item.retention_code
+    if code is None:
+        code = retention_service.default_code_for(
+            db, company_id, item.entity_id, item.entity_name,
+        )
+    retention_service.apply_to(new_trx, code, item.retention_rate)
+    new_trx.outstanding_amount = retention_service.payable_of(new_trx)
+
     db.add(new_trx)
     db.flush()
 
@@ -303,10 +315,24 @@ def update_transaction(
                                           _d(trx.net_amount) if "net_amount" in data else None)
         trx.net_amount, trx.vat_amount, trx.amount, trx.gross_amount = net, vat, gross, gross
 
-    # Keep outstanding coherent with paid amount.
+    # The withholding rides on the base, so correcting the amounts has to
+    # recompute it — otherwise a corrected total keeps yesterday's retention
+    # and the payable no longer adds up.
+    retention_touched = "retention_code" in data or "retention_rate" in data
+    if money_touched or retention_touched:
+        retention_service.apply_to(
+            trx,
+            data.get("retention_code", trx.retention_code),
+            data.get("retention_rate"),
+        )
+
+    # Keep outstanding coherent with paid amount — against what is payable,
+    # not the gross: the retention never passes through the bank.
     if trx.gross_amount is not None:
         paid = _d(trx.paid_amount) or Decimal("0.00")
-        trx.outstanding_amount = (_d(trx.gross_amount) - paid).quantize(CENTS, rounding=ROUND_HALF_UP)
+        trx.outstanding_amount = (
+            retention_service.payable_of(trx) - paid
+        ).quantize(CENTS, rounding=ROUND_HALF_UP)
 
     db.commit()
     db.refresh(trx)

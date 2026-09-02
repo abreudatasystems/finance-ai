@@ -7,6 +7,8 @@ import { apiPost } from '@/services/api';
 import { fetchCategories } from '@/services/data';
 import { Category } from '@/types';
 import { SideDrawer } from './SideDrawer';
+import { RetentionType } from '@/components/retentions/types';
+import { fetchTypes } from '@/components/retentions/api';
 
 interface CreateTransactionModalProps {
   initialType: string;
@@ -27,6 +29,8 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
   const [amount, setAmount] = useState('');
   const [vatRate, setVatRate] = useState<number>(23);
   const [customVat, setCustomVat] = useState(false);
+  const [retentionCode, setRetentionCode] = useState('');
+  const [retentionTypes, setRetentionTypes] = useState<RetentionType[]>([]);
   const [installmentCount, setInstallmentCount] = useState<number>(1);
   const [dueDate, setDueDate] = useState('2026-08-30');
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid'>('pending');
@@ -91,6 +95,18 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
     return rows;
   }, [amount, installmentCount, dueDate]);
 
+  // The catalogue depends on the side: rents and capital only ever appear on
+  // what the company pays.
+  useEffect(() => {
+    if (type === 'document') return;
+    fetchTypes(type).then((data) => setRetentionTypes(data?.tipos || []));
+  }, [type]);
+
+  const retention = retentionTypes.find((t) => t.codigo === retentionCode);
+  // The withholding rides on the base, never on the total — the same rule the
+  // backend applies, shown here so the number is not a surprise at settlement.
+  const retained = retention ? (breakdown.net * retention.taxa) / 100 : 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -104,6 +120,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
         category_name: categoryOptions.find((o) => o.id === categoryId)?.label || categoryName,
         amount: parseFloat(amount) || 0,
         vat_rate: vatRate,
+        retention_code: retentionCode || undefined,
         installment_count: installmentCount > 1 ? installmentCount : undefined,
         due_date: dueDate,
         is_paid: paymentStatus === 'paid',
@@ -316,6 +333,51 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
               </div>
             </div>
             <p className="text-[10px] text-slate-400">O valor introduzido é o total com IVA; o líquido é calculado a partir da taxa.</p>
+          </div>
+
+          {/* Retenção na fonte — o que sai do banco não é o total do documento */}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-slate-600">
+              Retenção na fonte
+            </label>
+            <select
+              value={retentionCode}
+              onChange={(e) => setRetentionCode(e.target.value)}
+              className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 font-semibold"
+            >
+              <option value="">Sem retenção</option>
+              {retentionTypes
+                .filter((t) => t.codigo !== 'isento')
+                .map((t) => (
+                  <option key={t.codigo} value={t.codigo}>{t.label}</option>
+                ))}
+            </select>
+
+            {retention && retention.taxa > 0 && (
+              <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                    Retido ({retention.taxa}% sobre {currencySymbol}{breakdown.net.toFixed(2)})
+                  </span>
+                  <span className="text-xs font-bold text-amber-900">
+                    −{currencySymbol}{retained.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                    {type === 'income' ? 'O cliente transfere' : 'Sai do banco'}
+                  </span>
+                  <span className="text-xs font-black text-slate-900">
+                    {currencySymbol}{(breakdown.gross - retained).toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-[10px] text-amber-800/80 leading-relaxed pt-0.5">
+                  {type === 'income'
+                    ? 'O cliente retém e entrega ao Estado; fica um crédito de imposto a favor da empresa.'
+                    : `A empresa entrega ao Estado até ao dia 20 do mês seguinte. ${retention.base_legal}.`}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Parcelas */}

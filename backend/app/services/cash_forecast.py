@@ -31,7 +31,10 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.models import Company, Recurrence, Transaction
-from app.services import collections, financials, recurrences as recurrence_service
+from app.services import (
+    collections, financials, recurrences as recurrence_service,
+    retentions as retention_service,
+)
 from app.services.vat_engine import compute_vat_position, resolve_period
 
 CENTS = Decimal("0.01")
@@ -52,7 +55,7 @@ def _movement(when: date, kind: str, label: str, amount: Decimal, origin: str,
         "kind": kind,                    # in | out
         "label": label,
         "amount": float(amount),
-        "origin": origin,                # documento | recorrência | IVA
+        "origin": origin,                # documento | recorrência | IVA | retenção
         "reference": reference,
         # confirmado: a document exists. previsto: it will exist (a recurrence).
         "certainty": certainty,
@@ -88,6 +91,9 @@ def _receivables_and_payables(db: Session, company_id: str, today: date, horizon
 
     movements = []
     for trx in rows:
+        # outstanding is already net of any withholding — the retention never
+        # reaches the counterparty's account, it goes to the State on its own
+        # date (see _retention_deliveries).
         outstanding = _d(trx.outstanding_amount)
         if outstanding <= 0:
             continue
@@ -187,6 +193,30 @@ def _vat_payment(db: Session, company_id: str, today: date, horizon: date) -> li
     return movements
 
 
+def _retention_deliveries(db: Session, company_id: str, today: date, horizon: date) -> list[dict]:
+    """What was withheld from suppliers, on the day it goes to the State.
+
+    Money the company is holding but has already spent on someone else's
+    behalf. A forecast that ignores it tells a small company it has cash it
+    does not have — the same mistake as ignoring the VAT, on a monthly cycle
+    instead of a quarterly one.
+    """
+    movements = []
+    for delivery in retention_service.outstanding_deliveries(db, company_id, today):
+        when = date.fromisoformat(delivery["ate"])
+        # Already late: it comes out of the next money in, not out of the past.
+        if when < today:
+            when = today
+        if when > horizon:
+            continue
+        movements.append(_movement(
+            when, "out", f"Retenções na fonte {delivery['periodo']}",
+            _d(delivery["valor"]), "retenção", delivery["periodo"],
+            "vencido" if delivery["em_atraso"] else "confirmado",
+        ))
+    return movements
+
+
 def build(db: Session, company_id: str, weeks: int = DEFAULT_WEEKS,
           today: Optional[date] = None) -> dict:
     """The next `weeks` weeks of cash, week by week, with the low point named."""
@@ -201,6 +231,7 @@ def build(db: Session, company_id: str, weeks: int = DEFAULT_WEEKS,
         _receivables_and_payables(db, company_id, today, horizon)
         + _future_recurrences(db, company_id, today, horizon)
         + _vat_payment(db, company_id, today, horizon)
+        + _retention_deliveries(db, company_id, today, horizon)
     )
     movements.sort(key=lambda m: (m["date"], m["kind"]))
 

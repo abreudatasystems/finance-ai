@@ -144,6 +144,13 @@ def apply_totals(db: Session, trx: Transaction) -> dict:
     trx.amount = totals["gross_amount"]
     trx.vat_rate = totals["vat_rate"]
 
+    # The withholding rides on the base, and the base just changed: recompute
+    # it before anything reads the payable, or a corrected total keeps
+    # yesterday's retention and the obligation claims a figure that no longer
+    # adds up.
+    from app.services.retentions import apply_to
+    apply_to(trx, trx.retention_code)
+
     # The settlement layer owns paid/outstanding; re-derive so a changed total
     # does not leave an obligation claiming the old figure.
     from app.api.v1.settlements import recompute_settlement

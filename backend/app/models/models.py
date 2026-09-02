@@ -171,6 +171,10 @@ class Entity(Base):
 
     default_category_id = Column(String, nullable=True)
     default_category_name = Column(String, nullable=True)
+    #: A counterparty's withholding is a property of the counterparty: the
+    #: accountant is always 25%, the landlord always 25%, the software vendor
+    #: never. Set once here, proposed on every document.
+    default_retention_code = Column(String, nullable=True)
 
     notes = Column(Text, nullable=True)
     active = Column(Boolean, default=True)
@@ -250,6 +254,21 @@ class Transaction(Base):
     vat_exemption_reason = Column(String, nullable=True)     # motivo de isenção (SAF-T)
     currency = Column(String, default="EUR")
     exchange_rate = Column(Float, nullable=True)
+
+    # --- Retenção na fonte (IRS/IRC) -------------------------------------
+    # The third kind of money that passes through the company without being
+    # its own, after the VAT and the settlement. On an expense the company
+    # withholds and owes the State; on an income the client withholds and the
+    # company is owed a credit. Either way the amount that moves through the
+    # bank is not the amount on the document, so it is stored rather than
+    # recomputed at every screen.
+    #: Slug from app/catalog/retentions.py, kept so a rate change in a later
+    #: year never rewrites what was withheld in this one.
+    retention_code = Column(String, nullable=True)
+    retention_rate = Column(Float, nullable=True)            # % sobre a base
+    retention_amount = Column(Numeric(14, 2), default=0)     # valor retido
+    #: gross - retention: what actually leaves (or enters) the bank account.
+    payable_amount = Column(Numeric(14, 2), nullable=True)
 
     # --- Payment settlement (separate from approval) ---
     paid_amount = Column(Numeric(14, 2), default=0)
