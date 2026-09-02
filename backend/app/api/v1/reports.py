@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_company_id
 from app.models.models import Transaction
 from app.services import accounting_export as export_service
+from app.services import income_statement
 
 router = APIRouter()
 
@@ -82,3 +83,13 @@ def accounting_vat_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )
+
+
+@router.get("/income-statement")
+def get_income_statement(
+    period: Optional[str] = Query(None, description="2026-08, 2026-T3 ou 2026"),
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    """Demonstração de Resultados por naturezas, com comparação e ponte para a caixa."""
+    return income_statement.build(db, company_id, period)

@@ -22,7 +22,8 @@ import {
   ScanText,
   CheckCheck,
   Repeat,
-  BellRing
+  BellRing,
+  FileText
 } from 'lucide-react';
 
 interface NavItem {
@@ -71,6 +72,7 @@ export const Sidebar: React.FC = () => {
       group: 'GESTÃO & AUDITORIA',
       items: [
         { label: 'Relatórios', href: '/reports', icon: BarChart3 },
+        { label: 'Demonstração de Resultados', href: '/reports/dre', icon: FileText },
         { label: 'Apuramento do IVA', href: '/fiscal/vat', icon: Scale },
         { label: 'Fornecedores', href: '/registry/suppliers', icon: Building2 },
         { label: 'Clientes', href: '/registry/customers', icon: Users }
