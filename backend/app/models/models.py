@@ -639,3 +639,41 @@ class BankStatementEntry(Base):
     match_confidence = Column(Integer, nullable=True)
     status = Column(String, default="unmatched")  # matched, suggested, unmatched, ignored
     reconciled_at = Column(DateTime, nullable=True)
+
+
+class Budget(Base):
+    """What the company planned to spend or earn on a category, in a month.
+
+    The product could say what happened (the income statement) and what is
+    coming (the forecast), and nothing about what was *intended* — so a month
+    could only be compared against the month before, never against a decision.
+    A budget is that decision, written down.
+
+    Only the plan is stored. The realizado is derived from the documents dated
+    in the period, on the same accrual, net-of-VAT basis as the income
+    statement, so a budget report and a DRE can never disagree.
+    """
+
+    __tablename__ = "budgets"
+    __table_args__ = (
+        UniqueConstraint("company_id", "category_id", "period", name="uq_budget_category_period"),
+    )
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
+
+    category_id = Column(String, nullable=False)
+    category_name = Column(String, nullable=False)
+    #: income | expense — copied from the category so a report can group
+    #: without a join, and kept in step when the category's nature changes.
+    type = Column(String, nullable=False, default="expense")
+
+    #: The month it applies to, as AAAA-MM. Months, not quarters: a small
+    #: company plans and misses by the month.
+    period = Column(String, nullable=False, index=True)
+    amount = Column(Numeric(14, 2), nullable=False)
+
+    notes = Column(Text, nullable=True)
+    created_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
