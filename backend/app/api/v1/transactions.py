@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date, datetime, timezone
@@ -8,6 +9,7 @@ from app.db.session import get_db
 from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.models.models import Transaction, User
 from app.schemas.schemas import TransactionCreate, TransactionUpdate, TransactionOut
+from app.services import cash_forecast as forecast_service
 from app.api.v1.settlements import (
     InstallmentPlan, PaymentCreate, create_installments, create_payment, recompute_settlement,
 )
@@ -73,6 +75,84 @@ def _scoped(db: Session, company_id: str, trx_id: str) -> Transaction:
     if not trx:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
     return trx
+
+
+# ---------------------------------------------------------------------------
+# Cash forecast and bulk settlement — the two things a small company does most
+# and the product made hardest.
+# ---------------------------------------------------------------------------
+
+class SettleBatch(BaseModel):
+    transaction_ids: List[str]
+    payment_date: Optional[str] = None
+    bank_account_id: Optional[str] = None
+    payment_method: Optional[str] = None
+
+
+@router.get("/cash-forecast")
+def cash_forecast(
+    weeks: int = Query(13, ge=1, le=52),
+    today: Optional[str] = Query(None, description="Só para testes: projecta como se fosse este dia."),
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    """Will the money be there? The next weeks, week by week."""
+    reference = _valid_date(today) if today else None
+    return forecast_service.build(
+        db, company_id, weeks,
+        date.fromisoformat(reference) if reference else None,
+    )
+
+
+@router.post("/settle")
+def settle_many(
+    body: SettleBatch,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    current_user: User = Depends(get_current_user),
+    _writer: User = Depends(require_write),
+):
+    """Settle several obligations in one go — "hoje paguei estas cinco coisas".
+
+    Each one is settled for whatever it still owes. One that cannot be settled
+    does not stop the rest, and the result says which and why.
+    """
+    if not body.transaction_ids:
+        raise HTTPException(status_code=400, detail="Indique pelo menos um lançamento.")
+    if len(body.transaction_ids) > 200:
+        raise HTTPException(status_code=400, detail="Máximo de 200 lançamentos de cada vez.")
+
+    when = _valid_date(body.payment_date) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    done, failed = [], []
+    total = Decimal("0.00")
+
+    for trx_id in body.transaction_ids:
+        try:
+            payment = create_payment(
+                trx_id,
+                PaymentCreate(payment_date=when, bank_account_id=body.bank_account_id,
+                              payment_method=body.payment_method or "bank_transfer"),
+                db=db, company_id=company_id, current_user=current_user,
+            )
+            amount = payment["payment"]["amount"]
+            done.append({
+                "transaction_id": trx_id,
+                "amount": amount,
+                "payment_status": payment["transaction"]["payment_status"],
+            })
+            total += _d(amount) or Decimal("0.00")
+        except HTTPException as exc:
+            db.rollback()
+            failed.append({"transaction_id": trx_id, "detail": exc.detail})
+
+    return {
+        "status": "success" if not failed else "partial",
+        "liquidados": len(done),
+        "falhados": len(failed),
+        "total": float(total),
+        "resultados": done,
+        "erros": failed,
+    }
 
 
 @router.get("/", response_model=List[TransactionOut])
