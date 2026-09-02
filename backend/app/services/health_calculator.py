@@ -1,11 +1,20 @@
-from datetime import datetime, timedelta
-from decimal import Decimal
-from typing import List, Optional
+"""The dashboard's numbers.
 
-from sqlalchemy import func, and_, case, extract
+Results and margins are computed **net of VAT** and the cash balance from
+actual payments — see app/services/financials.py for why those two
+distinctions are not cosmetic. Before that, this module summed the gross
+amount and called the difference a cash balance, which overstated revenue by
+the VAT rate and described money that had not necessarily moved.
+"""
+
+from datetime import datetime, timedelta
+from typing import List
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.models import Transaction, FinancialEvent
+from app.models.models import Transaction
+from app.services import financials
 
 
 def _to_float(val) -> float:
@@ -14,101 +23,84 @@ def _to_float(val) -> float:
     return float(val)
 
 
+def _expense_totals_by_category(db: Session, company_id: str, start: str, end: str) -> list:
+    """Expenses per category for a period, net of VAT and honouring lines.
+
+    A line-level category wins over the document's, because that is the whole
+    point of detailing an invoice by lines: the cleaning products do not become
+    electricity just because they arrived on the same paper.
+    """
+    from app.models.models import TransactionLine
+
+    rows = financials.documents_in_period(db, company_id, start, end, "expense")
+    if not rows:
+        return []
+
+    by_transaction = {t.id: t for t in rows}
+    lines = (
+        db.query(TransactionLine)
+        .filter(TransactionLine.company_id == company_id,
+                TransactionLine.transaction_id.in_(list(by_transaction)))
+        .all()
+    )
+    detailed = {line.transaction_id for line in lines}
+
+    totals: dict = {}
+    for line in lines:
+        parent = by_transaction[line.transaction_id]
+        name = line.category_name or parent.category_name or "Sem categoria"
+        totals[name] = totals.get(name, 0.0) + float(financials.d(line.net_amount))
+
+    for trx in rows:
+        if trx.id in detailed:
+            continue
+        name = trx.category_name or "Sem categoria"
+        totals[name] = totals.get(name, 0.0) + float(financials.net_of(trx))
+
+    return sorted(
+        ({"name": name, "amount": round(amount, 2)} for name, amount in totals.items()),
+        key=lambda row: row["amount"],
+        reverse=True,
+    )
+
+
 def calculate_health_score(company_id: str, db: Session) -> dict:
     """Calculate real-time financial health from actual transaction data."""
     today = datetime.utcnow().date()
     current_month_start = today.replace(day=1)
 
-    # ── Total income & expense (all time) ──
-    totals = (
-        db.query(
-            Transaction.type,
-            func.coalesce(func.sum(Transaction.amount), 0).label("total"),
-        )
-        .filter(Transaction.company_id == company_id)
-        .filter(Transaction.status.notin_(["cancelled", "draft"]))
-        .group_by(Transaction.type)
-        .all()
+    next_month_start = (current_month_start + timedelta(days=32)).replace(day=1)
+
+    # ── The month's result: documents dated in it, net of VAT ──
+    month = financials.period_result(
+        db, company_id, current_month_start.isoformat(), next_month_start.isoformat(),
     )
-    total_income = 0.0
-    total_expense = 0.0
-    for row in totals:
-        if row.type == "income":
-            total_income = _to_float(row.total)
-        elif row.type == "expense":
-            total_expense = _to_float(row.total)
+    month_income = month["rendimentos"]
+    month_expense = month["gastos"]
+    monthly_result = month["resultado"]
+    operating_margin = month["margem"]
 
-    current_balance = total_income - total_expense
-
-    # ── Current month income & expense ──
-    month_totals = (
-        db.query(
-            Transaction.type,
-            func.coalesce(func.sum(Transaction.amount), 0).label("total"),
-        )
-        .filter(
-            Transaction.company_id == company_id,
-            Transaction.date >= current_month_start.isoformat(),
-            Transaction.status.notin_(["cancelled", "draft"]),
-        )
-        .group_by(Transaction.type)
-        .all()
-    )
-    month_income = 0.0
-    month_expense = 0.0
-    for row in month_totals:
-        if row.type == "income":
-            month_income = _to_float(row.total)
-        elif row.type == "expense":
-            month_expense = _to_float(row.total)
-
-    monthly_result = month_income - month_expense
-
-    # ── Operating margin ──
-    operating_margin = round((monthly_result / month_income * 100) if month_income > 0 else 0, 1)
+    # ── Cash: what the accounts actually hold, from payments ──
+    cash = financials.cash_position(db, company_id)
+    current_balance = cash["saldo"]
 
     # ── Burn rate (average monthly expense, last 3 months) ──
     three_months_ago = (today - timedelta(days=90)).isoformat()
-    burn_query = (
-        db.query(func.coalesce(func.sum(Transaction.amount), 0))
-        .filter(
-            Transaction.company_id == company_id,
-            Transaction.type == "expense",
-            Transaction.date >= three_months_ago,
-            Transaction.status.notin_(["cancelled", "draft"]),
-        )
-        .scalar()
+    last_quarter = financials.period_result(
+        db, company_id, three_months_ago, next_month_start.isoformat(),
     )
-    total_expense_3m = _to_float(burn_query)
-    burn_rate = round(total_expense_3m / 3, 2) if total_expense_3m > 0 else 0
+    burn_rate = round(last_quarter["gastos"] / 3, 2) if last_quarter["gastos"] > 0 else 0
 
     # ── Runway (months of cash remaining) ──
     runway_months = round(current_balance / burn_rate, 1) if burn_rate > 0 else 99
 
     # ── Previous month comparison ──
     prev_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
-    prev_month_end = current_month_start - timedelta(days=1)
-    prev_month_totals = (
-        db.query(
-            Transaction.type,
-            func.coalesce(func.sum(Transaction.amount), 0).label("total"),
-        )
-        .filter(
-            Transaction.company_id == company_id,
-            Transaction.date >= prev_month_start.isoformat(),
-            Transaction.date <= prev_month_end.isoformat(),
-            Transaction.status.notin_(["cancelled", "draft"]),
-        )
-        .group_by(Transaction.type)
-        .all()
+    previous = financials.period_result(
+        db, company_id, prev_month_start.isoformat(), current_month_start.isoformat(),
     )
-    prev_income = 0.0
-    prev_expense = 0.0
-    for row in prev_month_totals:
-        if row.type == "income":
-            prev_income = _to_float(row.total)
-        elif row.type == "expense":
-            prev_expense = _to_float(row.total)
+    prev_income = previous["rendimentos"]
+    prev_expense = previous["gastos"]
 
     balance_trend = round(((month_income - prev_income) / prev_income * 100) if prev_income > 0 else 0, 1)
 
@@ -137,40 +129,9 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
         .all()
     )
 
-    # -- Generate System Notifications for Overdue --
-    for trx in overdue_payables:
-        evt_id = f"EVT-OVD-PAY-{trx.id}"
-        if not db.query(FinancialEvent).filter_by(id=evt_id).first():
-            db.add(FinancialEvent(
-                id=evt_id,
-                company_id=company_id,
-                type="payment_overdue",
-                severity="danger",
-                title="Despesa Vencida",
-                description=f"O pagamento a {trx.entity_name} no valor de €{_to_float(trx.outstanding_amount or trx.amount):,.2f} está vencido desde {trx.due_date}.",
-                entity_type="transaction",
-                entity_id=trx.id
-            ))
-
-    for trx in overdue_receivables:
-        evt_id = f"EVT-OVD-REC-{trx.id}"
-        if not db.query(FinancialEvent).filter_by(id=evt_id).first():
-            db.add(FinancialEvent(
-                id=evt_id,
-                company_id=company_id,
-                type="collection_overdue",
-                severity="warning",
-                title="Cobrança Atrasada",
-                description=f"A cobrança de {trx.entity_name} no valor de €{_to_float(trx.outstanding_amount or trx.amount):,.2f} está atrasada desde {trx.due_date}.",
-                entity_type="transaction",
-                entity_id=trx.id
-            ))
-
-    # Save any new events
-    try:
-        db.commit()
-    except Exception:
-        db.rollback()
+    # A read no longer writes. This used to insert FinancialEvent rows on
+    # every dashboard load — stored warnings that outlived the problem and had
+    # to be cleared by hand. app/services/alerts.py computes them live instead.
 
     # ── Upcoming (Future 30 days) ──
     thirty_days_ahead = (today + timedelta(days=30)).isoformat()
@@ -200,23 +161,10 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
         .scalar()
     )
 
-    # ── Top expense categories this month ──
-    top_categories = (
-        db.query(
-            Transaction.category_name,
-            func.coalesce(func.sum(Transaction.amount), 0).label("total"),
-        )
-        .filter(
-            Transaction.company_id == company_id,
-            Transaction.type == "expense",
-            Transaction.date >= current_month_start.isoformat(),
-            Transaction.status.notin_(["cancelled", "draft"]),
-        )
-        .group_by(Transaction.category_name)
-        .order_by(func.sum(Transaction.amount).desc())
-        .limit(5)
-        .all()
-    )
+    # ── Top expense categories this month, net of VAT ──
+    top_categories = _expense_totals_by_category(
+        db, company_id, current_month_start.isoformat(), next_month_start.isoformat(),
+    )[:5]
 
     # ── Calculate sub-scores ──
     # Liquidity: based on runway months (>12 = 100, <1 = 10)
@@ -296,8 +244,8 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
         })
 
     if top_categories:
-        top_cat_name = top_categories[0].category_name or "Geral"
-        top_cat_val = _to_float(top_categories[0].total)
+        top_cat_name = top_categories[0]["name"]
+        top_cat_val = top_categories[0]["amount"]
         key_insights.append({
             "type": "info",
             "text": f"Maior despesa: {top_cat_name} (€{top_cat_val:,.2f})"
@@ -316,10 +264,10 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
 
     # ── AI explanations ──
     ai_explanation = [
-        f"Saldo de caixa atual: €{current_balance:,.2f}.",
-        f"Burn rate médio (3 meses): €{burn_rate:,.2f}/mês.",
+        f"Saldo em conta: €{current_balance:,.2f} — soma dos pagamentos e recebimentos reais.",
+        f"Gasto médio mensal (3 meses): €{burn_rate:,.2f}, sem IVA.",
         f"Margem operacional do mês: {operating_margin}%.",
-        f"Resultado do mês corrente: €{monthly_result:,.2f}.",
+        f"Resultado do mês (rendimentos menos gastos, sem IVA): €{monthly_result:,.2f}.",
     ]
     if balance_trend != 0:
         direction = "acima" if balance_trend > 0 else "abaixo"
@@ -348,93 +296,50 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
 
 
 def get_monthly_summary(company_id: str, db: Session, months: int = 6) -> list:
-    """Return income/expense/result per month for the last N months."""
+    """Income, expense and result per month — net of VAT, on the accrual basis."""
     today = datetime.utcnow().date()
+    month_names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
     results = []
 
     for i in range(months - 1, -1, -1):
-        year = today.year
-        month = today.month - i
+        year, month = today.year, today.month - i
         while month <= 0:
             month += 12
             year -= 1
 
-        month_start = datetime(year, month, 1).date()
-        if month == 12:
-            month_end = datetime(year + 1, 1, 1).date() - timedelta(days=1)
-        else:
-            month_end = datetime(year, month + 1, 1).date() - timedelta(days=1)
+        start = datetime(year, month, 1).date()
+        end = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)).date()
+        period = financials.period_result(db, company_id, start.isoformat(), end.isoformat())
 
-        rows = (
-            db.query(
-                Transaction.type,
-                func.coalesce(func.sum(Transaction.amount), 0).label("total"),
-            )
-            .filter(
-                Transaction.company_id == company_id,
-                Transaction.date >= month_start.isoformat(),
-                Transaction.date <= month_end.isoformat(),
-                Transaction.status.notin_(["cancelled", "draft"]),
-            )
-            .group_by(Transaction.type)
-            .all()
-        )
-
-        income = 0.0
-        expense = 0.0
-        for row in rows:
-            if row.type == "income":
-                income = _to_float(row.total)
-            elif row.type == "expense":
-                expense = _to_float(row.total)
-
-        month_names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
         results.append({
-            "month": month_names[month_start.month - 1],
-            "Entradas": round(income, 2),
-            "Saídas": round(expense, 2),
-            "Resultado": round(income - expense, 2),
+            "month": month_names[start.month - 1],
+            "Entradas": round(period["rendimentos"], 2),
+            "Saídas": round(period["gastos"], 2),
+            "Resultado": round(period["resultado"], 2),
         })
 
     return results
 
 
 def get_expenses_by_category(company_id: str, db: Session) -> list:
-    """Return expense breakdown by category for the current month."""
+    """Expense breakdown for the current month, net of VAT."""
     today = datetime.utcnow().date()
-    month_start = today.replace(day=1)
+    start = today.replace(day=1)
+    end = (start + timedelta(days=32)).replace(day=1)
 
-    rows = (
-        db.query(
-            Transaction.category_name,
-            func.coalesce(func.sum(Transaction.amount), 0).label("total"),
-        )
-        .filter(
-            Transaction.company_id == company_id,
-            Transaction.type == "expense",
-            Transaction.date >= month_start.isoformat(),
-            Transaction.status.notin_(["cancelled", "draft"]),
-        )
-        .group_by(Transaction.category_name)
-        .order_by(func.sum(Transaction.amount).desc())
-        .all()
-    )
-
+    rows = _expense_totals_by_category(db, company_id, start.isoformat(), end.isoformat())
     if not rows:
         return []
 
-    grand_total = sum(_to_float(r.total) for r in rows)
+    grand_total = sum(row["amount"] for row in rows)
     colors = ["#6366F1", "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#94A3B8"]
 
-    result = []
-    for idx, row in enumerate(rows):
-        val = _to_float(row.total)
-        pct = round(val / grand_total * 100, 1) if grand_total > 0 else 0
-        result.append({
-            "name": row.category_name or "Sem Categoria",
-            "value": pct,
-            "amount": round(val, 2),
-            "color": colors[idx % len(colors)],
-        })
-
-    return result
+    return [
+        {
+            "name": row["name"],
+            "value": round(row["amount"] / grand_total * 100, 1) if grand_total > 0 else 0,
+            "amount": row["amount"],
+            "color": colors[index % len(colors)],
+        }
+        for index, row in enumerate(rows)
+    ]
