@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { fetchTransactions, updateTransaction } from '@/services/data';
+import { fetchTransactions } from '@/services/data';
+import { settleOne } from '@/components/cashflow/api';
 import { Transaction } from '@/types';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -13,6 +14,7 @@ export default function ReceivablesPage() {
   const [receivables, setReceivables] = useState<Transaction[]>([]);
   const [receivedIds, setReceivedIds] = useState<string[]>([]);
   const [loadingReceivedId, setLoadingReceivedId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -26,22 +28,25 @@ export default function ReceivablesPage() {
     setPageHeader('Contas a Receber', 'Gestão de faturas emitidas e cobranças de clientes');
   }, [setPageHeader]);
 
-  const handleMarkReceived = async (id: string, amount: number) => {
+  /* Registar um recebimento a sério — ver a nota em contas a pagar: escrever
+   * o estado por PATCH pintava o ecrã de verde sem mover dinheiro nenhum. */
+  const handleMarkReceived = async (id: string) => {
     setLoadingReceivedId(id);
-    try {
-      await updateTransaction(id, {
-        payment_status: 'paid',
-        status: 'received',
-        paid_amount: amount,
-        payment_date: new Date().toISOString().slice(0, 10)
-      });
-      setReceivedIds(prev => [...prev, id]);
-    } catch {
-      setReceivedIds(prev => [...prev, id]);
-    } finally {
-      setLoadingReceivedId(null);
+    setError(null);
+    const { error: failure } = await settleOne(id);
+    setLoadingReceivedId(null);
+    if (failure) {
+      setError(failure);
+      return;
     }
+    setReceivables((await fetchTransactions()).filter((t) => t.type === 'income'));
   };
+
+  /* O que move no banco: o total menos a retenção na fonte, que vai para o
+     Estado e nunca chega à contraparte. Somar o bruto exagerava cada
+     documento retido pelo valor da retenção. */
+  const moves = (t: Transaction) =>
+    Number(t.payable_amount ?? t.gross_amount ?? t.amount ?? 0);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const currentMonthStr = todayStr.slice(0, 7);
@@ -50,20 +55,20 @@ export default function ReceivablesPage() {
   const next7DaysStr = next7DaysDate.toISOString().slice(0, 10);
 
   const pendingReceivables = receivables.filter(t => !receivedIds.includes(t.id) && t.status !== 'received' && t.status !== 'paid' && t.payment_status !== 'paid');
-  const totalPending = pendingReceivables.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const totalPending = pendingReceivables.reduce((acc, curr) => acc + moves(curr), 0);
 
   const receivedThisMonth = receivables.filter(t => {
     const isRec = receivedIds.includes(t.id) || t.status === 'received' || t.status === 'paid' || t.payment_status === 'paid';
     const dt = t.payment_date || t.date;
     return isRec && dt.startsWith(currentMonthStr);
   });
-  const totalReceivedThisMonth = receivedThisMonth.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const totalReceivedThisMonth = receivedThisMonth.reduce((acc, curr) => acc + moves(curr), 0);
 
   const next7Days = pendingReceivables.filter(t => {
     const d = t.due_date || t.date;
     return d >= todayStr && d <= next7DaysStr;
   });
-  const totalNext7Days = next7Days.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const totalNext7Days = next7Days.reduce((acc, curr) => acc + moves(curr), 0);
 
   const totalCount = receivables.length;
   const collectionRate = totalCount > 0 ? (((totalCount - pendingReceivables.length) / totalCount) * 100).toFixed(1) : '100.0';
@@ -71,6 +76,12 @@ export default function ReceivablesPage() {
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       
+
+      {error && (
+        <div className="rounded-xl bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2 text-xs font-semibold">
+          {error}
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -123,7 +134,7 @@ export default function ReceivablesPage() {
                   <td className="p-3.5 font-bold text-slate-900">{item.entity_name}</td>
                   <td className="p-3.5 text-slate-700">{item.description}</td>
                   <td className="p-3.5 text-slate-600">{item.category_name}</td>
-                  <td className="p-3.5 font-extrabold text-emerald-600">+{formatMoney(item.amount)}</td>
+                  <td className="p-3.5 font-extrabold text-emerald-600">+{formatMoney(moves(item))}</td>
                   <td className="p-3.5">
                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
                       isReceived ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
@@ -140,7 +151,7 @@ export default function ReceivablesPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleMarkReceived(item.id, item.amount);
+                          handleMarkReceived(item.id);
                         }}
                         disabled={loadingReceivedId === item.id}
                         className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-colors shadow-2xs flex items-center gap-1.5 ml-auto disabled:opacity-50"
