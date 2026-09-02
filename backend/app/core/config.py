@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     # In production ALWAYS provide SECRET_KEY via environment variable.
     # When unset we generate an ephemeral key so tokens simply don't survive a
     # restart in development instead of shipping a hard-coded secret.
+    #: "production" makes the checks below refuse to start on an unsafe config.
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     SECRET_KEY: str = os.getenv("SECRET_KEY", secrets.token_urlsafe(48))
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
@@ -54,3 +56,40 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def check_production_config(current: "Settings" = None) -> list[str]:
+    """Problems that must not reach production. Empty list means fine.
+
+    Returned rather than raised so the caller decides: the app refuses to
+    start, while a test can read the list.
+    """
+    current = current or settings
+    problems = []
+
+    if not os.getenv("SECRET_KEY"):
+        problems.append(
+            "SECRET_KEY não está definido. Sem ele a chave é gerada a cada arranque, "
+            "todas as sessões caem em cada reinício e dois processos assinam tokens "
+            "diferentes."
+        )
+    elif len(current.SECRET_KEY) < 32:
+        problems.append("SECRET_KEY é demasiado curto — use pelo menos 32 caracteres aleatórios.")
+
+    if any("localhost" in origin or "127.0.0.1" in origin
+           for origin in (current.BACKEND_CORS_ORIGINS or [])):
+        problems.append(
+            "BACKEND_CORS_ORIGINS ainda aponta para localhost — defina os domínios reais."
+        )
+
+    if current.DATABASE_URL.startswith("sqlite"):
+        problems.append(
+            "DATABASE_URL usa SQLite. Serve para desenvolvimento; em produção, com "
+            "escritas em paralelo, use PostgreSQL."
+        )
+
+    return problems
+
+
+def is_production() -> bool:
+    return (settings.ENVIRONMENT or "").lower() in ("production", "prod")

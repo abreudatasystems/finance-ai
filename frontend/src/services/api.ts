@@ -251,3 +251,23 @@ export async function register(
     return { ok: false, error: 'network' };
   }
 }
+
+
+/** Change your own password, proving you know the current one. */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<AuthResult> {
+  try {
+    const res = await apiFetch('/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    if (res.ok) return { ok: true };
+    const detail = await res.json().catch(() => ({}));
+    return { ok: false, error: detail.detail || 'Não foi possível alterar a palavra-passe.' };
+  } catch {
+    return { ok: false, error: 'Não foi possível contactar o servidor.' };
+  }
+}

@@ -101,7 +101,7 @@ def register(client: TestClient, company_name: str = "Empresa Teste") -> Tenant:
     response = client.post("/api/v1/auth/register", json={
         "name": f"Utilizador {index}",
         "email": email,
-        "password": "segredo123",
+        "password": "a chave da porta",
         "company_name": f"{company_name} {index}",
     })
     assert response.status_code == 201, response.text

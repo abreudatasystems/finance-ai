@@ -68,7 +68,7 @@ def test_registering_from_an_invitation_creates_a_guest_account(client, tenant):
     assert preview["account_exists"] is False
 
     joined = client.post("/api/v1/invitations/register", json={
-        "token": invitation["token"], "name": "João", "password": "segredo123",
+        "token": invitation["token"], "name": "João", "password": "a chave da porta",
     })
     assert joined.status_code == 201
     guest = {"Authorization": f"Bearer {joined.json()['access_token']}"}
@@ -87,7 +87,7 @@ def test_a_guest_sees_only_the_company_that_invited_them(client, tenant):
 
     invitation = _invite(tenant, "guest2@exemplo.pt")
     token = client.post("/api/v1/invitations/register", json={
-        "token": invitation["token"], "name": "Rita", "password": "segredo123",
+        "token": invitation["token"], "name": "Rita", "password": "a chave da porta",
     }).json()["access_token"]
     guest = {"Authorization": f"Bearer {token}"}
 
@@ -99,7 +99,7 @@ def test_a_guest_sees_only_the_company_that_invited_them(client, tenant):
 def test_a_viewer_reads_but_cannot_write(client, tenant):
     invitation = _invite(tenant, "guest3@exemplo.pt", role="viewer")
     token = client.post("/api/v1/invitations/register", json={
-        "token": invitation["token"], "name": "Zé", "password": "segredo123",
+        "token": invitation["token"], "name": "Zé", "password": "a chave da porta",
     }).json()["access_token"]
     viewer = {"Authorization": f"Bearer {token}"}
     category = tenant.category("expense")
@@ -154,7 +154,7 @@ def test_a_revoked_invitation_stops_working(client, tenant):
 def test_member_activity_shows_what_they_moved(client, tenant):
     invitation = _invite(tenant, "guest4@exemplo.pt")
     token = client.post("/api/v1/invitations/register", json={
-        "token": invitation["token"], "name": "Maria", "password": "segredo123",
+        "token": invitation["token"], "name": "Maria", "password": "a chave da porta",
     }).json()["access_token"]
     member = {"Authorization": f"Bearer {token}"}
     category = tenant.category("expense")
