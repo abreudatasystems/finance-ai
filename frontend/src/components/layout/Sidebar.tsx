@@ -24,7 +24,8 @@ import {
   Repeat,
   BellRing,
   FileText,
-  HandCoins
+  HandCoins,
+  Target
 } from 'lucide-react';
 
 interface NavItem {
@@ -67,7 +68,8 @@ export const Sidebar: React.FC = () => {
         { label: 'Contas a Receber', href: '/financial/receivables', icon: ArrowUpRight },
         { label: 'Cobranças', href: '/financial/collections', icon: HandCoins },
         { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 },
-        { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat }
+        { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat },
+        { label: 'Orçamento', href: '/financial/budget', icon: Target }
       ]
     },
     {
