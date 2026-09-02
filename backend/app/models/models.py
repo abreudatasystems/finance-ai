@@ -217,15 +217,38 @@ class Customer(Base):
     total_revenue = Column(Float, default=0.0)
 
 class CostCenter(Base):
+    """A project, a client engagement, a branch — whatever the work is split by.
+
+    A services company invoices 6 150 EUR on a job and has no idea whether it
+    made money on it, because the costs attach to nothing. This is the thing
+    they attach to.
+
+    What was spent is **not** stored. It is derived from the documents that
+    point here, on the same accrual, net-of-VAT basis as the income statement,
+    so a project's margin and the company's result can never disagree. The
+    budget is stored, because a plan is a decision and not a consequence.
+    """
+
     __tablename__ = "cost_centers"
 
     id = Column(String, primary_key=True, index=True)
-    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
     code = Column(String, nullable=False)
     name = Column(String, nullable=False)
-    budget = Column(Float, default=0.0)
-    spent = Column(Float, default=0.0)
+    description = Column(Text, nullable=True)
+    #: What the job is expected to cost, without VAT — the same basis as the
+    #: figure it will be compared against.
+    budget = Column(Numeric(14, 2), nullable=True)
+    #: What the client agreed to pay, when the work was sold for a fixed price.
+    contract_value = Column(Numeric(14, 2), nullable=True)
+    entity_id = Column(String, nullable=True)      # o cliente do projeto
+    entity_name = Column(String, nullable=True)
+    started_on = Column(String, nullable=True)
+    ended_on = Column(String, nullable=True)
+    #: open | closed — a finished job stops being offered on new documents.
+    status = Column(String, default="open")
     active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class Transaction(Base):
     __tablename__ = "transactions"

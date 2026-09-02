@@ -26,7 +26,8 @@ import {
   FileText,
   HandCoins,
   Target,
-  Landmark
+  Landmark,
+  FolderKanban
 } from 'lucide-react';
 
 interface NavItem {
@@ -70,7 +71,8 @@ export const Sidebar: React.FC = () => {
         { label: 'Cobranças', href: '/financial/collections', icon: HandCoins },
         { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 },
         { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat },
-        { label: 'Orçamento', href: '/financial/budget', icon: Target }
+        { label: 'Orçamento', href: '/financial/budget', icon: Target },
+        { label: 'Projetos', href: '/financial/projects', icon: FolderKanban }
       ]
     },
     {
