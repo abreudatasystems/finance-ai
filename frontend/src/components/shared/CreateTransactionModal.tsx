@@ -27,19 +27,28 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
   );
   const [description, setDescription] = useState('');
   const [entityName, setEntityName] = useState('');
-  const [categoryName, setCategoryName] = useState('Marketing > Google Ads');
+  const [categoryName, setCategoryName] = useState('');
   const [amount, setAmount] = useState('');
   const [vatRate, setVatRate] = useState<number>(23);
   const [customVat, setCustomVat] = useState(false);
   const [retentionCode, setRetentionCode] = useState('');
   const [retentionTypes, setRetentionTypes] = useState<RetentionType[]>([]);
   const [installmentCount, setInstallmentCount] = useState<number>(1);
-  const [dueDate, setDueDate] = useState('2026-08-30');
+  // A data do documento, não a de hoje: uma fatura de agosto lançada em
+  // setembro é um documento de agosto, e é isso que decide o período de IVA,
+  // o mês da DRE e o orçamento a que pertence.
+  const [docDate, setDocDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  });
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid'>('pending');
   const [categoryId, setCategoryId] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [isSuccess, setIsSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   // A free-text cost centre could never be reported on: "Sede" and "sede" and
   // "Sede " were three different projects. Chosen from the real ones now.
@@ -119,15 +128,31 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Uma categoria e uma contraparte são o que torna o documento legível na
+    // DRE, no IVA e nas cobranças. Sem elas o lançamento entra e não se
+    // consegue explicar depois, por isso pergunta-se agora.
+    if (type !== 'document') {
+      if (!categoryId && !categoryName.trim()) {
+        setFormError('Escolha a categoria do lançamento.');
+        return;
+      }
+      if (!entityName.trim()) {
+        setFormError('Indique o fornecedor ou o cliente.');
+        return;
+      }
+    }
+    setFormError(null);
     setSubmitting(true);
 
     if (type !== 'document') {
       await apiPost('/transactions/', {
         type,
+        date: docDate,
         description: description.trim(),
-        entity_name: entityName.trim() || 'N/D',
-        category_id: categoryId || 'CAT-MANUAL',
-        category_name: categoryOptions.find((o) => o.id === categoryId)?.label || categoryName,
+        entity_name: entityName.trim(),
+        category_id: categoryId,
+        category_name: categoryOptions.find((o) => o.id === categoryId)?.label || '',
         amount: parseFloat(amount) || 0,
         vat_rate: vatRate,
         retention_code: retentionCode || undefined,
@@ -209,6 +234,11 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
         </div>
       ) : (
         <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+          {formError && (
+            <div className="rounded-xl bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2 text-xs font-semibold">
+              {formError}
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
             <button
               type="button"
@@ -467,6 +497,23 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
               )}
             </div>
 
+            {/* A data do documento decide o período de IVA, o mês da DRE e o
+                orçamento; a de vencimento decide quando o dinheiro se move.
+                São duas perguntas diferentes e precisam de dois campos. */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-600">Data do Documento *</label>
+              <input
+                type="date"
+                required
+                value={docDate}
+                onChange={(e) => setDocDate(e.target.value)}
+                className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
+              />
+              <p className="text-[10px] text-slate-400">
+                A data da fatura, não a de hoje — é ela que decide o trimestre de IVA.
+              </p>
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-slate-600">
                 {paymentStatus === 'pending' ? 'Data de Vencimento (Prevista)' : 'Data do Pagamento'}
@@ -474,6 +521,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
               <input
                 type="date"
                 value={dueDate}
+                min={docDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
               />

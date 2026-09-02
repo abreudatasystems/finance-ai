@@ -415,3 +415,33 @@ def test_a_document_without_retention_exports_zero_and_the_full_amount(tenant):
     row = next(r for r in csv.splitlines() if "Sem retenção" in r)
     assert "0,00" in row
     assert "123,00" in row
+
+
+# ---------------------------------------------------------------------------
+# O estado de liquidação não se escreve à mão
+# ---------------------------------------------------------------------------
+
+def test_marking_a_document_paid_by_patch_moves_no_money(tenant):
+    """A obrigação só se fecha com um pagamento.
+
+    Duas páginas escreviam payment_status e paid_amount por PATCH e pintavam o
+    ecrã de verde. O backend recusa esses campos de propósito — este teste
+    fixa-o, para que a interface não volte a acreditar que resultou.
+    """
+    trx = _book(tenant, code="irs_b_25")
+
+    response = tenant.patch(f"/api/v1/transactions/{trx['id']}", {
+        "payment_status": "paid",
+        "paid_amount": 184.50,
+        "outstanding_amount": 0,
+    })
+    assert response.status_code == 200
+    after = response.json()
+
+    # Nada se moveu: continua por liquidar, pelo valor pagável.
+    assert after["payment_status"] == "pending"
+    assert after["paid_amount"] == 0.0
+    assert after["outstanding_amount"] == 147.00
+
+    # E o saldo de caixa não conhece este documento.
+    assert tenant.get(f"/api/v1/transactions/{trx['id']}/payments").json() == []
