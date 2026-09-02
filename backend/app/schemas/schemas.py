@@ -58,6 +58,25 @@ class SupplierCreate(BaseModel):
     address: Optional[str] = None
     default_category_id: Optional[str] = None
     default_category_name: Optional[str] = None
+    sub_account: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_role: Optional[str] = None
+    mobile: Optional[str] = None
+    website: Optional[str] = None
+    contact_type: Optional[str] = None
+    is_taxable: Optional[bool] = True
+    vat_cash_regime: Optional[bool] = False
+    is_vat_exempt: Optional[bool] = False
+    address_name: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    discharge_address: Optional[str] = None
+    document_observations: Optional[str] = None
+    internal_observations: Optional[str] = None
+    auto_invoicing: Optional[bool] = False
+    model_10: Optional[bool] = False
+    accept_ad_emails: Optional[bool] = False
 
 
 # Customer
@@ -68,6 +87,20 @@ class CustomerCreate(BaseModel):
     phone: Optional[str] = None
     default_category_id: Optional[str] = None
     default_category_name: Optional[str] = None
+    sub_account: Optional[str] = None
+    contact_name: Optional[str] = None
+    mobile: Optional[str] = None
+    website: Optional[str] = None
+    is_taxable: Optional[bool] = True
+    vat_cash_regime: Optional[bool] = False
+    is_vat_exempt: Optional[bool] = False
+    address_name: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    discharge_address: Optional[str] = None
+    document_observations: Optional[str] = None
+    internal_observations: Optional[str] = None
 
 # Transaction
 class TransactionCreate(BaseModel):
@@ -244,4 +277,63 @@ class AIChatResponse(BaseModel):
     timestamp: str
     actionCard: Optional[dict] = None
     actions: Optional[List[AIChatAction]] = None
+
+# Items (Products / Services)
+class ItemBase(BaseModel):
+    kind: str
+    code: str
+    family: Optional[str] = None
+    description: str
+    unit: Optional[str] = None
+    ean: Optional[str] = None
+    notes: Optional[str] = None
+    active: Optional[bool] = True
+    vat_rate: Optional[str] = None
+    price_1: Optional[float] = 0.0
+    price_2: Optional[float] = 0.0
+    price_3: Optional[float] = 0.0
+    price_includes_vat: Optional[bool] = False
+    product_type: Optional[str] = None
+    purchase_price: Optional[float] = 0.0
+    financial_cost: Optional[float] = 0.0
+    transport_cost: Optional[float] = 0.0
+    customs_cost: Optional[float] = 0.0
+    other_costs: Optional[float] = 0.0
+    total_estimated_cost: Optional[float] = 0.0
+    service_group: Optional[str] = None
+
+class ItemCreate(ItemBase):
+    pass
+
+class ItemUpdate(BaseModel):
+    kind: Optional[str] = None
+    code: Optional[str] = None
+    family: Optional[str] = None
+    description: Optional[str] = None
+    unit: Optional[str] = None
+    ean: Optional[str] = None
+    notes: Optional[str] = None
+    active: Optional[bool] = None
+    vat_rate: Optional[str] = None
+    price_1: Optional[float] = None
+    price_2: Optional[float] = None
+    price_3: Optional[float] = None
+    price_includes_vat: Optional[bool] = None
+    product_type: Optional[str] = None
+    purchase_price: Optional[float] = None
+    financial_cost: Optional[float] = None
+    transport_cost: Optional[float] = None
+    customs_cost: Optional[float] = None
+    other_costs: Optional[float] = None
+    total_estimated_cost: Optional[float] = None
+    service_group: Optional[str] = None
+
+class ItemOut(ItemBase):
+    id: str
+    company_id: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 

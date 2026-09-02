@@ -1,19 +1,25 @@
 'use client';
 
 /**
- * Orçamento — a casca; a comparação vive em src/components/budgets.
+ * Orçamento — passou a ser uma vista do Desempenho, ao lado dos projetos: são
+ * a mesma pergunta (para onde foi o dinheiro) em dois grãos. Fica a casca para
+ * que marcadores e ligações antigas continuem a chegar ao sítio certo.
  */
 
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
-import { BudgetView } from '@/components/budgets/BudgetView';
+import { PerformanceView } from '@/components/performance/PerformanceView';
 
 export default function BudgetPage() {
   const { setPageHeader } = useApp();
 
   useEffect(() => {
-    setPageHeader('Orçamento', 'O que estava planeado, face ao que aconteceu');
+    setPageHeader('Desempenho', 'Para onde foi o dinheiro — por categoria e por projeto');
   }, [setPageHeader]);
 
-  return <BudgetView />;
+  return (
+    <Suspense fallback={<div className="text-xs text-slate-400 p-8 text-center">A carregar…</div>}>
+      <PerformanceView initial="budget" />
+    </Suspense>
+  );
 }

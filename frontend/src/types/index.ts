@@ -227,6 +227,26 @@ export interface Supplier {
   default_category_name?: string;
   total_spent: number;
   last_transaction_date?: string;
+  // New fields
+  sub_account?: string;
+  contact_name?: string;
+  contact_role?: string;
+  mobile?: string;
+  website?: string;
+  contact_type?: string;
+  is_taxable?: boolean;
+  vat_cash_regime?: boolean;
+  is_vat_exempt?: boolean;
+  address_name?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  discharge_address?: string;
+  document_observations?: string;
+  internal_observations?: string;
+  auto_invoicing?: boolean;
+  model_10?: boolean;
+  accept_ad_emails?: boolean;
 }
 
 export interface Customer {
@@ -239,6 +259,21 @@ export interface Customer {
   default_category_id?: string;
   default_category_name?: string;
   total_revenue: number;
+  // New fields
+  sub_account?: string;
+  contact_name?: string;
+  mobile?: string;
+  website?: string;
+  is_taxable?: boolean;
+  vat_cash_regime?: boolean;
+  is_vat_exempt?: boolean;
+  address_name?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  discharge_address?: string;
+  document_observations?: string;
+  internal_observations?: string;
 }
 
 export interface CostCenter {
@@ -460,4 +495,34 @@ export interface AIRule {
   confidence: number;
   uses_count: number;
   created_at: string;
+}
+
+export interface Item {
+  id: string;
+  company_id: string;
+  kind: 'product' | 'service';
+  code: string;
+  family?: string;
+  description: string;
+  unit?: string;
+  ean?: string;
+  notes?: string;
+  active: boolean;
+  vat_rate?: string;
+  price_1: number;
+  price_2: number;
+  price_3: number;
+  price_includes_vat: boolean;
+  // Product specific
+  product_type?: string;
+  purchase_price: number;
+  financial_cost: number;
+  transport_cost: number;
+  customs_cost: number;
+  other_costs: number;
+  total_estimated_cost: number;
+  // Service specific
+  service_group?: string;
+  created_at: string;
+  updated_at: string;
 }

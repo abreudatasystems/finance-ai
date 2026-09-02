@@ -9,8 +9,6 @@ import { Category } from '@/types';
 import { SideDrawer } from './SideDrawer';
 import { RetentionType } from '@/components/retentions/types';
 import { fetchTypes } from '@/components/retentions/api';
-import { Project } from '@/components/projects/types';
-import { fetchProjects } from '@/components/projects/api';
 
 interface CreateTransactionModalProps {
   initialType: string;
@@ -52,8 +50,6 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
   const [showAdvanced, setShowAdvanced] = useState(false);
   // A free-text cost centre could never be reported on: "Sede" and "sede" and
   // "Sede " were three different projects. Chosen from the real ones now.
-  const [projectId, setProjectId] = useState('');
-  const [projects, setProjects] = useState<Project[]>([]);
   const [notes, setNotes] = useState('');
   const [tags, setTags] = useState('');
 
@@ -117,9 +113,6 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
   }, [type]);
 
   // Only open projects: a finished job should not collect new documents.
-  useEffect(() => {
-    fetchProjects(false).then((rows) => setProjects(rows || []));
-  }, []);
 
   const retention = retentionTypes.find((t) => t.codigo === retentionCode);
   // The withholding rides on the base, never on the total — the same rule the
@@ -159,8 +152,6 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
         installment_count: installmentCount > 1 ? installmentCount : undefined,
         due_date: dueDate,
         is_paid: paymentStatus === 'paid',
-        cost_center_id: projectId || undefined,
-        cost_center_name: projects.find((p) => p.id === projectId)?.nome || undefined,
         notes: notes.trim() || undefined,
         tags: tags ? tags.split(',').map((t) => t.trim()) : undefined,
       });
@@ -541,25 +532,8 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
 
             {showAdvanced && (
               <div className="mt-4 space-y-4 animate-in slide-in-from-top-2 duration-200 fade-in">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-slate-600">Projeto</label>
-                    <select
-                      value={projectId}
-                      onChange={(e) => setProjectId(e.target.value)}
-                      className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 font-semibold"
-                    >
-                      <option value="">Sem projeto</option>
-                      {projects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.codigo} · {p.nome}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] text-slate-400">
-                      Indicar o projeto é o que permite saber a margem de cada trabalho.
-                    </p>
-                  </div>
+                <div className="grid grid-cols-1 gap-3">
+
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-slate-600">Etiquetas (separadas por vírgula)</label>
                     <input

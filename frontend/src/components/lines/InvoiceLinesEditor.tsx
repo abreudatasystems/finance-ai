@@ -16,8 +16,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Plus, Trash2, Loader2, Save, Rows3, AlertCircle, Info, X,
 } from 'lucide-react';
-import { InvoiceLine, LineDraft, RateBreakdown } from './types';
-import { fetchLines, replaceLines, clearLines, LinePayload } from './api';
+import { CatalogueItem, InvoiceLine, LineDraft, RateBreakdown } from './types';
+import {
+  fetchLines, replaceLines, clearLines, fetchCatalogue, fetchVatRates, LinePayload,
+} from './api';
+import { ItemPicker } from './ItemPicker';
 
 interface Props {
   transactionId: string;
@@ -41,6 +44,8 @@ const emptyRow = (): LineDraft => ({ description: '', quantity: '1', unit_price:
 
 const toDraft = (line: InvoiceLine): LineDraft => ({
   description: line.description,
+  item_id: line.item_id ?? null,
+  item_code: line.item_code ?? null,
   quantity: line.quantity != null ? String(line.quantity) : '1',
   // A line typed as a base has no unit price; show the base as the price of one.
   unit_price: line.unit_price != null ? String(line.unit_price) : String(line.net_amount),
@@ -58,6 +63,9 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
+  const [rateTable, setRateTable] = useState<Record<string, number>>({});
+  const [loadingCatalogue, setLoadingCatalogue] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +77,20 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
   }, [transactionId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // O catálogo e a tabela de taxas são da empresa, não do documento: carregam
+  // uma vez e servem todas as linhas.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [items, rates] = await Promise.all([fetchCatalogue(), fetchVatRates()]);
+      if (!alive) return;
+      setCatalogue(items);
+      setRateTable(rates);
+      setLoadingCatalogue(false);
+    })();
+    return () => { alive = false; };
+  }, []);
 
   /** Live arithmetic while typing — the same rule the server applies. */
   const preview = useMemo(() => {
@@ -95,11 +117,33 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
   const update = (index: number, patch: Partial<LineDraft>) =>
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
 
+  /**
+   * O artigo escolhido preenche a linha.
+   *
+   * Um preço gravado com IVA incluído volta à base, porque a linha soma o IVA
+   * a seguir — mantê-lo incluído facturaria a taxa duas vezes. É a mesma conta
+   * que o servidor faz ao gravar, e é por isso que a pré-visualização bate
+   * certo com o que fica na base de dados.
+   */
+  const pickItem = (index: number, item: CatalogueItem) => {
+    const rate = item.vat_rate ? rateTable[item.vat_rate.trim().toLowerCase()] : undefined;
+    let price = item.price_1 || 0;
+    if (item.price_includes_vat && rate) price = round2(price / (1 + rate / 100));
+    update(index, {
+      item_id: item.id,
+      item_code: item.code,
+      description: rows[index]?.description?.trim() || item.description,
+      unit_price: price ? String(price) : '',
+      vat_rate: rate != null ? String(rate) : rows[index]?.vat_rate || '',
+    });
+  };
+
   const save = async () => {
     const payload: LinePayload[] = rows
       .filter((r) => r.description.trim())
       .map((r) => ({
         description: r.description.trim(),
+        item_id: r.item_id || undefined,
         quantity: num(r.quantity),
         unit_price: num(r.unit_price),
         vat_rate: num(r.vat_rate),
@@ -185,7 +229,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
       {editing ? (
         <div className="space-y-2">
           <div className="hidden sm:grid grid-cols-12 gap-2 px-1 text-[9px] uppercase font-bold text-slate-400">
-            <span className="col-span-5">Descrição</span>
+            <span className="col-span-5">Artigo e descrição</span>
             <span className="col-span-2">Qtd.</span>
             <span className="col-span-2">Preço unit.</span>
             <span className="col-span-2">IVA %</span>
@@ -195,11 +239,21 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
           {rows.map((row, index) => (
             <div key={index} className="space-y-1">
               <div className="grid grid-cols-12 gap-2 items-center">
-                <input
-                  value={row.description} onChange={(e) => update(index, { description: e.target.value })}
-                  placeholder="Ex.: Pão e leite"
-                  className="col-span-12 sm:col-span-5 px-2.5 py-2 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
-                />
+                <div className="col-span-12 sm:col-span-5 flex items-center gap-2">
+                  <ItemPicker
+                    items={catalogue}
+                    loading={loadingCatalogue}
+                    selectedId={row.item_id}
+                    onPick={(item) => pickItem(index, item)}
+                    onClear={() => update(index, { item_id: null, item_code: null })}
+                    formatMoney={formatMoney}
+                  />
+                  <input
+                    value={row.description} onChange={(e) => update(index, { description: e.target.value })}
+                    placeholder="Ex.: Pão e leite"
+                    className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
                 <input
                   value={row.quantity} onChange={(e) => update(index, { quantity: e.target.value })}
                   inputMode="decimal" placeholder="1"
@@ -294,7 +348,12 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
               <div key={line.id} className="px-3 py-2 flex items-center gap-3">
                 <span className="text-[10px] font-mono text-slate-300 w-4 shrink-0">{line.line_number}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-800 truncate">{line.description}</p>
+                  <p className="font-semibold text-slate-800 truncate">
+                    {line.item_code && (
+                      <span className="mr-1.5 font-mono text-[10px] text-indigo-600">{line.item_code}</span>
+                    )}
+                    {line.description}
+                  </p>
                   <p className="text-[10px] text-slate-500 font-mono">
                     {line.quantity != null && line.unit_price != null && (
                       <>{line.quantity} × {formatMoney(line.unit_price)} · </>

@@ -25,7 +25,8 @@ from typing import Iterable, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.models import Transaction, TransactionLine
+from app.catalog import vat_rates
+from app.models.models import Item, Transaction, TransactionLine
 
 CENTS = Decimal("0.01")
 QTY = Decimal("0.001")
@@ -68,6 +69,8 @@ def serialize(line: TransactionLine) -> dict:
         "id": line.id,
         "transaction_id": line.transaction_id,
         "line_number": line.line_number,
+        "item_id": line.item_id,
+        "item_code": line.item_code,
         "description": line.description,
         "quantity": float(line.quantity) if line.quantity is not None else None,
         "unit_price": float(line.unit_price) if line.unit_price is not None else None,
@@ -158,6 +161,43 @@ def apply_totals(db: Session, trx: Transaction) -> dict:
     return {"lines": len(lines), **{k: float(v) if isinstance(v, Decimal) else v for k, v in totals.items()}}
 
 
+def resolve_item(db: Session, company_id: str, item_id: Optional[str],
+                 region: str = "continente") -> Optional[dict]:
+    """O artigo do catálogo, já com a taxa em percentagem.
+
+    O catálogo guarda a taxa pelo nome ("Normal") porque as percentagens mudam
+    por lei e por região; a linha precisa do número. A tradução acontece aqui,
+    uma vez, no momento em que a linha nasce — e o número fica gravado nela
+    para sempre, porque uma fatura de hoje não pode mudar de taxa amanhã.
+    """
+    if not item_id:
+        return None
+    item = (
+        db.query(Item)
+        .filter(Item.id == item_id, Item.company_id == company_id)
+        .first()
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail=f"Artigo não encontrado: {item_id}")
+
+    rate = vat_rates.rate_for(item.vat_rate, region)
+    price = _d(item.price_1, Decimal("0.0001")) if item.price_1 is not None else None
+
+    # Um preço marcado como "com IVA" tem de ser trazido para a base, senão a
+    # linha soma o IVA outra vez e o documento fica inflacionado pela taxa.
+    if price is not None and item.price_includes_vat and rate:
+        price = (price / (Decimal("1") + Decimal(str(rate)) / Decimal("100"))
+                 ).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+    return {
+        "id": item.id,
+        "code": item.code,
+        "description": item.description,
+        "unit_price": price,
+        "vat_rate": rate,
+    }
+
+
 def replace_lines(db: Session, company_id: str, trx: Transaction, payload: list) -> dict:
     """Replace a document's lines wholesale and re-derive its totals.
 
@@ -176,13 +216,25 @@ def replace_lines(db: Session, company_id: str, trx: Transaction, payload: list)
     stamp = int(datetime.now(timezone.utc).timestamp() * 1000)
     created = []
     for index, item in enumerate(payload, start=1):
+        # Uma linha que nomeia um artigo herda dele o que não disser. O que a
+        # linha disser ganha sempre: o catálogo propõe, o documento decide.
+        catalogue = resolve_item(db, company_id, getattr(item, "item_id", None))
         description = (item.description or "").strip()
+        if not description and catalogue:
+            description = catalogue["description"]
         if not description:
             raise HTTPException(status_code=400, detail=f"A linha {index} precisa de uma descrição.")
 
+        unit_price = item.unit_price
+        if unit_price is None and item.net_amount is None and catalogue:
+            unit_price = catalogue["unit_price"]
+        vat_rate = item.vat_rate
+        if vat_rate is None and catalogue:
+            vat_rate = catalogue["vat_rate"]
+
         amounts = compute_line(
-            quantity=item.quantity, unit_price=item.unit_price,
-            net_amount=item.net_amount, vat_rate=item.vat_rate, vat_amount=item.vat_amount,
+            quantity=item.quantity, unit_price=unit_price,
+            net_amount=item.net_amount, vat_rate=vat_rate, vat_amount=item.vat_amount,
         )
         if amounts["net"] < 0 or amounts["gross"] < 0:
             raise HTTPException(status_code=400, detail=f"A linha {index} tem valores negativos.")
@@ -192,10 +244,12 @@ def replace_lines(db: Session, company_id: str, trx: Transaction, payload: list)
             transaction_id=trx.id,
             line_number=index,
             description=description,
+            item_id=catalogue["id"] if catalogue else None,
+            item_code=catalogue["code"] if catalogue else None,
             quantity=_d(item.quantity, QTY) if item.quantity is not None else None,
-            unit_price=Decimal(str(item.unit_price)) if item.unit_price is not None else None,
+            unit_price=Decimal(str(unit_price)) if unit_price is not None else None,
             net_amount=amounts["net"],
-            vat_rate=item.vat_rate,
+            vat_rate=vat_rate,
             vat_amount=amounts["vat"],
             gross_amount=amounts["gross"],
             vat_exemption_reason=item.vat_exemption_reason,

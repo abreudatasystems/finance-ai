@@ -71,27 +71,14 @@ export default function DashboardPage() {
       if (summary && summary.length > 0) {
         setChartData(summary);
       } else {
-        setChartData([
-          { month: 'Mar', Entradas: 22000, Saídas: 14000, Resultado: 8000 },
-          { month: 'Abr', Entradas: 25000, Saídas: 15500, Resultado: 9500 },
-          { month: 'Mai', Entradas: 24000, Saídas: 14800, Resultado: 9200 },
-          { month: 'Jun', Entradas: 27500, Saídas: 16000, Resultado: 11500 },
-          { month: 'Jul', Entradas: 26000, Saídas: 14200, Resultado: 11800 },
-          { month: 'Ago', Entradas: 28500, Saídas: 15320, Resultado: 13180 }
-        ]);
+        setChartData([]);
       }
 
       const categories = await fetchExpensesByCategory<PieDataItem>();
       if (categories && categories.length > 0) {
         setPieData(categories);
       } else {
-        setPieData([
-          { name: 'Marketing', value: 35, color: '#6366F1' },
-          { name: 'Software & Cloud', value: 25, color: '#3B82F6' },
-          { name: 'Pessoal & Salários', value: 20, color: '#10B981' },
-          { name: 'Instalações', value: 12, color: '#F59E0B' },
-          { name: 'Outros', value: 8, color: '#94A3B8' }
-        ]);
+        setPieData([]);
       }
     }
     loadData();

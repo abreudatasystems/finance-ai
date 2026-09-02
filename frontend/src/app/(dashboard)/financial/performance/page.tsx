@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * Projetos — ver a nota em ../budget: é agora uma vista do Desempenho.
+ * Desempenho — a casca; as duas vistas vivem em src/components/performance.
  */
 
 import React, { Suspense, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { PerformanceView } from '@/components/performance/PerformanceView';
 
-export default function ProjectsPage() {
+export default function PerformancePage() {
   const { setPageHeader } = useApp();
 
   useEffect(() => {
@@ -16,8 +16,14 @@ export default function ProjectsPage() {
   }, [setPageHeader]);
 
   return (
-    <Suspense fallback={<div className="text-xs text-slate-400 p-8 text-center">A carregar…</div>}>
-      <PerformanceView initial="projects" />
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-400 text-xs">
+          A carregar…
+        </div>
+      }
+    >
+      <PerformanceView />
     </Suspense>
   );
 }
