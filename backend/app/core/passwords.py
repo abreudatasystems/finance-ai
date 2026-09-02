@@ -59,9 +59,13 @@ def validate(password: str, *, email: Optional[str] = None,
         raise PasswordError("A palavra-passe não pode ser o mesmo carácter repetido.")
 
     if email:
+        # Only when the local part is long enough to mean something: an "ana@"
+        # or "jp@" prefix appears inside half the sensible passphrases, and
+        # rejecting "a chave da porta" because the address starts with "a"
+        # teaches people that the rules are arbitrary.
         local = email.split("@")[0].lower()
-        if local and (local in lowered or lowered in email.lower()):
-            raise PasswordError("A palavra-passe não pode ser o seu email.")
+        if len(local) >= 4 and local in lowered:
+            raise PasswordError("A palavra-passe não pode conter o seu email.")
 
     if name:
         cleaned = "".join(ch for ch in name.lower() if ch.isalnum())
