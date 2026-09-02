@@ -51,7 +51,8 @@ export const Sidebar: React.FC = () => {
     {
       group: 'VISÃO GERAL',
       items: [
-        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }
+        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Alertas', href: '/alerts', icon: BellRing }
       ]
     },
     {
@@ -60,14 +61,17 @@ export const Sidebar: React.FC = () => {
         { label: 'Fluxo de Caixa', href: '/financial/cash-flow', icon: Wallet },
         { label: 'Contas a Pagar', href: '/financial/payables', icon: Building2 },
         { label: 'Contas a Receber', href: '/financial/receivables', icon: HandCoins },
+        { label: 'Cobranças', href: '/financial/collections', icon: History },
         { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 },
-        { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat }
+        { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat },
+        { label: 'Desempenho', href: '/financial/performance', icon: Target }
       ]
     },
     {
       group: 'INTELIGÊNCIA ARTIFICIAL',
       items: [
-        { label: 'Automação (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true }
+        { label: 'Automação (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true },
+        { label: 'Aprovações', href: '/documents/approvals', icon: CheckCheck }
       ]
     },
     {
