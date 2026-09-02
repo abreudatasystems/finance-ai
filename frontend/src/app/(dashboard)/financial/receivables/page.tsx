@@ -1,9 +1,18 @@
-/**
- * Contas a receber — dobrada no fluxo de caixa (ver contas a pagar).
- */
+'use client';
 
-import { redirect } from 'next/navigation';
+import React, { Suspense } from 'react';
+import { CashFlowContent } from '@/components/cashflow/CashFlowView';
 
 export default function ReceivablesPage() {
-  redirect('/financial/cash-flow?tab=open&dir=income');
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-400 text-xs">
+          A carregar contas a receber…
+        </div>
+      }
+    >
+      <CashFlowContent mode="receivables" />
+    </Suspense>
+  );
 }

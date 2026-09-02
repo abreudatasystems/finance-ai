@@ -176,6 +176,32 @@ class Entity(Base):
     #: never. Set once here, proposed on every document.
     default_retention_code = Column(String, nullable=True)
 
+    # --- New Detailed Fields ---
+    sub_account = Column(String, nullable=True)
+    contact_name = Column(String, nullable=True)
+    contact_role = Column(String, nullable=True)
+    mobile = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+    contact_type = Column(String, nullable=True)
+    
+    is_taxable = Column(Boolean, default=True)
+    vat_cash_regime = Column(Boolean, default=False)
+    is_vat_exempt = Column(Boolean, default=False)
+    
+    address_name = Column(String, nullable=True)
+    postal_code = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    country = Column(String, nullable=True)
+    discharge_address = Column(String, nullable=True)
+    
+    document_observations = Column(Text, nullable=True)
+    internal_observations = Column(Text, nullable=True)
+    
+    auto_invoicing = Column(Boolean, default=False)
+    model_10 = Column(Boolean, default=False)
+    accept_ad_emails = Column(Boolean, default=False)
+    # ----------------------------
+
     notes = Column(Text, nullable=True)
     active = Column(Boolean, default=True)
     # Where this row came from when the two old tables were folded in.
@@ -717,5 +743,44 @@ class Budget(Base):
 
     notes = Column(Text, nullable=True)
     created_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Item(Base):
+    __tablename__ = "items"
+
+    id = Column(String, primary_key=True, index=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
+    
+    kind = Column(String, nullable=False) # "product" or "service"
+    code = Column(String, nullable=False, index=True)
+    family = Column(String, nullable=True)
+    description = Column(String, nullable=False)
+    unit = Column(String, nullable=True)
+    ean = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+    active = Column(Boolean, default=True)
+    
+    # VAT
+    vat_rate = Column(String, nullable=True)  # Normal, Intermédia, Reduzida, Isenta
+    
+    # Prices
+    price_1 = Column(Numeric(14, 2), default=0)
+    price_2 = Column(Numeric(14, 2), default=0)
+    price_3 = Column(Numeric(14, 2), default=0)
+    price_includes_vat = Column(Boolean, default=False)
+
+    # Product specifics
+    product_type = Column(String, nullable=True)
+    purchase_price = Column(Numeric(14, 2), default=0)
+    financial_cost = Column(Numeric(14, 2), default=0)
+    transport_cost = Column(Numeric(14, 2), default=0)
+    customs_cost = Column(Numeric(14, 2), default=0)
+    other_costs = Column(Numeric(14, 2), default=0)
+    total_estimated_cost = Column(Numeric(14, 2), default=0)
+
+    # Service specifics
+    service_group = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

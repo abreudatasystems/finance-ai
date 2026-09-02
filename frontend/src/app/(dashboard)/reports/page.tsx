@@ -43,16 +43,7 @@ export default function ReportsPage() {
           Despesas: s.Saídas,
         })));
       } else {
-        setReportData([
-          { month: 'Jan', Receitas: 24000, Despesas: 15000 },
-          { month: 'Fev', Receitas: 26000, Despesas: 14500 },
-          { month: 'Mar', Receitas: 22000, Despesas: 14000 },
-          { month: 'Abr', Receitas: 25000, Despesas: 15500 },
-          { month: 'Mai', Receitas: 24000, Despesas: 14800 },
-          { month: 'Jun', Receitas: 27500, Despesas: 16000 },
-          { month: 'Jul', Receitas: 26000, Despesas: 14200 },
-          { month: 'Ago', Receitas: 28500, Despesas: 15320 }
-        ]);
+        setReportData([]);
       }
 
       const vat = await fetchVatSummary();

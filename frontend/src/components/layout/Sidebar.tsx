@@ -25,7 +25,9 @@ import {
   HandCoins,
   Target,
   Landmark,
-  FolderKanban
+  FolderKanban,
+  Package,
+  Briefcase
 } from 'lucide-react';
 
 interface NavItem {
@@ -47,37 +49,41 @@ export const Sidebar: React.FC = () => {
 
   const navGroups: NavGroup[] = [
     {
-      group: 'COMMAND CENTER',
+      group: 'VISÃO GERAL',
       items: [
-        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-        { label: 'Alertas', href: '/alerts', icon: BellRing }
+        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }
       ]
     },
     {
-      group: 'AUTOMATION ENGINE',
-      items: [
-        { label: 'Automação de Faturas (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true },
-        { label: 'Aprovações', href: '/documents/approvals', icon: CheckCheck }
-      ]
-    },
-    {
-      group: 'FINANCIAL OPERATIONS',
+      group: 'TESOURARIA',
       items: [
         { label: 'Fluxo de Caixa', href: '/financial/cash-flow', icon: Wallet },
-        { label: 'Cobranças', href: '/financial/collections', icon: HandCoins },
+        { label: 'Contas a Pagar', href: '/financial/payables', icon: Building2 },
+        { label: 'Contas a Receber', href: '/financial/receivables', icon: HandCoins },
         { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 },
-        { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat },
-        { label: 'Orçamento', href: '/financial/budget', icon: Target },
-        { label: 'Projetos', href: '/financial/projects', icon: FolderKanban }
+        { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat }
       ]
     },
     {
-      group: 'GESTÃO & AUDITORIA',
+      group: 'INTELIGÊNCIA ARTIFICIAL',
+      items: [
+        { label: 'Automação (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true }
+      ]
+    },
+    {
+      group: 'RELATÓRIOS & FISCALIDADE',
       items: [
         { label: 'Relatórios', href: '/reports', icon: BarChart3 },
         { label: 'Demonstração de Resultados', href: '/reports/dre', icon: FileText },
         { label: 'Apuramento do IVA', href: '/fiscal/vat', icon: Scale },
-        { label: 'Retenções na Fonte', href: '/fiscal/retentions', icon: Landmark },
+        { label: 'Retenções na Fonte', href: '/fiscal/retentions', icon: Landmark }
+      ]
+    },
+    {
+      group: 'REGISTOS',
+      items: [
+        { label: 'Produtos', href: '/registry/products', icon: Package },
+        { label: 'Serviços', href: '/registry/services', icon: Briefcase },
         { label: 'Fornecedores', href: '/registry/suppliers', icon: Building2 },
         { label: 'Clientes', href: '/registry/customers', icon: Users }
       ]
