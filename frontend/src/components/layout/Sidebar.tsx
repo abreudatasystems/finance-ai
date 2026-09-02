@@ -9,8 +9,6 @@ import {
   Inbox,
   CheckSquare,
   Wallet,
-  ArrowUpRight,
-  ArrowDownLeft,
   BarChart3,
   Scale,
   FolderTree,
@@ -66,8 +64,6 @@ export const Sidebar: React.FC = () => {
       group: 'FINANCIAL OPERATIONS',
       items: [
         { label: 'Fluxo de Caixa', href: '/financial/cash-flow', icon: Wallet },
-        { label: 'Contas a Pagar', href: '/financial/payables', icon: ArrowDownLeft },
-        { label: 'Contas a Receber', href: '/financial/receivables', icon: ArrowUpRight },
         { label: 'Cobranças', href: '/financial/collections', icon: HandCoins },
         { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 },
         { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat },
