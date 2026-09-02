@@ -11,7 +11,8 @@ Rules that keep it honest:
 * it starts from **real cash**: the bank balance from actual payments, never
   from invoices;
 * every future movement enters on the date it is expected, not the date it was
-  issued: a receivable lands on its due date, an overdue one lands now,
+  issued: a receivable lands on the day that counterparty habitually pays
+  (its due date shifted by its own history), and an overdue one lands now,
   because that is the earliest it can realistically arrive;
 * recurring costs that have not been generated yet are included — a forecast
   that ignores next month's rent is not a forecast;
@@ -30,7 +31,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.models import Company, Recurrence, Transaction
-from app.services import financials, recurrences as recurrence_service
+from app.services import collections, financials, recurrences as recurrence_service
 from app.services.vat_engine import compute_vat_position, resolve_period
 
 CENTS = Decimal("0.01")
@@ -59,7 +60,17 @@ def _movement(when: date, kind: str, label: str, amount: Decimal, origin: str,
 
 
 def _receivables_and_payables(db: Session, company_id: str, today: date, horizon: date) -> list[dict]:
-    """Open documents, each landing on the day the money is expected."""
+    """Open documents, each landing on the day the money is expected.
+
+    Expected, not due. A client who has always taken three weeks longer than
+    agreed will take them again, and a forecast that pretends otherwise puts
+    money in the wrong week — which is the week the company was counting on.
+    So the due date is shifted by that counterparty's own history, and only
+    when there is enough of it to be a habit rather than an accident.
+
+    Nothing is shifted earlier: an overdue document still lands today, because
+    today is the earliest it can realistically arrive.
+    """
     rows = (
         db.query(Transaction)
         .filter(
@@ -70,31 +81,36 @@ def _receivables_and_payables(db: Session, company_id: str, today: date, horizon
         .all()
     )
 
+    behaviour = {
+        "income": collections.payment_behaviour(db, company_id, "income"),
+        "expense": collections.payment_behaviour(db, company_id, "expense"),
+    }
+
     movements = []
     for trx in rows:
         outstanding = _d(trx.outstanding_amount)
         if outstanding <= 0:
             continue
 
-        due = trx.due_date or trx.date
-        try:
-            when = date.fromisoformat(due[:10])
-        except (TypeError, ValueError):
-            when = today
-        # Already overdue: the earliest it can realistically move is now.
-        if when < today:
-            when = today
+        history = behaviour.get(trx.type, {})
+        when = collections.expected_date(trx, history, today)
         if when > horizon:
             continue
+
+        overdue = (trx.due_date or "") < today.isoformat()
+        shifted = collections.learned_delay(history, trx)
+        label = trx.description or trx.entity_name or "Movimento"
+        if shifted and not overdue:
+            label += f" (habitualmente +{shifted}d)"
 
         movements.append(_movement(
             when,
             "in" if trx.type == "income" else "out",
-            trx.description or trx.entity_name or "Movimento",
+            label,
             outstanding,
             "documento",
             trx.id,
-            "vencido" if (trx.due_date or "") < today.isoformat() else "confirmado",
+            "vencido" if overdue else "confirmado",
         ))
     return movements
 
