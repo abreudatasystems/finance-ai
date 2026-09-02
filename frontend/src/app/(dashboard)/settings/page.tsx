@@ -9,6 +9,7 @@ import { AIRule, AuditLogItem } from '@/types';
 import Link from 'next/link';
 import { ChartOfAccounts } from '@/components/settings/ChartOfAccounts';
 import { TeamPanel } from '@/components/settings/TeamPanel';
+import { ChangePassword } from '@/components/settings/ChangePassword';
 import {
   Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, Mail, BadgeCheck, History,
   FolderTree
@@ -350,6 +351,9 @@ export default function SettingsPage() {
       {/* TAB: Perfil */}
       {activeTab === 'profile' && (
         <div className="space-y-5 max-w-xl">
+          {/* Alterar a palavra-passe exige saber a atual — ver ChangePassword. */}
+          <ChangePassword />
+
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5 text-xs">
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">

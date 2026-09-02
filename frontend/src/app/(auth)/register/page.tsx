@@ -18,8 +18,8 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (password.length < 8) {
-      setError('A palavra-passe deve ter pelo menos 8 caracteres');
+    if (password.length < 10) {
+      setError('A palavra-passe deve ter pelo menos 10 caracteres');
       return;
     }
     setLoading(true);
@@ -90,7 +90,7 @@ export default function RegisterPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mínimo 8 caracteres"
+              placeholder="Uma frase curta que só você saiba"
               className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
             />
           </div>

@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_company_id, get_current_user, require_write
+from app.core import uploads
 from app.db.session import get_db
 from app.models.models import (
     AIApprovalItem,
@@ -106,8 +107,11 @@ async def upload_document(
     obligation only after a human decides, in the approvals module.
     """
     file_bytes = await file.read()
-    if not file_bytes:
-        raise HTTPException(status_code=400, detail="Ficheiro vazio")
+    # What the bytes are, not what the name or the browser claims they are.
+    try:
+        detected_type = uploads.validate(file_bytes, file.filename or "")
+    except uploads.UploadRejected as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     file_hash = compute_hash(file_bytes)
 
@@ -127,9 +131,7 @@ async def upload_document(
             },
         )
 
-    file_url = minio_service.upload_file(
-        file.filename, file_bytes, file.content_type or "application/pdf"
-    )
+    file_url = minio_service.upload_file(file.filename, file_bytes, detected_type)
 
     # --- Extract structured data from the document itself ---
     parsed, raw_text = await process_document(file_bytes, file.filename)

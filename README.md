@@ -64,6 +64,20 @@ python -m pytest -q
 CI runs it on every push and pull request, together with the frontend
 typecheck and build (`.github/workflows/ci.yml`).
 
+### Produção
+
+Set `ENVIRONMENT=production` and the app refuses to start on a configuration
+that would lose sessions or leave the API open — no `SECRET_KEY`, CORS still
+pointing at localhost, or SQLite as the database. Failing at boot is cheaper
+than failing with customers on it.
+
+```bash
+export ENVIRONMENT=production
+export SECRET_KEY=$(python -c "import secrets;print(secrets.token_urlsafe(48))")
+export DATABASE_URL=postgresql://user:pass@host/finance
+export BACKEND_CORS_ORIGINS=https://app.exemplo.pt
+```
+
 ### Email (opcional)
 
 Invitations are emailed when SMTP is configured; without it the invitation is

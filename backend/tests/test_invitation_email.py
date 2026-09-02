@@ -112,7 +112,7 @@ def test_a_revoked_invitation_is_not_resent(tenant, outbox):
 def test_only_an_admin_can_resend(client, tenant, outbox):
     invitation = _invite(tenant, "viewer@exemplo.pt", role="viewer")
     token = client.post("/api/v1/invitations/register", json={
-        "token": invitation["token"], "name": "Zé", "password": "segredo123",
+        "token": invitation["token"], "name": "Zé", "password": "a chave da porta",
     }).json()["access_token"]
 
     other = _invite(tenant, "outro@exemplo.pt")
