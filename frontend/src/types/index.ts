@@ -119,6 +119,14 @@ export interface Invitation {
   /** Only present while the invitation is still open. */
   token?: string;
   accept_path?: string;
+  /** The full address to send, built from the app's public URL. */
+  accept_url?: string;
+  /** What happened to the email — never a reason to consider the invite failed. */
+  email_result?: {
+    enviado: boolean;
+    motivo: 'sent' | 'not_configured' | 'failed';
+    detalhe?: string | null;
+  };
 }
 
 export interface InvitationPreview {

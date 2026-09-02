@@ -26,6 +26,18 @@ class Settings(BaseSettings):
     # Webhook shared secret (protects machine-to-machine ingestion endpoints)
     WEBHOOK_SECRET: str = os.getenv("WEBHOOK_SECRET", "")
 
+    # Email (optional). Without SMTP_HOST nothing is sent and the invitation
+    # link is handed back to be copied — see app/services/mailer.py.
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER: str = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM: str = os.getenv("SMTP_FROM", "")
+    SMTP_STARTTLS: bool = os.getenv("SMTP_STARTTLS", "1") not in ("0", "false", "False")
+    SMTP_SSL: bool = os.getenv("SMTP_SSL", "0") in ("1", "true", "True")
+    #: Where the invitation links point — the app's public address.
+    APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://localhost:3000")
+
     # Dify AI Integration
     DIFY_API_KEY: str = os.getenv("DIFY_API_KEY", "")
     DIFY_API_URL: str = os.getenv("DIFY_API_URL", "https://api.dify.ai/v1")

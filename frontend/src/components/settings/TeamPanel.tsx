@@ -17,13 +17,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Users, UserPlus, Shield, Eye, Trash2, Copy, Check, Loader2, Link2, X,
-  Activity, ArrowUpRight, ArrowDownRight, Mail, Clock,
+  Activity, ArrowUpRight, ArrowDownRight, Mail, Clock, Send, MailWarning,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Invitation, MemberActivity, TeamMember, UserRole } from '@/types';
 import {
   fetchTeamMembers, fetchInvitations, createInvitation, revokeInvitation,
-  updateMemberRole, removeMember, fetchMemberActivity,
+  resendInvitation, updateMemberRole, removeMember, fetchMemberActivity,
 } from '@/services/data';
 import { API_BASE } from '@/services/api';
 
@@ -46,11 +46,13 @@ const roleStyle = (role: UserRole) =>
 const fmtDate = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-/** The link the inviter sends. Built from the app's own origin, not the API's. */
-const inviteLink = (token?: string) => {
-  if (!token) return '';
+/** The link to send. The server builds it from the app's public address;
+ *  falling back to this origin covers a deployment that has not set one. */
+const inviteLink = (invitation: Pick<Invitation, 'token' | 'accept_url'>) => {
+  if (invitation.accept_url) return invitation.accept_url;
+  if (!invitation.token) return '';
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  return `${origin}/invite/${token}`;
+  return `${origin}/invite/${invitation.token}`;
 };
 
 export const TeamPanel: React.FC = () => {
@@ -63,6 +65,8 @@ export const TeamPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [busyInvite, setBusyInvite] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState('');
@@ -97,17 +101,40 @@ export const TeamPanel: React.FC = () => {
     if (res.error) { setError(res.error); return; }
     setEmail(''); setMessage(''); setInviteOpen(false);
     await reload();
-    if (res.data?.token) copy(res.data.token);
+
+    // Say what actually happened. When no email went out the link is the
+    // fallback, so it is copied straight away rather than left to be found.
+    const mail = res.data?.email_result;
+    if (mail?.enviado) {
+      setNotice(`Convite enviado por email para ${res.data?.email}.`);
+    } else {
+      setNotice(mail?.detalhe || 'Convite criado. Envie o link à pessoa.');
+      if (res.data) copy(res.data);
+    }
   };
 
-  const copy = async (token: string) => {
+  const copy = async (invitation: Invitation) => {
     try {
-      await navigator.clipboard.writeText(inviteLink(token));
-      setCopied(token);
+      await navigator.clipboard.writeText(inviteLink(invitation));
+      setCopied(invitation.token || null);
       setTimeout(() => setCopied(null), 2500);
     } catch {
       setError('Não foi possível copiar. Selecione o link manualmente.');
     }
+  };
+
+  const resend = async (invitation: Invitation) => {
+    setBusyInvite(invitation.id);
+    setError(null);
+    setNotice(null);
+    const res = await resendInvitation(invitation.id);
+    setBusyInvite(null);
+    if (res.error) { setError(res.error); return; }
+    const mail = res.data?.email_result;
+    setNotice(mail?.enviado
+      ? `Convite reenviado para ${invitation.email}.`
+      : mail?.detalhe || 'Não foi possível enviar; use o link.');
+    await reload();
   };
 
   const changeRole = async (userId: string, next: UserRole) => {
@@ -177,6 +204,9 @@ export const TeamPanel: React.FC = () => {
           </span>
         </div>
 
+        {notice && (
+          <p className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-[11px]">{notice}</p>
+        )}
         {error && (
           <p className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-[11px]">{error}</p>
         )}
@@ -217,8 +247,10 @@ export const TeamPanel: React.FC = () => {
                 {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
                 Gerar convite
               </button>
-              <span className="text-[10px] text-slate-500">
-                O link é copiado para a área de transferência — envie-o à pessoa.
+              <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                <MailWarning className="w-3 h-3" />
+                Enviamos o convite por email. Se o envio não estiver configurado, o link
+                é copiado para si enviar.
               </span>
             </div>
           </form>
@@ -244,7 +276,16 @@ export const TeamPanel: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => inv.token && copy(inv.token)}
+                      onClick={() => resend(inv)}
+                      disabled={busyInvite === inv.id}
+                      className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-[10px] flex items-center gap-1 hover:bg-slate-50 disabled:opacity-50"
+                      title="Enviar o convite outra vez por email"
+                    >
+                      {busyInvite === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                      Reenviar
+                    </button>
+                    <button
+                      onClick={() => copy(inv)}
                       className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-[10px] flex items-center gap-1 hover:bg-slate-50"
                     >
                       {copied === inv.token ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
