@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { fetchTransactions } from '@/services/data';
 import { settleMany } from '@/components/cashflow/api';
@@ -28,7 +29,7 @@ import {
   User
 } from 'lucide-react';
 
-export default function CashFlowPage() {
+function CashFlowContent() {
   const router = useRouter();
   const { formatMoney, setPageHeader } = useApp();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -36,6 +37,19 @@ export default function CashFlowPage() {
   const [searchTerm, setSearchTerm] = useState('');
   // A list of every movement ever is unusable after two months. The period is
   // the first thing a cash flow needs.
+  // Enquanto se olha para o que está em aberto, o sentido é a pergunta
+  // seguinte: pagar e receber são duas listas de trabalho diferentes.
+  const [direction, setDirection] = React.useState<'all' | 'expense' | 'income'>('all');
+  const params = useSearchParams();
+
+  // As contas a pagar e a receber encaminham para aqui; um marcador antigo ou
+  // um alerta tem de aterrar já no separador e no sentido certos.
+  useEffect(() => {
+    const tab = params.get('tab');
+    const dir = params.get('dir');
+    if (tab === 'open') setActiveTab('open');
+    if (dir === 'expense' || dir === 'income') setDirection(dir);
+  }, [params]);
   const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [settling, setSettling] = useState(false);
@@ -80,7 +94,9 @@ export default function CashFlowPage() {
       t.category_name.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesOpen = activeTab !== 'open' || Number(t.outstanding_amount ?? 0) > 0;
-    return matchesPeriod && matchesTab && matchesSearch && matchesOpen;
+    const matchesDirection =
+      activeTab !== 'open' || direction === 'all' || t.type === direction;
+    return matchesPeriod && matchesTab && matchesSearch && matchesOpen && matchesDirection;
   });
 
   /* What actually moves through the bank. Not the document total: any
@@ -100,6 +116,33 @@ export default function CashFlowPage() {
     },
     { entradas: 0, saidas: 0, aberto: 0, retido: 0 },
   );
+
+  /* Vencido, hoje, próximos sete dias.
+     A antiguidade de saldos das Cobranças responde "há quanto tempo"; isto
+     responde "o que tenho de tratar esta semana", que é outra pergunta e a
+     razão de este separador existir. */
+  const buckets = React.useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + 7);
+    const week = horizon.toISOString().slice(0, 10);
+
+    const open = filteredTransactions.filter((t) => Number(t.outstanding_amount ?? 0) > 0);
+    const due = (t: Transaction) => t.due_date || t.date || '';
+    const sum = (rows: Transaction[]) =>
+      rows.reduce((acc, t) => acc + Number(t.outstanding_amount ?? 0), 0);
+
+    const overdue = open.filter((t) => due(t) < today);
+    const dueToday = open.filter((t) => due(t) === today);
+    const dueWeek = open.filter((t) => due(t) > today && due(t) <= week);
+
+    return {
+      vencido: { total: sum(overdue), count: overdue.length },
+      hoje: { total: sum(dueToday), count: dueToday.length },
+      semana: { total: sum(dueWeek), count: dueWeek.length },
+      aberto: { total: sum(open), count: open.length },
+    };
+  }, [filteredTransactions]);
 
   /* Oldest first, carrying a running balance — how a cash flow is read. */
   const withRunning = React.useMemo(() => {
@@ -214,6 +257,57 @@ export default function CashFlowPage() {
         </div>
 
       </div>
+
+      {/* Em aberto: o sentido e os prazos, que é a lista de trabalho da semana.
+          As contas a pagar e a receber viviam em páginas próprias a fazer isto
+          pior; agora estão aqui, ao lado de quem as liquida. */}
+      {activeTab === 'open' && (
+        <div className="space-y-3">
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl w-full sm:w-auto sm:inline-flex">
+            {([
+              ['all', `Tudo (${buckets.aberto.count})`],
+              ['expense', 'A pagar'],
+              ['income', 'A receber'],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key} onClick={() => setDirection(key)}
+                className={`px-3 py-1.5 rounded-lg font-bold text-[11px] flex-1 sm:flex-none ${
+                  direction === key ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-3 rounded-xl bg-white border border-rose-200">
+              <p className="text-[9px] uppercase font-bold text-rose-600">Vencido</p>
+              <p className="font-bold text-rose-700 text-sm mt-0.5">{formatMoney(buckets.vencido.total)}</p>
+              <p className="text-[10px] text-slate-400">{buckets.vencido.count} documento(s)</p>
+            </div>
+            <div className="p-3 rounded-xl bg-white border border-amber-200">
+              <p className="text-[9px] uppercase font-bold text-amber-600">Vence hoje</p>
+              <p className="font-bold text-amber-700 text-sm mt-0.5">{formatMoney(buckets.hoje.total)}</p>
+              <p className="text-[10px] text-slate-400">{buckets.hoje.count} documento(s)</p>
+            </div>
+            <div className="p-3 rounded-xl bg-white border border-slate-200">
+              <p className="text-[9px] uppercase font-bold text-slate-500">Próximos 7 dias</p>
+              <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(buckets.semana.total)}</p>
+              <p className="text-[10px] text-slate-400">{buckets.semana.count} documento(s)</p>
+            </div>
+            <div className="p-3 rounded-xl bg-white border border-slate-200">
+              <p className="text-[9px] uppercase font-bold text-slate-500">Total em aberto</p>
+              <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(buckets.aberto.total)}</p>
+              <p className="text-[10px] text-slate-400">
+                <Link href="/financial/collections" className="hover:text-indigo-600">
+                  ver antiguidade →
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Totals for what is on screen, and the batch action */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -376,5 +470,19 @@ export default function CashFlowPage() {
       </div>
 
     </div>
+  );
+}
+
+export default function CashFlowPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-400 text-xs">
+          A carregar o fluxo de caixa…
+        </div>
+      }
+    >
+      <CashFlowContent />
+    </Suspense>
   );
 }

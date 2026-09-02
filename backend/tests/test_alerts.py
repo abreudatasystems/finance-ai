@@ -35,7 +35,9 @@ def test_an_overdue_bill_is_critical(tenant):
     alert = next(a for a in payload["alertas"] if a["kind"] == "contas_vencidas")
     assert alert["severity"] == "danger"
     assert alert["amount"] == 615.0
-    assert alert["action"] == "/financial/payables"
+    # O alerta leva direto ao separador do fluxo de caixa já filtrado:
+    # do aviso ao trabalho num clique.
+    assert alert["action"] == "/financial/cash-flow?tab=open&dir=expense"
     assert alert["items"][0]["due_date"] == "2026-08-20"
 
 

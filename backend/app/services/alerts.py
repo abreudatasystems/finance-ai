@@ -99,7 +99,8 @@ def overdue_payables(db: Session, company_id: str, today: date) -> Optional[dict
         f"{len(rows)} conta(s) por pagar já vencida(s)",
         f"Estão {total} € por liquidar com o prazo ultrapassado. A mais antiga venceu a {rows[0].due_date}.",
         count=len(rows), amount=float(total),
-        action="/financial/payables", action_label="Ver contas a pagar",
+        action="/financial/cash-flow?tab=open&dir=expense",
+        action_label="Ver o que está por pagar",
         items=_brief(rows),
     )
 
@@ -117,7 +118,8 @@ def payables_due_soon(db: Session, company_id: str, today: date) -> Optional[dic
         f"{len(rows)} conta(s) a vencer nos próximos {DUE_SOON_DAYS} dias",
         f"{total} € a pagar até {horizon}.",
         count=len(rows), amount=float(total),
-        action="/financial/payables", action_label="Ver contas a pagar",
+        action="/financial/cash-flow?tab=open&dir=expense",
+        action_label="Ver o que está por pagar",
         items=_brief(rows),
     )
 
@@ -134,7 +136,8 @@ def overdue_receivables(db: Session, company_id: str, today: date) -> Optional[d
         f"{len(rows)} recebimento(s) em atraso",
         f"{total} € que já deviam ter entrado. O mais antigo venceu a {rows[0].due_date}.",
         count=len(rows), amount=float(total),
-        action="/financial/receivables", action_label="Ver contas a receber",
+        action="/financial/cash-flow?tab=open&dir=income",
+        action_label="Ver o que está por receber",
         items=_brief(rows),
     )
 
