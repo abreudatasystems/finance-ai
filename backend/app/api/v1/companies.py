@@ -7,16 +7,17 @@ for a company the caller has no membership in.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
-    ADMIN_ROLES, ROLE_LABELS, get_current_company_id, get_current_user, membership_for,
+    ADMIN_ROLES, ROLE_LABELS, get_current_company_id, get_current_user,
+    membership_for, require_admin,
 )
 from app.db.session import get_db
 from app.models.models import Company, Transaction, User, UserMembership
-from app.services import team as team_service
+from app.services import company_export, team as team_service
 
 router = APIRouter()
 
@@ -260,3 +261,44 @@ def get_current_company(
     if not company or not membership:
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
     return _serialize(company, membership.role)
+
+
+# ---------------------------------------------------------------------------
+# Taking the data away
+# ---------------------------------------------------------------------------
+
+@router.get("/export/summary")
+def export_summary(
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    _admin: User = Depends(require_admin),
+):
+    """What an export would contain, so the size is never a surprise."""
+    return company_export.summary(db, company_id)
+
+
+@router.get("/export")
+def export_company_data(
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_admin),
+):
+    """Every row that belongs to this company, as a ZIP of CSVs.
+
+    Restricted to owners and administrators: it is the whole of the company's
+    accounting in one file, and a viewer has no business walking out with it.
+    """
+    payload, manifest = company_export.build(db, company_id, current_user.name)
+    company = db.query(Company).filter(Company.id == company_id).first()
+    name = company_export.filename_for(company)
+    return Response(
+        content=payload,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{name}"',
+            # So a client can show what it got without opening the archive.
+            "X-Export-Records": str(manifest["total_registos"]),
+            "X-Export-Tables": str(len(manifest["tabelas"])),
+        },
+    )

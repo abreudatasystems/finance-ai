@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { ChartOfAccounts } from '@/components/settings/ChartOfAccounts';
 import { TeamPanel } from '@/components/settings/TeamPanel';
 import { ChangePassword } from '@/components/settings/ChangePassword';
+import { DataExport } from '@/components/settings/DataExport';
 import {
   Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, Mail, BadgeCheck, History,
   FolderTree
@@ -407,7 +408,14 @@ export default function SettingsPage() {
       )}
 
       {/* TAB: Utilizadores & Roles */}
-      {activeTab === 'users' && <TeamPanel />}
+      {activeTab === 'users' && (
+        <div className="space-y-5">
+          <TeamPanel />
+          {/* Levar os dados embora é administração da empresa, não uma opção
+              de perfil: fica ao lado de quem tem acesso a eles. */}
+          <DataExport />
+        </div>
+      )}
 
       {/* TAB: Auditoria & Logs */}
       {activeTab === 'audit' && (
