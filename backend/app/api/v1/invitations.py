@@ -11,6 +11,10 @@ Flow:
 3. They either **accept** with an existing login, or **register from the
    invitation** — which creates an ``invited`` account: full access to the
    company it was invited to, no ability to open companies of its own.
+
+The email in step 1 is sent when SMTP is configured; when it is not, the link
+comes back in the response to be copied by hand. The invitation is valid
+either way — a mail server that is down must not stop someone joining.
 """
 
 from typing import Optional
@@ -20,7 +24,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import ROLE_LABELS, get_current_user, membership_for
+from app.core.config import settings
 from app.core.security import create_access_token, get_password_hash
+from app.services import mailer
 from app.db.session import get_db
 from app.models.models import Company, Invitation, User
 from app.services import team as team_service
@@ -62,7 +68,27 @@ def _serialize(inv: Invitation, db: Session, include_token: bool = False) -> dic
     if include_token:
         data["token"] = inv.token
         data["accept_path"] = f"/invite/{inv.token}"
+        data["accept_url"] = _invite_link(inv.token)
     return data
+
+
+def _invite_link(token: str) -> str:
+    """The address the invited person opens — the app's, not the API's."""
+    base = (settings.APP_BASE_URL or "").rstrip("/")
+    return f"{base}/invite/{token}"
+
+
+def _deliver(db: Session, invitation: Invitation, inviter: User) -> dict:
+    """Send the invitation email, and report honestly whether it went."""
+    company = db.query(Company).filter(Company.id == invitation.company_id).first()
+    subject, text, html = mailer.invitation_message(
+        company_name=company.name if company else "a empresa",
+        role_label=ROLE_LABELS.get(invitation.role, invitation.role),
+        inviter=inviter.name,
+        link=_invite_link(invitation.token),
+        note=invitation.message,
+    )
+    return mailer.send(invitation.email, subject, text, html).as_dict()
 
 
 def _admin_access(db: Session, user: User, company_id: str):
@@ -101,7 +127,29 @@ def create_invitation(
     invitation = team_service.create_invitation(
         db, company_id, current_user, body.email, body.role, body.message,
     )
-    return _serialize(invitation, db, include_token=True)
+    return {**_serialize(invitation, db, include_token=True),
+            "email_result": _deliver(db, invitation, current_user)}
+
+
+@router.post("/{invitation_id}/resend")
+def resend_invitation(
+    invitation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Send the same invitation again — useful when the first email was missed."""
+    invitation = db.query(Invitation).filter(Invitation.id == invitation_id).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Convite não encontrado")
+    _admin_access(db, current_user, invitation.company_id)
+
+    if invitation.status != "pending":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Este convite já foi {'aceite' if invitation.status == 'accepted' else 'cancelado'}.",
+        )
+    return {**_serialize(invitation, db, include_token=True),
+            "email_result": _deliver(db, invitation, current_user)}
 
 
 @router.delete("/{invitation_id}")

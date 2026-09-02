@@ -421,6 +421,13 @@ export async function createInvitation(
   return apiPostOrError<Invitation>(`/invitations/company/${companyId}`, payload);
 }
 
+/** Send the same invitation again — for when the first email was missed. */
+export async function resendInvitation(
+  invitationId: string,
+): Promise<{ data?: Invitation; error?: string }> {
+  return apiPostOrError<Invitation>(`/invitations/${invitationId}/resend`, {});
+}
+
 export async function revokeInvitation(invitationId: string): Promise<{ error?: string }> {
   const res = await apiDeleteOrError(`/invitations/${invitationId}`);
   return { error: res.error };

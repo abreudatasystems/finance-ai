@@ -64,6 +64,21 @@ python -m pytest -q
 CI runs it on every push and pull request, together with the frontend
 typecheck and build (`.github/workflows/ci.yml`).
 
+### Email (opcional)
+
+Invitations are emailed when SMTP is configured; without it the invitation is
+still created and the link is handed back to be sent by hand, so nothing
+depends on having a mail server:
+
+```bash
+export SMTP_HOST=smtp.exemplo.pt
+export SMTP_PORT=587
+export SMTP_USER=convites@exemplo.pt
+export SMTP_PASSWORD=...
+export SMTP_FROM="Finance AI <convites@exemplo.pt>"
+export APP_BASE_URL=https://app.exemplo.pt   # where the invitation links point
+```
+
 ### Multi-empresa e equipas
 
 A login can own several companies; each is a separate tenant. The active one
