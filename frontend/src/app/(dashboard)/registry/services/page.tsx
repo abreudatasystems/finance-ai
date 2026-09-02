@@ -4,20 +4,18 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { fetchItems, deleteItem } from '@/services/data';
 import { Item } from '@/types';
-import { Briefcase, Tag, Plus, Trash2, Calculator } from 'lucide-react';
+import {Briefcase, Tag, Plus, Trash2} from 'lucide-react';
 import { CreateServiceModal } from '@/components/shared/CreateServiceModal';
-import { useRouter } from 'next/navigation';
 
 export default function ServicesPage() {
   const { formatMoney, setPageHeader } = useApp();
-  const router = useRouter();
   const [services, setServices] = useState<Item[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
-      const items = await fetchItems('COMP001', 'service');
+      const items = await fetchItems('service');
       setServices(items);
     }
     load();

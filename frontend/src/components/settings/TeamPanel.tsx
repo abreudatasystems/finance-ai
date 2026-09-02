@@ -154,7 +154,13 @@ export const TeamPanel: React.FC = () => {
     setError(null);
     const res = await removeMember(companyId, member.user_id);
     if (res.error) { setError(res.error); return; }
-    if (self && typeof window !== 'undefined') { window.location.href = '/dashboard'; return; }
+    if (self && typeof window !== 'undefined') {
+      // Recarregamento completo de propósito: sair da empresa invalida tudo o
+      // que o contexto tem em memória sobre ela, e router.push mantinha-o.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.href = '/dashboard';
+      return;
+    }
     await reload();
   };
 

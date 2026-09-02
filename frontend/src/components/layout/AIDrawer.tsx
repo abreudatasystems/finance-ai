@@ -4,23 +4,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { INITIAL_AI_MESSAGES, AIMessage, processUserMessage } from '@/services/ai-assistant';
-import {
-  Sparkles,
-  X,
-  Send,
-  Bot,
-  User,
-  Check,
-  AlertTriangle,
-  BarChart2,
-  FileText,
-  DollarSign,
-  Search,
-  CheckCircle2,
-  XCircle,
-  PanelRightClose,
-  ArrowRight
-} from 'lucide-react';
+import {Sparkles, Send, Bot, User, CheckCircle2, PanelRightClose, ArrowRight} from 'lucide-react';
+
+/**
+ * Ids das mensagens.
+ *
+ * Bastava serem únicos dentro da conversa, e vinham de `Date.now()` — o que
+ * torna o resultado dependente do relógio e impossível de reproduzir. Um
+ * contador do módulo dá o mesmo com menos.
+ */
+let messageSequence = 0;
+const nextMessageId = (who: 'user' | 'ai') => `msg-${who}-${++messageSequence}`;
 
 export const AIDrawer: React.FC = () => {
   const { isAiDrawerOpen, closeAiDrawer, currency, formatMoney } = useApp();
@@ -47,7 +41,7 @@ export const AIDrawer: React.FC = () => {
     if (!text.trim()) return;
 
     const userMsg: AIMessage = {
-      id: `msg-user-${Date.now()}`,
+      id: nextMessageId('user'),
       sender: 'user',
       text: text.trim(),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -70,7 +64,7 @@ export const AIDrawer: React.FC = () => {
       setMessages(prev => [
         ...prev,
         {
-          id: `msg-action-${Date.now()}`,
+          id: nextMessageId('ai'),
           sender: 'ai',
           text: '**Categoria "Inteligência Artificial" criada com sucesso!** Foram associadas as palavras-chave `openai`, `chatgpt`, `claude`, `anthropic`, `api`.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -80,7 +74,7 @@ export const AIDrawer: React.FC = () => {
       setMessages(prev => [
         ...prev,
         {
-          id: `msg-action-${Date.now()}`,
+          id: nextMessageId('ai'),
           sender: 'ai',
           text: '**Pagamento de €4.500,00 para Microsoft Ireland registado!** O valor foi liquidado nas Contas a Pagar.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -107,7 +101,7 @@ export const AIDrawer: React.FC = () => {
     setMessages(prev => [
       ...prev,
       {
-        id: `msg-confirm-${Date.now()}`,
+        id: nextMessageId('ai'),
         sender: 'ai',
         text: '**Lançamento criado com sucesso!** O valor foi registado na API e refletido no Fluxo de Caixa.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

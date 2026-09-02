@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
@@ -8,11 +8,7 @@ import { fetchTransactions } from '@/services/data';
 import { settleMany } from '@/components/cashflow/api';
 import { ForecastPanel } from '@/components/cashflow/ForecastPanel';
 import { Transaction } from '@/types';
-import {
-  Wallet, ArrowUpRight, ArrowDownLeft, Filter, Search, Plus, FileText,
-  Clock, CheckCircle2, X, Sparkles, ChevronRight, Tag, ShieldCheck,
-  Building2, RefreshCcw, Bot, User, HandCoins
-} from 'lucide-react';
+import {Search, CheckCircle2, X, RefreshCcw, Bot, User} from 'lucide-react';
 
 export interface CashFlowViewProps {
   mode?: 'cash-flow' | 'payables' | 'receivables';

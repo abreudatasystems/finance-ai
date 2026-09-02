@@ -121,7 +121,7 @@ export const RetentionsView: React.FC = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const options = useMemo(periodOptions, []);
+  const options = useMemo(() => periodOptions(), []);
 
   if (loading) {
     return (

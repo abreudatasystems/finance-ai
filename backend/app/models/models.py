@@ -534,6 +534,15 @@ class RecurrenceOccurrence(Base):
     transaction_id = Column(String, ForeignKey("transactions.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    #: Um período de uma recorrência trata-se uma vez e só uma. Enquanto a
+    #: geração era manual bastava a verificação em código; a partir do momento
+    #: em que corre sozinha — e pode correr em mais do que um processo — é a
+    #: base de dados que tem de garantir isto, senão a mesma renda entra duas
+    #: vezes no mês em que dois trabalhadores acordam ao mesmo tempo.
+    __table_args__ = (
+        UniqueConstraint("recurrence_id", "period", name="uq_occurrence_recurrence_period"),
+    )
+
 
 class AIDocument(Base):
     __tablename__ = "ai_documents"

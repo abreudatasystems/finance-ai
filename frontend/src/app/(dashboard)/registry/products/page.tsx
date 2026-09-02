@@ -4,20 +4,18 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { fetchItems, deleteItem } from '@/services/data';
 import { Item } from '@/types';
-import { Package, Tag, Plus, Trash2, Calculator } from 'lucide-react';
+import {Package, Tag, Plus, Trash2} from 'lucide-react';
 import { CreateProductModal } from '@/components/shared/CreateProductModal';
-import { useRouter } from 'next/navigation';
 
 export default function ProductsPage() {
   const { formatMoney, setPageHeader } = useApp();
-  const router = useRouter();
   const [products, setProducts] = useState<Item[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
-      const items = await fetchItems('COMP001', 'product');
+      const items = await fetchItems('product');
       setProducts(items);
     }
     load();

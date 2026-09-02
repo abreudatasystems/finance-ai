@@ -7,19 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { fetchDocuments, uploadInvoiceDocument, actionApproval, fetchApprovals } from '@/services/data';
 import { AIDocument, AIApprovalItem } from '@/types';
 import { InvoiceDocumentViewer } from '@/components/documents/InvoiceDocumentViewer';
-import {
-  Sparkles,
-  UploadCloud,
-  CheckCircle2,
-  FileText,
-  Building2,
-  Calendar,
-  Layers,
-  Check,
-  RefreshCw,
-  Zap,
-  Download
-} from 'lucide-react';
+import {UploadCloud, CheckCircle2, FileText, Building2, Calendar, Layers, Check, RefreshCw, Zap, Download} from 'lucide-react';
 
 export default function DocumentInspectorPage() {
   const { formatMoney, setPageHeader } = useApp();

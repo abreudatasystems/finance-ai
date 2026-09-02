@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Loader2, User, MapPin, FileText, Settings, Users } from 'lucide-react';
+import {Loader2, User, MapPin, FileText, Settings} from 'lucide-react';
 import { Customer } from '@/types';
 import { apiPost } from '@/services/api';
 import { SideDrawer } from './SideDrawer';
@@ -17,6 +17,7 @@ type Tab = 'geral' | 'endereco' | 'faturacao' | 'avancado';
 export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClose, onCreated }) => {
   const [activeTab, setActiveTab] = useState<Tab>('geral');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Campos
   const [name, setName] = useState('');
@@ -46,6 +47,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClos
     e.preventDefault();
     if (!name.trim()) return;
     setSubmitting(true);
+    setError(null);
 
     const payload = {
       name: name.trim(),
@@ -68,17 +70,18 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClos
       internal_observations: internalObservations.trim() || undefined,
     };
 
+    // Se a gravação falha, falha. A versão anterior inventava aqui um registo
+    // local, com um id fabricado e a empresa em código — o cliente aparecia na
+    // lista como se tivesse sido guardado e desaparecia ao recarregar a página.
     const created = await apiPost<Customer>('/customers/', payload);
-
-    const newCust: Customer = created ?? {
-      id: `CUST-${Date.now()}`,
-      company_id: 'COMP001',
-      ...payload,
-      total_revenue: 0,
-    } as any;
-
     setSubmitting(false);
-    onCreated(newCust);
+
+    if (!created) {
+      setError('Não foi possível guardar. Verifique a ligação e tente de novo.');
+      return;
+    }
+
+    onCreated(created);
     onClose();
   };
 
@@ -145,6 +148,12 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClos
         </>
       }
     >
+      {error && (
+        <p className="mb-3 px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-[11px]">
+          {error}
+        </p>
+      )}
+
       {renderTabs()}
 
       <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">

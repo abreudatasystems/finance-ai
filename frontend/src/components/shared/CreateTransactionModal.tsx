@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Upload, Sparkles, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import {Check, Upload, Loader2, ChevronDown, ChevronUp} from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { apiPost } from '@/services/api';
 import { fetchCategories } from '@/services/data';
@@ -75,9 +75,11 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
     return opts.filter((o) => !o.type || o.type === (type === 'income' ? 'income' : 'expense'));
   }, [categories, type]);
 
-  useEffect(() => {
-    if (!categoryId && categoryOptions.length) setCategoryId(categoryOptions[0].id);
-  }, [categoryOptions, categoryId]);
+  /* A categoria escolhida, ou a primeira da lista enquanto ninguém escolhe.
+     Isto era um efeito que escrevia estado a seguir a renderizar: o formulário
+     aparecia um instante sem categoria e voltava a renderizar com ela. É um
+     valor derivado, e derivados calculam-se — não se guardam. */
+  const selectedCategory = categoryId || categoryOptions[0]?.id || '';
 
   // Live VAT breakdown from the gross amount and the selected rate.
   const breakdown = useMemo(() => {
@@ -126,7 +128,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
     // DRE, no IVA e nas cobranças. Sem elas o lançamento entra e não se
     // consegue explicar depois, por isso pergunta-se agora.
     if (type !== 'document') {
-      if (!categoryId && !categoryName.trim()) {
+      if (!selectedCategory && !categoryName.trim()) {
         setFormError('Escolha a categoria do lançamento.');
         return;
       }
@@ -144,8 +146,8 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
         date: docDate,
         description: description.trim(),
         entity_name: entityName.trim(),
-        category_id: categoryId,
-        category_name: categoryOptions.find((o) => o.id === categoryId)?.label || '',
+        category_id: selectedCategory,
+        category_name: categoryOptions.find((o) => o.id === selectedCategory)?.label || '',
         amount: parseFloat(amount) || 0,
         vat_rate: vatRate,
         retention_code: retentionCode || undefined,
@@ -469,7 +471,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
               <label className="text-[11px] font-semibold text-slate-600">Categoria</label>
               {categoryOptions.length ? (
                 <select
-                  value={categoryId}
+                  value={selectedCategory}
                   onChange={(e) => setCategoryId(e.target.value)}
                   className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
                 >

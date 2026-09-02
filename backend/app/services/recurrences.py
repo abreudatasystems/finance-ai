@@ -23,6 +23,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.models import Recurrence, RecurrenceOccurrence, Transaction
@@ -288,8 +289,7 @@ def generate_for(db: Session, company_id: str, rec: Recurrence,
             notes=rec.notes,
             created_by=created_by,
         )
-        db.add(trx)
-        db.add(RecurrenceOccurrence(
+        occurrence = RecurrenceOccurrence(
             id=f"ROC-{stamp}",
             company_id=company_id,
             recurrence_id=rec.id,
@@ -298,7 +298,21 @@ def generate_for(db: Session, company_id: str, rec: Recurrence,
             amount=gross,
             status="generated",
             transaction_id=trx.id,
-        ))
+        )
+
+        # A verificação acima evita o trabalho; esta trata do caso em que outro
+        # processo chegou ao mesmo período entre a leitura e a escrita. Quem
+        # perde a corrida desfaz o que ia escrever e segue — o período está
+        # tratado, que é o que interessa.
+        try:
+            with db.begin_nested():
+                db.add(trx)
+                db.add(occurrence)
+                db.flush()
+        except IntegrityError:
+            done.add(key)
+            continue
+
         done.add(key)
         rec.last_generated_period = key
         rec.last_generated_at = datetime.now(timezone.utc)

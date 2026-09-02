@@ -65,7 +65,7 @@ export async function fetchTransactions(companyId: string = 'COMP001'): Promise<
   return data || [];
 }
 
-export async function fetchTransaction(id: string, companyId: string = 'COMP001'): Promise<Transaction | null> {
+export async function fetchTransaction(id: string): Promise<Transaction | null> {
   const data = await apiGet<Transaction>(`/transactions/${id}`);
   return data || null;
 }
@@ -106,7 +106,7 @@ export async function fetchCostCenters(companyId: string = 'COMP001'): Promise<C
   return data || [];
 }
 
-export async function fetchItems(companyId: string = 'COMP001', kind?: string): Promise<Item[]> {
+export async function fetchItems(kind?: string): Promise<Item[]> {
   const url = kind ? `/items/?kind=${kind}` : '/items/';
   const data = await apiGet<Item[]>(url);
   return data || [];

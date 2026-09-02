@@ -1,18 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  Maximize2,
-  Minimize2,
-  FileText,
-  FileCode,
-  ExternalLink,
-  Sparkles,
-  Search
-} from 'lucide-react';
+import {ZoomIn, ZoomOut, RotateCw, Maximize2, Minimize2, FileText, ExternalLink} from 'lucide-react';
 import { AIDocument } from '@/types';
 
 interface InvoiceDocumentViewerProps {
@@ -36,8 +25,6 @@ interface InvoiceDocumentViewerProps {
 
 export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
   document,
-  rawOcrText,
-  extractedFields
 }) => {
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [rotation, setRotation] = useState<number>(0);

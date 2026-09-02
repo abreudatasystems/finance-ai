@@ -4,31 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import {
-  LayoutDashboard,
-  Inbox,
-  CheckSquare,
-  Wallet,
-  BarChart3,
-  Scale,
-  FolderTree,
-  Users,
-  Building2,
-  History,
-  PanelLeftClose,
-  PanelLeftOpen,
-  ScanText,
-  CheckCheck,
-  Repeat,
-  BellRing,
-  FileText,
-  HandCoins,
-  Target,
-  Landmark,
-  FolderKanban,
-  Package,
-  Briefcase
-} from 'lucide-react';
+import {LayoutDashboard, Wallet, BarChart3, Scale, Users, Building2, History, PanelLeftClose, PanelLeftOpen, ScanText, CheckCheck, Repeat, BellRing, FileText, HandCoins, Target, Landmark, Package, Briefcase} from 'lucide-react';
 
 interface NavItem {
   label: string;

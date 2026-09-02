@@ -36,7 +36,7 @@ jobs:
         run: python -m pytest -q
 
   frontend:
-    name: Frontend (typecheck + build)
+    name: Frontend (lint + typecheck + build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +50,14 @@ jobs:
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
+
+      # O lint corria só na máquina de quem se lembrasse dele, e por isso o
+      # projeto acumulou 100 problemas sem ninguém dar por eles. Aqui falha
+      # nos erros; os avisos que restam são das regras do compilador do React,
+      # explicadas em eslint.config.mjs.
+      - name: Lint
+        working-directory: frontend
+        run: npx eslint src
 
       - name: Typecheck
         working-directory: frontend

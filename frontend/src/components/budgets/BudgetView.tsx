@@ -117,7 +117,7 @@ export const BudgetView: React.FC = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const options = useMemo(periodOptions, []);
+  const options = useMemo(() => periodOptions(), []);
 
   const startEdit = (line: ComparisonLine) => {
     setEditing(line.category_id);

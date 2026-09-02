@@ -451,9 +451,16 @@ export interface FinancialHealthScore {
   cost_control_score: number;
   predictability_score: number;
   runway_months: number;
+  /** Gasto médio mensal — o que dita quantos meses o saldo aguenta. */
+  burn_rate: number;
   operating_margin: number;
   current_balance: number;
   monthly_result: number;
+  month_income: number;
+  month_expense: number;
+  /** O que está por pagar e por receber nos próximos 30 dias. */
+  upcoming_payables: number;
+  upcoming_receivables: number;
   ai_explanation: string[];
   key_insights: Array<{
     type: 'danger' | 'warning' | 'success' | 'info';

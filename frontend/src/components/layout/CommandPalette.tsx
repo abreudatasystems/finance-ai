@@ -84,7 +84,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           >
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-indigo-600 animate-pulse" />
-              <span>Perguntar à Finance AI: "{query || 'Resumo financeiro'}"</span>
+              <span>Perguntar à Finance AI: &ldquo;{query || 'Resumo financeiro'}&rdquo;</span>
             </div>
             <ArrowRight className="w-4 h-4 text-indigo-500" />
           </button>

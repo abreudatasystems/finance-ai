@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     # CORS — comma separated list of allowed origins (no wildcard with credentials)
     BACKEND_CORS_ORIGINS: Union[str, List[str]] = "http://localhost:3000,http://127.0.0.1:3000"
 
+    # Agendador — gera sozinho o que se repete (app/services/scheduler.py).
+    # Desliga-se numa instalação que prefira um cron externo a chamar
+    # POST /recurrences/run, e nos testes, que não querem trabalho de fundo.
+    SCHEDULER_ENABLED: bool = os.getenv("SCHEDULER_ENABLED", "1") not in ("0", "false", "False")
+    #: De quantas em quantas horas se varrem as recorrências.
+    SCHEDULER_INTERVAL_HOURS: int = int(os.getenv("SCHEDULER_INTERVAL_HOURS", "6"))
+
     # Webhook shared secret (protects machine-to-machine ingestion endpoints)
     WEBHOOK_SECRET: str = os.getenv("WEBHOOK_SECRET", "")
 

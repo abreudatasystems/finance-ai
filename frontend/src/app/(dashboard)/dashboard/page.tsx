@@ -7,19 +7,7 @@ import { AlertsPanel } from '@/components/alerts/AlertsPanel';
 import { FirstSteps } from '@/components/onboarding/FirstSteps';
 import { fetchHealthScore, fetchTransactions, fetchFinancialEvents, fetchDashboardSummary, fetchExpensesByCategory } from '@/services/data';
 import { FinancialHealthScore, Transaction } from '@/types';
-import {
-  TrendingUp,
-  TrendingDown,
-  Clock,
-  ShieldCheck,
-  Sparkles,
-  ChevronRight,
-  Activity,
-  DollarSign,
-  PieChart as PieIcon,
-  Bot,
-  User
-} from 'lucide-react';
+import {TrendingUp, TrendingDown, Clock, Activity, DollarSign, PieChart as PieIcon, Bot, User} from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -48,7 +36,7 @@ interface PieDataItem {
 }
 
 export default function DashboardPage() {
-  const { formatMoney, openAiDrawer, setPageHeader } = useApp();
+  const { formatMoney, setPageHeader } = useApp();
   const [healthScore, setHealthScore] = useState<FinancialHealthScore | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [chartData, setChartData] = useState<ChartDataItem[]>([]);
@@ -85,8 +73,8 @@ export default function DashboardPage() {
   }, []);
 
   // Derived trend from healthScore
-  const balanceTrend = (healthScore as FinancialHealthScore & { trend?: number })?.trend ?? 0;
-  const burnRate = (healthScore as FinancialHealthScore & { burn_rate?: number })?.burn_rate;
+  const balanceTrend = healthScore?.trend ?? 0;
+  const burnRate = healthScore?.burn_rate;
 
   return (
     <div className="flex flex-col h-[calc(100vh-104px)] space-y-3 overflow-hidden animate-in fade-in duration-300">
@@ -178,7 +166,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-lg font-bold text-slate-900 tracking-tight">
-            {formatMoney((healthScore as any)?.upcoming_receivables || 0)}
+            {formatMoney(healthScore?.upcoming_receivables || 0)}
           </div>
           <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
             <span>Entrada pendente</span>
@@ -194,7 +182,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-lg font-bold text-slate-900 tracking-tight">
-            {formatMoney((healthScore as any)?.upcoming_payables || 0)}
+            {formatMoney(healthScore?.upcoming_payables || 0)}
           </div>
           <div className="mt-1 flex items-center gap-1 text-[10px] text-rose-600 font-semibold">
             <span>Saída pendente</span>
