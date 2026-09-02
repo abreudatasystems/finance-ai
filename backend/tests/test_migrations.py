@@ -110,3 +110,19 @@ def test_suppliers_and_customers_are_folded_into_entities(scratch_db):
     silva = next(r for r in rows if r[0] == "Silva Lda")
     assert bool(silva[1]) and bool(silva[2])
     assert silva[3] == "912345678" and silva[4] == "silva@silva.pt"
+
+
+def test_cost_centres_lose_the_stored_spent_column(scratch_db):
+    """0009 rebuilds the dead table into a real one.
+
+    ``spent`` was a stored Float nothing ever wrote; what a project cost is
+    derived from its documents, like every other figure here. The column has to
+    be gone, not merely ignored, or someone will eventually write to it.
+    """
+    config, engine = scratch_db
+    command.upgrade(config, "head")
+
+    columns = {c["name"] for c in inspect(engine).get_columns("cost_centers")}
+    assert "spent" not in columns
+    for expected in ("budget", "contract_value", "entity_name", "status", "description"):
+        assert expected in columns
