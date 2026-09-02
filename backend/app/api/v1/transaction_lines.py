@@ -19,7 +19,11 @@ router = APIRouter()
 
 
 class LineIn(BaseModel):
-    description: str
+    #: O artigo do catálogo, quando a linha vem de lá. Descritivo, preço e
+    #: taxa que a linha não indique são herdados dele.
+    item_id: Optional[str] = None
+    description: str = ""
+
     quantity: Optional[float] = None
     unit_price: Optional[float] = None
     #: Either quantity × unit price, or this base typed directly.

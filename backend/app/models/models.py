@@ -372,6 +372,12 @@ class TransactionLine(Base):
     transaction_id = Column(String, ForeignKey("transactions.id"), nullable=False, index=True)
     line_number = Column(Integer, nullable=False, default=1)
 
+    #: O artigo do catálogo, quando a linha veio de lá. O descritivo, o preço e
+    #: a taxa continuam gravados na linha: um artigo que mude de preço amanhã
+    #: não pode reescrever uma fatura de ontem.
+    item_id = Column(String, ForeignKey("items.id"), nullable=True, index=True)
+    item_code = Column(String, nullable=True)
+
     description = Column(String, nullable=False)
     quantity = Column(Numeric(14, 3), default=1)
     unit_price = Column(Numeric(14, 4), nullable=True)     # 4 decimals: unit prices are not cents

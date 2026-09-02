@@ -1,6 +1,7 @@
 // Centralised API client: base URL, token storage and authenticated fetch.
-// The app stays "demo-first" — when the backend is unreachable or the user is
-// not authenticated, callers fall back to the bundled mock data.
+// Every page reads from the backend; there is no bundled data to fall back on.
+// When a call fails the caller shows an empty state and says so, because a
+// financial figure invented client-side is worse than no figure at all.
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
 

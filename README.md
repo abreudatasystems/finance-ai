@@ -50,6 +50,26 @@ alembic revision --autogenerate -m "..."   # after changing a model
 alembic downgrade -1                       # step back one revision
 ```
 
+### Dados de demonstração
+
+An empty product cannot be judged. `scripts/seed_demo.py` fills the database
+with one plausible Portuguese SME — a small Porto studio, nine months of
+invoices with catalogue lines, rent withheld at 25% at source, subcontracted
+work charged to projects, part of it deliberately still unpaid:
+
+```bash
+cd backend
+python -m scripts.seed_demo            # create
+python -m scripts.seed_demo --reset    # wipe that company's data and recreate
+```
+
+Every document, line and payment goes in **through the same endpoints the app
+uses**, so the totals, the VAT, the withholding and the settlement state are
+computed by the product rather than written by the script. The figures it
+prints at the end are read back from the same endpoints the pages read — if
+they add up, the product adds up. Sign in with `demo@finance-ai.pt` /
+`Tesouraria!Atlantico26`.
+
 ### Testes
 
 The suite covers the rules that are expensive to get wrong — VAT arithmetic,

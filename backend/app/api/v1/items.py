@@ -1,27 +1,35 @@
+"""Catálogo de artigos — produtos e serviços que uma linha de documento nomeia.
+
+A empresa activa vem de ``app.api.deps``, como em todos os outros módulos: essa
+dependência valida que quem pede pertence mesmo à empresa do cabeçalho. Uma
+resolução própria aqui aceitava o X-Company-Id de qualquer utilizador
+autenticado, o que dava acesso ao catálogo de qualquer empresa.
+"""
+
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 
 from app.db.session import get_db
-from app.models.models import Item, UserMembership
+from app.models.models import Item, User
 from app.schemas.schemas import ItemCreate, ItemUpdate, ItemOut
-from app.api.deps import get_current_user
+from app.api.deps import get_current_company_id, require_write
+from app.catalog import vat_rates
 
 router = APIRouter()
 
-def get_current_company_id(
-    x_company_id: str = Header(None),
-    db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user)
-) -> str:
-    # Use header if provided (like other routers), otherwise fallback
-    if x_company_id:
-        return x_company_id
-    membership = db.query(UserMembership).filter(UserMembership.user_id == user_id).first()
-    if not membership:
-        raise HTTPException(status_code=403, detail="User does not belong to any company.")
-    return membership.company_id
+@router.get("/vat-rates")
+def list_vat_rates(region: str = Query(vat_rates.DEFAULT_REGION)):
+    """As taxas que um artigo pode ter, e a percentagem que cada nome vale hoje.
+
+    O artigo guarda o nome e a linha guarda a percentagem; quem escreve o
+    documento precisa de ver a percentagem antes de gravar. Servir a tabela
+    daqui evita uma segunda cópia no cliente que fica para trás quando a lei
+    muda.
+    """
+    return {"regiao": region, "taxas": vat_rates.options(region)}
+
 
 @router.get("/", response_model=List[ItemOut])
 def list_items(
@@ -38,7 +46,8 @@ def list_items(
 def create_item(
     item_in: ItemCreate,
     db: Session = Depends(get_db),
-    company_id: str = Depends(get_current_company_id)
+    company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     item = Item(
         id=f"ITM_{uuid.uuid4().hex[:12].upper()}",
@@ -55,7 +64,8 @@ def update_item(
     item_id: str,
     item_in: ItemUpdate,
     db: Session = Depends(get_db),
-    company_id: str = Depends(get_current_company_id)
+    company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     item = db.query(Item).filter(
         Item.id == item_id,
@@ -77,7 +87,8 @@ def update_item(
 def delete_item(
     item_id: str,
     db: Session = Depends(get_db),
-    company_id: str = Depends(get_current_company_id)
+    company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     item = db.query(Item).filter(
         Item.id == item_id,
