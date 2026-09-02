@@ -24,5 +24,7 @@ export interface AlertsPayload {
     avisos: number;
     informativos: number;
     tudo_em_dia: boolean;
+    /** Nothing was checked, as opposed to nothing being wrong. */
+    sem_dados: boolean;
   };
 }

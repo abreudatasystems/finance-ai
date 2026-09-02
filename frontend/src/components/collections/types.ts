@@ -55,6 +55,8 @@ export interface CollectionsOverview {
   hoje: string;
   a_receber: Aging;
   a_pagar: Aging;
+  /** No documents at all — "nada vencido" would be no news, not good news. */
+  sem_dados: boolean;
   mensagem: string;
 }
 

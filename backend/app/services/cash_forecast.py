@@ -249,6 +249,11 @@ def build(db: Session, company_id: str, weeks: int = DEFAULT_WEEKS,
         Decimal("0.00"),
     )
 
+    # A forecast over an empty company is a straight line at zero. It must not
+    # read as good news.
+    from app.services.onboarding import readiness
+    has_data = readiness(db, company_id)["previsao"]
+
     return {
         "hoje": today.isoformat(),
         "horizonte": horizon.isoformat(),
@@ -261,16 +266,22 @@ def build(db: Session, company_id: str, weeks: int = DEFAULT_WEEKS,
         "fica_negativo_em": negative_from,
         "resumo": {
             "aperta": negative_from is not None,
+            "sem_dados": not has_data,
             "recebimentos_vencidos": float(overdue_in),
             "saidas_previstas_sem_documento": float(uncertain),
-            "mensagem": _message(negative_from, low, opening, balance, overdue_in),
+            "mensagem": _message(negative_from, low, opening, balance, overdue_in, has_data),
         },
     }
 
 
 def _message(negative_from: Optional[str], low: dict, opening: Decimal,
-             closing: Decimal, overdue_in: Decimal) -> str:
+             closing: Decimal, overdue_in: Decimal, has_data: bool = True) -> str:
     """One sentence a person can act on."""
+    if not has_data:
+        return (
+            "Ainda não há dados para projetar. Comece por indicar o saldo da "
+            "conta e registar o primeiro documento."
+        )
     if negative_from:
         base = (
             f"Com o que está previsto, a conta fica negativa a partir de "

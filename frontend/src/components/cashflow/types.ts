@@ -34,6 +34,8 @@ export interface CashForecast {
   fica_negativo_em: string | null;
   resumo: {
     aperta: boolean;
+    /** Nothing to project yet — the flat line at zero is not good news. */
+    sem_dados: boolean;
     recebimentos_vencidos: number;
     saidas_previstas_sem_documento: number;
     mensagem: string;

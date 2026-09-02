@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle, AlertCircle, Info, Check, Loader2, ArrowRight, RefreshCw, ChevronDown,
+  Circle,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Alert, AlertSeverity, AlertsPayload } from './types';
@@ -86,7 +87,16 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
         </button>
       </div>
 
-      {data.resumo.tudo_em_dia ? (
+      {data.resumo.sem_dados ? (
+        /* Nothing was checked, which is not the same as nothing being wrong. */
+        <div className="py-6 text-center space-y-1">
+          <Circle className="w-7 h-7 text-slate-300 mx-auto" />
+          <p className="text-slate-700 font-semibold">Ainda não há nada para verificar.</p>
+          <p className="text-[11px] text-slate-400">
+            Registe o primeiro documento e os avisos começam a aparecer aqui.
+          </p>
+        </div>
+      ) : data.resumo.tudo_em_dia ? (
         <div className="py-6 text-center space-y-1">
           <Check className="w-7 h-7 text-emerald-500 mx-auto" />
           <p className="text-slate-700 font-semibold">Está tudo em dia.</p>

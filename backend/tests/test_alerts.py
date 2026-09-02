@@ -19,7 +19,11 @@ def _kinds(payload) -> set:
 
 
 def test_a_clean_company_has_nothing_to_report(tenant):
+    # "Tudo em dia" requires there to have been something to check: an empty
+    # company gets sem_dados instead (see tests/test_onboarding.py).
+    tenant.book("expense", 40.00, date="2026-08-01", due_date="2099-12-31", paid=True)
     payload = _alerts(tenant)
+    assert payload["resumo"]["sem_dados"] is False
     assert payload["resumo"]["tudo_em_dia"] is True
     assert payload["alertas"] == []
 
@@ -144,4 +148,4 @@ def test_an_invalid_date_is_refused(tenant):
 
 def test_alerts_never_leak_between_companies(tenant, other_tenant):
     tenant.book("expense", 615.00, date="2026-08-01", due_date="2026-08-20")
-    assert _alerts(other_tenant)["resumo"]["tudo_em_dia"] is True
+    assert _alerts(other_tenant)["alertas"] == []
