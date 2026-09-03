@@ -19,19 +19,6 @@ services:
       timeout: 5s
       retries: 5
 
-  minio:
-    image: minio/minio:RELEASE.2024-03-03T17-50-39Z
-    container_name: finance_minio_prod
-    restart: always
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_prod_data:/data
 
   backend:
     build:
@@ -41,17 +28,19 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://financeuser:financepass123@postgres:5432/financedb
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
       JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-2026}
+      # Onde ficam as faturas. Sem estas, ficam no disco do contentor — que
+      # desaparece com ele, e uma fatura perdida é um lançamento sem suporte.
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-finance-ai-documents}
+      R2_JURISDICTION: ${R2_JURISDICTION:-}
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_started
 
   frontend:
     build:
@@ -68,4 +57,3 @@ services:
 
 volumes:
   postgres_prod_data:
-  minio_prod_data:

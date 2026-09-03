@@ -21,6 +21,12 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
+      # Sem o motor instalado, os testes de OCR saltam-se em silêncio — e o
+      # que eles fixam é precisamente o que estava partido. A CI tem de os
+      # correr a sério, com o dicionário português.
+      - name: Install OCR engine
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-por
+
       - name: Install dependencies
         working-directory: backend
         run: |

@@ -448,3 +448,22 @@ export async function registerFromInvitation(payload: {
 export async function fetchMyInvitations(): Promise<Invitation[]> {
   return (await apiGet<Invitation[]>('/invitations/mine')) || [];
 }
+
+
+/** O que esta instalação consegue mesmo ler.
+ *
+ *  Sem o motor de OCR, uma fotografia de um recibo é aceite, processada e
+ *  devolve 0% de confiança sem dizer porquê. Isto permite dizê-lo à frente. */
+export interface ReadingCapabilities {
+  camada_de_texto: boolean;
+  layout_de_tabelas: boolean;
+  imagens: boolean;
+  pdf_digitalizado: boolean;
+  motor: string | null;
+  idiomas: string[];
+  em_falta: string[];
+}
+
+export async function fetchReadingCapabilities(): Promise<ReadingCapabilities | null> {
+  return apiGet<ReadingCapabilities>('/documents/capabilities');
+}

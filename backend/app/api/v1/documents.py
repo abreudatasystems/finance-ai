@@ -3,8 +3,7 @@ import os
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_company_id, get_current_user, require_write
@@ -19,11 +18,12 @@ from app.models.models import (
     Supplier,
     User,
 )
-from app.services.minio_storage import minio_service
+from app.services.storage import document_storage, object_key
 from app.services.open_source_ocr import (
     AI_MODEL,
     AI_VERSION,
     compute_hash,
+    engine_status,
     process_document,
     suggest_category,
 )
@@ -46,6 +46,17 @@ def get_documents(
         .order_by(AIDocument.upload_date.desc())
         .all()
     )
+
+
+@router.get("/capabilities")
+def reading_capabilities():
+    """O que esta instalação consegue mesmo ler.
+
+    Sem o motor de OCR instalado, uma fotografia de um recibo é aceite,
+    processada e devolve 0% de confiança sem dizer porquê. Isto permite que o
+    produto o diga à frente — e que quem instala saiba o que lhe falta.
+    """
+    return engine_status()
 
 
 @router.get("/{doc_id}")
@@ -82,14 +93,54 @@ def get_document(
     }
 
 
-@router.get("/files/{file_name}")
-def get_document_file(file_name: str):
-    """Serve the raw file directly from local storage for in-browser rendering."""
-    local_path = minio_service.get_local_path(file_name)
-    if os.path.exists(local_path):
-        media_type = "application/pdf" if file_name.lower().endswith(".pdf") else "image/png" if file_name.lower().endswith(".png") else "image/jpeg"
-        return FileResponse(local_path, media_type=media_type)
-    raise HTTPException(status_code=404, detail="Ficheiro físico não encontrado no armazenamento")
+#: O tipo com que se devolve cada ficheiro. Nunca se devolve o que o
+#: utilizador disse que era: um HTML servido como HTML executa no browser.
+MEDIA_TYPES = {
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".tiff": "image/tiff",
+    ".tif": "image/tiff",
+}
+
+
+@router.get("/{doc_id}/file")
+def get_document_file(
+    doc_id: str,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    """O ficheiro original de um documento desta empresa.
+
+    Servia-se por nome de ficheiro, sem autenticação nenhuma: quem soubesse —
+    ou adivinhasse — um nome descarregava a fatura, e os nomes são os que o
+    utilizador deu. Passa a ser pelo id do documento, que é o que o torna
+    verificável contra a empresa activa.
+    """
+    document = (
+        db.query(AIDocument)
+        .filter(AIDocument.id == doc_id, AIDocument.company_id == company_id)
+        .first()
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+    key = object_key(document.company_id, document.file_hash or "", document.file_name)
+    data = document_storage.get(key, legacy_name=document.file_name)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Ficheiro não encontrado no armazenamento")
+
+    suffix = os.path.splitext((document.file_name or "").lower())[1]
+    name = os.path.basename(document.file_name or "documento")
+    return Response(
+        content=data,
+        media_type=MEDIA_TYPES.get(suffix, "application/octet-stream"),
+        headers={"Content-Disposition": f'inline; filename="{name}"'},
+    )
 
 
 @router.post("/upload", status_code=201)
@@ -131,7 +182,6 @@ async def upload_document(
             },
         )
 
-    file_url = minio_service.upload_file(file.filename, file_bytes, detected_type)
 
     # --- Extract structured data from the document itself ---
     parsed, raw_text = await process_document(file_bytes, file.filename)
@@ -155,6 +205,13 @@ async def upload_document(
     now = datetime.now(timezone.utc)
     stamp = _stamp()
     doc_id = f"DOC-{stamp}"
+
+    # A chave leva a empresa e o hash do conteúdo. Era o nome que o utilizador
+    # deu, sem mais nada: duas empresas com uma "fatura.pdf" escreviam a mesma
+    # chave e a segunda apagava a primeira.
+    document_storage.put(object_key(company_id, file_hash, file.filename),
+                         file_bytes, detected_type)
+    file_url = f"/api/v1/documents/{doc_id}/file"
 
     doc_status = "needs_review" if parsed.validation_status != "valid" else "extracted"
     if parsed.validation_status == "failed":
