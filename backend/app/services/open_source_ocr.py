@@ -32,6 +32,7 @@ qual.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
 import logging
@@ -338,8 +339,14 @@ OCR_CONFIDENCE_FACTOR = 0.85
 
 
 async def process_document(file_bytes: bytes, file_name: str) -> Tuple[ParsedInvoice, str]:
-    """O caminho todo, e devolve (ParsedInvoice, texto em bruto)."""
-    extraction = extract(file_bytes, file_name)
+    """O caminho todo, e devolve (ParsedInvoice, texto em bruto).
+
+    A extracção vai para um thread. É trabalho de CPU e é demorado — um PDF
+    digitalizado de seis páginas leva perto de vinte segundos a 300 dpi — e
+    correr isso no loop de eventos parava **todos** os outros pedidos durante
+    esse tempo, não apenas o de quem carregou o ficheiro.
+    """
+    extraction = await asyncio.to_thread(extract, file_bytes, file_name)
     parsed = parse_invoice_text(extraction.text, file_name)
 
     if extraction.is_ocr and parsed.confidence:

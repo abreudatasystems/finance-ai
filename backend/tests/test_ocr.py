@@ -349,3 +349,42 @@ def test_the_install_reports_where_documents_are_kept():
     if status["destino"] == "local":
         # Sem R2 configurado, tem de dizer o que falta em vez de ficar calado.
         assert status["em_falta"]
+
+
+# ---------------------------------------------------------------------------
+# Ler um documento não pode parar o servidor
+# ---------------------------------------------------------------------------
+
+@needs_raster
+def test_reading_a_scanned_pdf_does_not_block_other_requests():
+    """O OCR é trabalho de CPU e é demorado — um scan de seis páginas leva
+    perto de vinte segundos. Corrido no loop de eventos, parava **todos** os
+    outros pedidos durante esse tempo, não apenas o de quem carregou.
+    """
+    pages = [invoice_image() for _ in range(3)]
+    buffer = io.BytesIO()
+    pages[0].convert("RGB").save(
+        buffer, format="PDF", save_all=True,
+        append_images=[p.convert("RGB") for p in pages[1:]],
+    )
+    data = buffer.getvalue()
+
+    async def scenario():
+        served = 0
+
+        async def other_requests():
+            nonlocal served
+            while True:
+                await asyncio.sleep(0.01)
+                served += 1
+
+        beat = asyncio.create_task(other_requests())
+        try:
+            await process_document(data, "scan.pdf")
+        finally:
+            beat.cancel()
+        return served
+
+    served = asyncio.run(scenario())
+    # Com o loop bloqueado isto ficaria em zero ou perto disso.
+    assert served > 20, f"o loop ficou bloqueado: só {served} pedidos servidos"
