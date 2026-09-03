@@ -37,7 +37,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     async function loadData() {
-      const summary = await fetchDashboardSummary();
+      const summary = await fetchDashboardSummary(year);
       if (summary && summary.length > 0) {
         setReportData((summary as unknown as Array<{ month: string; Entradas: number; Saídas: number }>).map((s) => ({
           month: s.month,
@@ -54,7 +54,9 @@ export default function ReportsPage() {
       }
     }
     loadData();
-  }, []);
+    // O ano é uma dependência: sem ele aqui, escolher 2025 mudava o rótulo e o
+    // nome do ficheiro, e o gráfico continuava a mostrar o ano corrente.
+  }, [year]);
 
   useEffect(() => {
     setPageHeader('Relatórios Financeiros & Exportação', 'Análise consolidada do desempenho financeiro, IVA e exportação SAF-T (PT)');
@@ -66,13 +68,13 @@ export default function ReportsPage() {
   const handleSaftExport = async () => {
     setIsExporting(true);
     try {
-      const res = await apiFetch('/fiscal/saft-export');
+      const res = await apiFetch(`/fiscal/saft-export?period=${year}`);
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'SAFT-PT.xml';
+        a.download = `SAFT-PT-${year}.xml`;
         a.click();
         URL.revokeObjectURL(url);
         toast.success('Ficheiro SAF-T exportado com sucesso.');

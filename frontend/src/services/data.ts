@@ -133,8 +133,17 @@ export async function fetchAuditLogs(companyId: string = 'COMP001'): Promise<Aud
 }
 
 // ── Dashboard real-time endpoints ──
-export async function fetchDashboardSummary<T = Record<string, unknown>>(): Promise<T[]> {
-  const data = await apiGet<T[]>('/dashboard/summary');
+/** Rendimentos e gastos por mês.
+ *
+ *  Sem `year`, a janela dos últimos meses — o que o painel mostra. Com `year`,
+ *  os doze meses desse ano, que é o que um relatório rotulado "Ano Fiscal
+ *  2026" tem de conter para o rótulo não ser uma afirmação falsa. */
+export async function fetchDashboardSummary<T = Record<string, unknown>>(
+  year?: string | number,
+): Promise<T[]> {
+  const data = await apiGet<T[]>(
+    year ? `/dashboard/summary?year=${encodeURIComponent(String(year))}` : '/dashboard/summary',
+  );
   return data || [];
 }
 
