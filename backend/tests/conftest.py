@@ -15,6 +15,9 @@ from itertools import count
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///" + tempfile.mktemp(suffix=".db"))
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-used-outside-tests")
+# Sem trabalho de fundo: um varrimento a correr a meio de um teste geraria
+# lançamentos que o teste não pediu, e o resultado passava a depender do relógio.
+os.environ.setdefault("SCHEDULER_ENABLED", "0")
 
 import pytest                                    # noqa: E402
 from fastapi.testclient import TestClient        # noqa: E402

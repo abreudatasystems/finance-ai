@@ -7,10 +7,7 @@ import { fetchTransaction, updateTransaction } from '@/services/data';
 import { Transaction } from '@/types';
 import { SettlementPanel } from '@/components/financial/SettlementPanel';
 import { InvoiceLinesEditor } from '@/components/lines/InvoiceLinesEditor';
-import {
-  ArrowLeft, Pencil, Save, X, Loader2, FileText, Sparkles, RefreshCcw, ShieldCheck,
-  Wallet, Calendar, Building2, Tag, Upload, ExternalLink, Check, AlertTriangle, Landmark, Bot, User
-} from 'lucide-react';
+import {ArrowLeft, Pencil, Save, X, Loader2, FileText, Sparkles, RefreshCcw, ShieldCheck, Wallet, Building2, Tag, Upload, ExternalLink, Check, AlertTriangle, Landmark, Bot, User} from 'lucide-react';
 
 /* ---------- helpers ---------- */
 

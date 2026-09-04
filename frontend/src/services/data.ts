@@ -65,7 +65,7 @@ export async function fetchTransactions(companyId: string = 'COMP001'): Promise<
   return data || [];
 }
 
-export async function fetchTransaction(id: string, companyId: string = 'COMP001'): Promise<Transaction | null> {
+export async function fetchTransaction(id: string): Promise<Transaction | null> {
   const data = await apiGet<Transaction>(`/transactions/${id}`);
   return data || null;
 }
@@ -106,7 +106,7 @@ export async function fetchCostCenters(companyId: string = 'COMP001'): Promise<C
   return data || [];
 }
 
-export async function fetchItems(companyId: string = 'COMP001', kind?: string): Promise<Item[]> {
+export async function fetchItems(kind?: string): Promise<Item[]> {
   const url = kind ? `/items/?kind=${kind}` : '/items/';
   const data = await apiGet<Item[]>(url);
   return data || [];
@@ -133,8 +133,17 @@ export async function fetchAuditLogs(companyId: string = 'COMP001'): Promise<Aud
 }
 
 // ── Dashboard real-time endpoints ──
-export async function fetchDashboardSummary<T = Record<string, unknown>>(): Promise<T[]> {
-  const data = await apiGet<T[]>('/dashboard/summary');
+/** Rendimentos e gastos por mês.
+ *
+ *  Sem `year`, a janela dos últimos meses — o que o painel mostra. Com `year`,
+ *  os doze meses desse ano, que é o que um relatório rotulado "Ano Fiscal
+ *  2026" tem de conter para o rótulo não ser uma afirmação falsa. */
+export async function fetchDashboardSummary<T = Record<string, unknown>>(
+  year?: string | number,
+): Promise<T[]> {
+  const data = await apiGet<T[]>(
+    year ? `/dashboard/summary?year=${encodeURIComponent(String(year))}` : '/dashboard/summary',
+  );
   return data || [];
 }
 
@@ -447,4 +456,23 @@ export async function registerFromInvitation(payload: {
 /** Invitations waiting for the signed-in user's email. */
 export async function fetchMyInvitations(): Promise<Invitation[]> {
   return (await apiGet<Invitation[]>('/invitations/mine')) || [];
+}
+
+
+/** O que esta instalação consegue mesmo ler.
+ *
+ *  Sem o motor de OCR, uma fotografia de um recibo é aceite, processada e
+ *  devolve 0% de confiança sem dizer porquê. Isto permite dizê-lo à frente. */
+export interface ReadingCapabilities {
+  camada_de_texto: boolean;
+  layout_de_tabelas: boolean;
+  imagens: boolean;
+  pdf_digitalizado: boolean;
+  motor: string | null;
+  idiomas: string[];
+  em_falta: string[];
+}
+
+export async function fetchReadingCapabilities(): Promise<ReadingCapabilities | null> {
+  return apiGet<ReadingCapabilities>('/documents/capabilities');
 }

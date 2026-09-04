@@ -58,7 +58,7 @@ interface UploadResult {
 }
 
 export default function BankReconciliationPage() {
-  const { formatMoney, setPageHeader } = useApp();
+  const { formatMoney } = useApp();
   const [statements, setStatements] = useState<Statement[]>([]);
   const [selectedStatement, setSelectedStatement] = useState<Statement | null>(null);
   const [entries, setEntries] = useState<StatementEntry[]>([]);
@@ -79,7 +79,7 @@ export default function BankReconciliationPage() {
     setStatements(data);
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => { loadStatements(); }, []);
 
   const loadEntries = async (stmt: Statement) => {

@@ -4,7 +4,9 @@ import { apiFetch } from './api';
 export interface AIActionItem {
   label: string;
   action: string;
-  payload?: any;
+  /** O que a acção leva consigo. A forma depende da acção, e quem a trata é
+   *  que a sabe — por isso `unknown` e não `any`: obriga a verificar. */
+  payload?: unknown;
 }
 
 export interface AIMessage {
@@ -12,14 +14,37 @@ export interface AIMessage {
   sender: 'user' | 'ai';
   text: string;
   timestamp: string;
-  actionCard?: {
-    type: 'create_transaction' | 'show_chart' | 'show_alerts' | 'show_transactions';
-    title: string;
-    data: any;
-    status?: 'pending' | 'confirmed' | 'cancelled';
-  };
+  actionCard?: AIActionCard;
   actions?: AIActionItem[];
 }
+
+/** O cartão que uma resposta pode trazer, com a forma que cada tipo tem.
+
+ *  Era `data: any`, e por isso o componente lia campos que ninguém garantia
+ *  existirem. Uma união discriminada pelo `type` faz o compilador verificar
+ *  que cada leitura corresponde ao cartão certo. */
+export type AIActionCard =
+  | {
+      type: 'show_alerts';
+      title: string;
+      data: { highlights: string[] };
+      status?: AIActionStatus;
+    }
+  | {
+      type: 'create_transaction';
+      title: string;
+      data: { supplier: string; description: string; amount: number; due_date: string };
+      status?: AIActionStatus;
+    }
+  | {
+      type: 'show_chart' | 'show_transactions';
+      title: string;
+      data: Record<string, unknown>;
+      status?: AIActionStatus;
+    };
+
+export type AIActionStatus = 'pending' | 'confirmed' | 'cancelled';
+
 
 export const INITIAL_AI_MESSAGES: AIMessage[] = [
   {
@@ -71,7 +96,7 @@ export async function processUserMessage(prompt: string, currency: Currency = 'E
         actions: data.actions
       };
     }
-  } catch (err) {
+  } catch {
     // API fallback
   }
 

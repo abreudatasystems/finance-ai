@@ -7,8 +7,8 @@ amount and called the difference a cash balance, which overstated revenue by
 the VAT rate and described money that had not necessarily moved.
 """
 
-from datetime import datetime, timedelta
-from typing import List
+from datetime import date, datetime, timedelta, timezone
+from typing import List, Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -295,24 +295,45 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
     }
 
 
-def get_monthly_summary(company_id: str, db: Session, months: int = 6) -> list:
-    """Income, expense and result per month — net of VAT, on the accrual basis."""
-    today = datetime.utcnow().date()
-    month_names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+MONTH_NAMES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+
+
+def get_monthly_summary(company_id: str, db: Session, months: int = 6,
+                        year: Optional[int] = None) -> list:
+    """Income, expense and result per month — net of VAT, on the accrual basis.
+
+    Two shapes, and the caller says which. ``months`` gives a rolling window
+    back from today, which is what a dashboard wants: "how have we been
+    doing". ``year`` gives the twelve months of a fiscal year, which is what a
+    report wants — and a report labelled "Ano Fiscal 2026" has to *be* 2026,
+    not the last six months that happen to end in it.
+
+    Each row carries its own ``period`` (``2026-03``). The short month name
+    repeats across years, so a window longer than twelve months produced two
+    rows called "Jan" that nothing could tell apart.
+    """
+    if year is not None:
+        spans = [(year, month) for month in range(1, 13)]
+    else:
+        today = datetime.now(timezone.utc).date()
+        spans = []
+        for offset in range(months - 1, -1, -1):
+            span_year, span_month = today.year, today.month - offset
+            while span_month <= 0:
+                span_month += 12
+                span_year -= 1
+            spans.append((span_year, span_month))
+
     results = []
-
-    for i in range(months - 1, -1, -1):
-        year, month = today.year, today.month - i
-        while month <= 0:
-            month += 12
-            year -= 1
-
-        start = datetime(year, month, 1).date()
-        end = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)).date()
+    for span_year, span_month in spans:
+        start = date(span_year, span_month, 1)
+        end = (date(span_year + 1, 1, 1) if span_month == 12
+               else date(span_year, span_month + 1, 1))
         period = financials.period_result(db, company_id, start.isoformat(), end.isoformat())
 
         results.append({
-            "month": month_names[start.month - 1],
+            "month": MONTH_NAMES[span_month - 1],
+            "period": f"{span_year}-{span_month:02d}",
             "Entradas": round(period["rendimentos"], 2),
             "Saídas": round(period["gastos"], 2),
             "Resultado": round(period["resultado"], 2),

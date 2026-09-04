@@ -1,18 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import {
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  Maximize2,
-  Minimize2,
-  FileText,
-  FileCode,
-  ExternalLink,
-  Sparkles,
-  Search
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { apiFetch } from '@/services/api';
+import {ZoomIn, ZoomOut, RotateCw, Maximize2, Minimize2, FileText, ExternalLink} from 'lucide-react';
 import { AIDocument } from '@/types';
 
 interface InvoiceDocumentViewerProps {
@@ -36,12 +26,46 @@ interface InvoiceDocumentViewerProps {
 
 export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
   document,
-  rawOcrText,
-  extractedFields
 }) => {
+  /* O ficheiro vem por fetch autenticado e mostra-se a partir de um blob.
+     Um `<img src>` não leva o cabeçalho de autorização, e o endpoint dos
+     ficheiros passou a exigi-lo — servia qualquer fatura a quem soubesse o
+     nome. Além disso o `file_url` é relativo (`/api/v1/...`) e o browser
+     resolvia-o contra o frontend, onde não existe: a pré-visualização estava
+     partida mesmo antes de haver autenticação. */
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [rotation, setRotation] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!document?.id) return;
+    let revoked: string | null = null;
+    let alive = true;
+
+    (async () => {
+      setLoadError(null);
+      try {
+        const res = await apiFetch(`/documents/${encodeURIComponent(document.id)}/file`);
+        if (!res.ok) {
+          if (alive) setLoadError('Não foi possível abrir o ficheiro original.');
+          return;
+        }
+        const url = URL.createObjectURL(await res.blob());
+        revoked = url;
+        if (alive) setObjectUrl(url); else URL.revokeObjectURL(url);
+      } catch {
+        if (alive) setLoadError('Não foi possível contactar o servidor.');
+      }
+    })();
+
+    return () => {
+      alive = false;
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+  }, [document?.id]);
+
 
   if (!document) {
     return (
@@ -55,15 +79,7 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
     );
   }
 
-  // Determine file URL
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001/api/v1';
-  let resolvedFileUrl = document.file_url || `/sample-invoice.html`;
-
-  if (resolvedFileUrl.startsWith('/api/v1/')) {
-    resolvedFileUrl = `${apiBase.replace('/api/v1', '')}${resolvedFileUrl}`;
-  } else if (!resolvedFileUrl.startsWith('http') && !resolvedFileUrl.startsWith('/')) {
-    resolvedFileUrl = `${apiBase}/documents/files/${resolvedFileUrl}`;
-  }
+  const resolvedFileUrl = objectUrl;
 
   const isPdf = document.file_name.toLowerCase().endsWith('.pdf') || document.file_type?.includes('pdf');
   const isImage = /\.(png|jpg|jpeg|webp|bmp|tiff)$/i.test(document.file_name) || document.file_type?.includes('image');
@@ -127,7 +143,7 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
             <RotateCw className="w-4 h-4" />
           </button>
           <a
-            href={resolvedFileUrl}
+            href={resolvedFileUrl || undefined}
             target="_blank"
             rel="noopener noreferrer"
             className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
@@ -149,7 +165,11 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
       <div className="flex-1 bg-slate-950 relative overflow-hidden flex items-center justify-center p-2 select-text">
         {/* Main Viewer Body */}
         <div className="w-full h-full flex items-center justify-center overflow-auto">
-          {isPdf ? (
+          {!resolvedFileUrl ? (
+            <div className="text-center text-slate-400 text-xs px-6">
+              {loadError || 'A carregar o documento original…'}
+            </div>
+          ) : isPdf ? (
             <div
               className="w-full h-full transition-transform duration-200"
               style={{

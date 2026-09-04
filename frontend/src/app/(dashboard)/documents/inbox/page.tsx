@@ -4,22 +4,13 @@ import Link from 'next/link';
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
-import { fetchDocuments, uploadInvoiceDocument, actionApproval, fetchApprovals } from '@/services/data';
+import {
+  fetchDocuments, uploadInvoiceDocument, actionApproval, fetchApprovals,
+  fetchReadingCapabilities, ReadingCapabilities,
+} from '@/services/data';
 import { AIDocument, AIApprovalItem } from '@/types';
 import { InvoiceDocumentViewer } from '@/components/documents/InvoiceDocumentViewer';
-import {
-  Sparkles,
-  UploadCloud,
-  CheckCircle2,
-  FileText,
-  Building2,
-  Calendar,
-  Layers,
-  Check,
-  RefreshCw,
-  Zap,
-  Download
-} from 'lucide-react';
+import {UploadCloud, CheckCircle2, FileText, Building2, Calendar, Layers, Check, RefreshCw, Zap, Download, AlertTriangle} from 'lucide-react';
 
 export default function DocumentInspectorPage() {
   const { formatMoney, setPageHeader } = useApp();
@@ -27,6 +18,7 @@ export default function DocumentInspectorPage() {
   const [selectedDoc, setSelectedDoc] = useState<AIDocument | null>(null);
   const [approvals, setApprovals] = useState<AIApprovalItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [capabilities, setCapabilities] = useState<ReadingCapabilities | null>(null);
   const [isApproving, setIsApproving] = useState(false);
   const [approvedDocs, setApprovedDocs] = useState<string[]>([]);
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -50,6 +42,12 @@ export default function DocumentInspectorPage() {
   useEffect(() => {
     setPageHeader('Automação de Faturas (OCR)', 'Visualizador completo com validação fiscal');
   }, [setPageHeader]);
+
+  useEffect(() => {
+    let alive = true;
+    fetchReadingCapabilities().then((c) => { if (alive) setCapabilities(c); });
+    return () => { alive = false; };
+  }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -129,6 +127,11 @@ export default function DocumentInspectorPage() {
 
   const isCurrentApproved = selectedDoc ? approvedDocs.includes(selectedDoc.id) : false;
 
+  /* Um servidor sem o motor de OCR instalado lê PDFs com camada de texto e
+     mais nada. Vale a pena dizê-lo antes de alguém fotografar um recibo e
+     receber 0% de confiança sem explicação. */
+  const cannotReadImages = capabilities !== null && !capabilities.imagens;
+
   return (
     <div className="flex flex-col h-[calc(100vh-104px)] overflow-hidden animate-in fade-in duration-300">
       
@@ -137,9 +140,23 @@ export default function DocumentInspectorPage() {
         type="file"
         ref={fileInputRef}
         onChange={handleFileUpload}
-        accept=".pdf,.png,.jpg,.jpeg,.webp,.txt"
+        accept={cannotReadImages ? '.pdf,.txt' : '.pdf,.png,.jpg,.jpeg,.webp,.txt'}
         className="hidden"
       />
+
+      {/* Dizer o que não se consegue ler vale mais do que aceitar e falhar. */}
+      {cannotReadImages && (
+        <div className="p-3 mt-3 shrink-0 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <span>
+            Este servidor lê <b>PDFs com texto</b>, mas não fotografias nem PDFs
+            digitalizados — falta o motor de reconhecimento.
+            {capabilities?.em_falta?.length ? (
+              <> Em falta: {capabilities.em_falta.join('; ')}.</>
+            ) : null}
+          </span>
+        </div>
+      )}
 
 
       {/* Toast Notification */}

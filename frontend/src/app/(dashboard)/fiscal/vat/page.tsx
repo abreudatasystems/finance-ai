@@ -5,9 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { AccountingExport } from '@/components/exports/AccountingExport';
 import { fetchVatPosition, fetchRealCash } from '@/services/data';
 import { VatPosition, RealCash, VatSide } from '@/types';
-import {
-  Loader2, TrendingUp, TrendingDown, Scale, CalendarClock, ShieldCheck, Wallet, AlertTriangle, Info,
-} from 'lucide-react';
+import {Loader2, TrendingUp, TrendingDown, CalendarClock, ShieldCheck, Wallet, AlertTriangle, Info} from 'lucide-react';
 
 const SITUACAO: Record<string, { title: string; hint: string; cls: string; bar: string }> = {
   a_entregar: {

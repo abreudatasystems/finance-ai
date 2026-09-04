@@ -17,7 +17,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Check, Circle, Loader2, Rocket, Wallet, X } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
 import { BankAccountRow, OnboardingStatus } from './types';
 import { fetchAccounts, fetchOnboarding, setOpeningBalance } from './api';
 

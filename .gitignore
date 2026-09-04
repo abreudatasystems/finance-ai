@@ -16,6 +16,10 @@ ENV/
 *.sqlite3
 *.db
 
+# Documentos carregados: faturas de clientes. Ficam no Cloudflare R2 e em
+# disco como cópia de trabalho — nunca no repositório.
+backend/uploads/
+
 # Environment & Secrets
 .env
 .env.local

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { FolderTree, Sparkles, Loader2 } from 'lucide-react';
+import {Sparkles, Loader2} from 'lucide-react';
 import { Category, CategoryGroup } from '@/types';
 import { fetchCategoryGroups } from '@/services/data';
 import { apiPost } from '@/services/api';

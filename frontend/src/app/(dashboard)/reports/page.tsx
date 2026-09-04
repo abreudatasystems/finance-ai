@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { FileSpreadsheet, Download, Loader2, MapPin } from 'lucide-react';
+import { toast } from 'sonner';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { fetchDashboardSummary, fetchVatSummary } from '@/services/data';
 import { apiFetch } from '@/services/api';
@@ -32,10 +33,11 @@ export default function ReportsPage() {
   const [reportData, setReportData] = useState<{ month: string; Receitas: number; Despesas: number }[]>([]);
   const [vatSummary, setVatSummary] = useState<VatSummary | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [year, setYear] = useState('2026');
 
   useEffect(() => {
     async function loadData() {
-      const summary = await fetchDashboardSummary();
+      const summary = await fetchDashboardSummary(year);
       if (summary && summary.length > 0) {
         setReportData((summary as unknown as Array<{ month: string; Entradas: number; Saídas: number }>).map((s) => ({
           month: s.month,
@@ -52,7 +54,9 @@ export default function ReportsPage() {
       }
     }
     loadData();
-  }, []);
+    // O ano é uma dependência: sem ele aqui, escolher 2025 mudava o rótulo e o
+    // nome do ficheiro, e o gráfico continuava a mostrar o ano corrente.
+  }, [year]);
 
   useEffect(() => {
     setPageHeader('Relatórios Financeiros & Exportação', 'Análise consolidada do desempenho financeiro, IVA e exportação SAF-T (PT)');
@@ -64,35 +68,43 @@ export default function ReportsPage() {
   const handleSaftExport = async () => {
     setIsExporting(true);
     try {
-      const res = await apiFetch('/fiscal/saft-export');
+      const res = await apiFetch(`/fiscal/saft-export?period=${year}`);
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'SAFT-PT.xml';
+        a.download = `SAFT-PT-${year}.xml`;
         a.click();
         URL.revokeObjectURL(url);
+        toast.success('Ficheiro SAF-T exportado com sucesso.');
+      } else {
+        toast.error('Ocorreu um erro ao exportar o SAF-T.');
       }
     } catch {
-      // fallback
+      toast.error('Erro de comunicação ao exportar o SAF-T.');
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleExportCsv = () => {
-    let csv = 'Mês,Receitas,Despesas,Resultado\n';
-    reportData.forEach(r => {
-      csv += `${r.month},${r.Receitas},${r.Despesas},${r.Receitas - r.Despesas}\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `relatorio-financeiro-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      let csv = 'Mês,Receitas,Despesas,Resultado\n';
+      reportData.forEach(r => {
+        csv += `${r.month},${r.Receitas},${r.Despesas},${r.Receitas - r.Despesas}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `relatorio-financeiro-${year}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Ficheiro CSV exportado com sucesso.');
+    } catch {
+      toast.error('Ocorreu um erro ao exportar o CSV.');
+    }
   };
 
   return (
@@ -124,7 +136,14 @@ export default function ReportsPage() {
       <div className="p-6 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-sm text-slate-900">Demonstrativo Mensal (Receitas vs Despesas)</h3>
-          <span className="text-xs text-slate-400 font-medium">Ano Fiscal 2026</span>
+          <select 
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            className="text-xs text-slate-600 font-medium bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-indigo-500 transition-colors cursor-pointer"
+          >
+            <option value="2025">Ano Fiscal 2025</option>
+            <option value="2026">Ano Fiscal 2026</option>
+          </select>
         </div>
 
         <div className="h-72 w-full">
