@@ -5,6 +5,7 @@ of accounts, its own movements, its own team. Nothing here ever returns data
 for a company the caller has no membership in.
 """
 
+import secrets
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -302,3 +303,66 @@ def export_company_data(
             "X-Export-Tables": str(len(manifest["tabelas"])),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Segredo de ingestão automática
+# ---------------------------------------------------------------------------
+
+@router.get("/ingest-token")
+def get_ingest_token(
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    _admin: User = Depends(require_admin),
+):
+    """O segredo que identifica esta empresa nos canais automáticos.
+
+    Quem manda uma fatura por email não está autenticado como pessoa; é este
+    segredo que diz de que empresa se trata. Só proprietário ou administrador
+    o vê — quem o tiver escreve na fila de aprovações da empresa.
+    """
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    return {
+        "token": company.ingest_token,
+        "ativo": bool(company.ingest_token),
+        "cabecalho": "X-Ingest-Token",
+        "canais": ["/api/v1/webhooks/email", "/api/v1/webhooks/whatsapp"],
+    }
+
+
+@router.post("/ingest-token", status_code=201)
+def rotate_ingest_token(
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    _admin: User = Depends(require_admin),
+):
+    """Gera um segredo novo, e invalida o anterior no mesmo instante.
+
+    Serve para as duas coisas: ligar o canal pela primeira vez e cortá-lo a
+    quem já não devia ter acesso. Não há aqui um "revogar" à parte porque
+    rodar é revogar — o token antigo deixa de resolver para empresa nenhuma.
+    """
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+    company.ingest_token = secrets.token_urlsafe(32)
+    db.commit()
+    return {"token": company.ingest_token, "ativo": True, "cabecalho": "X-Ingest-Token"}
+
+
+@router.delete("/ingest-token", status_code=204)
+def disable_ingest_token(
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    _admin: User = Depends(require_admin),
+):
+    """Desliga a ingestão automática. Os documentos já recebidos ficam."""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    company.ingest_token = None
+    db.commit()
+    return Response(status_code=204)

@@ -10,6 +10,9 @@ import { ForecastPanel } from '@/components/cashflow/ForecastPanel';
 import { Transaction } from '@/types';
 import {Search, CheckCircle2, X, RefreshCcw, Bot, User} from 'lucide-react';
 
+/** Quantas linhas se desenham de cada vez, e quantas mais o botão acrescenta. */
+const PAGE = 50;
+
 export interface CashFlowViewProps {
   mode?: 'cash-flow' | 'payables' | 'receivables';
 }
@@ -40,11 +43,15 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    async function load() {
-      const trxs = await fetchTransactions();
-      setTransactions(trxs);
-    }
-    load();
+    // Sem cancelamento, quem sai da página a meio de um carregamento deixa a
+    // resposta a caminho: ela chega, escreve no estado de um componente que já
+    // não está montado, e no caso de duas leituras seguidas é a mais antiga
+    // que pode aterrar por último e ficar visível.
+    const controller = new AbortController();
+    fetchTransactions(controller.signal).then((trxs) => {
+      if (!controller.signal.aborted) setTransactions(trxs);
+    });
+    return () => controller.abort();
   }, []);
 
     useEffect(() => {
@@ -146,6 +153,25 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
     });
     return map;
   }, [filteredTransactions]);
+
+  /* Quantas linhas vão para o ecrã.
+     Os totais, os baldes de vencimento e o saldo acumulado continuam a ser
+     calculados sobre o conjunto filtrado inteiro — cortá-los daria números
+     errados com ar de certos, que num produto de contabilidade é o pior que
+     há. O que se corta é só o desenho: mil linhas de tabela custam ao browser
+     e ninguém as lê de uma vez.
+
+     Mudar de separador, de período, de sentido ou de pesquisa recomeça a
+     contagem, senão uma lista curta herdava o "mostrar mais" da anterior. A
+     reposição compara a assinatura do filtro durante o render em vez de a
+     fazer num efeito: um efeito que chama setState logo a seguir a pintar
+     obriga a pintar outra vez. */
+  const filterSignature = `${activeTab}|${period}|${searchTerm}|${direction}`;
+  const [shown, setShown] = useState({ signature: filterSignature, count: PAGE });
+  const visibleCount = shown.signature === filterSignature ? shown.count : PAGE;
+
+  const visibleTransactions = filteredTransactions.slice(0, visibleCount);
+  const hiddenCount = filteredTransactions.length - visibleTransactions.length;
 
   const settleSelected = async () => {
     if (selected.size === 0) return;
@@ -366,7 +392,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredTransactions.map((trx) => (
+              {visibleTransactions.map((trx) => (
                 <tr
                   key={trx.id}
                   onClick={() => router.push(`/financial/cash-flow/${trx.id}`)}
@@ -453,6 +479,21 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
             </tbody>
           </table>
         </div>
+
+        {hiddenCount > 0 && (
+          <div className="flex items-center justify-center gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+            <span>
+              A mostrar {visibleTransactions.length} de {filteredTransactions.length} lançamentos
+            </span>
+            <button
+              type="button"
+              onClick={() => setShown({ signature: filterSignature, count: visibleCount + PAGE })}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              Mostrar mais {Math.min(PAGE, hiddenCount)}
+            </button>
+          </div>
+        )}
       </div>
 
     </div>

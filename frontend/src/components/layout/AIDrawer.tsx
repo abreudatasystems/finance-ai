@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { INITIAL_AI_MESSAGES, AIMessage, processUserMessage } from '@/services/ai-assistant';
+import { AIMessage, buildOpeningMessage, processUserMessage } from '@/services/ai-assistant';
 import {Sparkles, Send, Bot, User, CheckCircle2, PanelRightClose, ArrowRight} from 'lucide-react';
 
 /**
@@ -17,9 +17,10 @@ let messageSequence = 0;
 const nextMessageId = (who: 'user' | 'ai') => `msg-${who}-${++messageSequence}`;
 
 export const AIDrawer: React.FC = () => {
-  const { isAiDrawerOpen, closeAiDrawer, currency, formatMoney } = useApp();
+  const { isAiDrawerOpen, closeAiDrawer, currency, formatMoney, currentUser, currentCompany } = useApp();
   const pathname = usePathname();
-  const [messages, setMessages] = useState<AIMessage[]>(INITIAL_AI_MESSAGES);
+  const router = useRouter();
+  const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -33,6 +34,23 @@ export const AIDrawer: React.FC = () => {
       scrollToBottom();
     }
   }, [messages, isAiDrawerOpen]);
+
+  /* A abertura é lida, não escrita à mão.
+     Só quando o painel abre: ninguém precisa de alertas carregados para um
+     painel fechado. Uma conversa já começada fica como está — recarregar por
+     cima do que a pessoa perguntou seria perder-lhe o trabalho — e trocar de
+     empresa recarrega a aplicação inteira (ver `switchCompany`), portanto a
+     abertura seguinte já é da empresa nova. */
+  const companyId = currentCompany?.id;
+  useEffect(() => {
+    if (!isAiDrawerOpen) return;
+    let current = true;
+    buildOpeningMessage({ userName: currentUser?.name, companyName: currentCompany?.name })
+      .then((message) => {
+        if (current) setMessages((prev) => (prev.length ? prev : [message]));
+      });
+    return () => { current = false; };
+  }, [isAiDrawerOpen, companyId, currentUser?.name, currentCompany?.name]);
 
   // Keep component mounted for smooth slide transition
 
@@ -59,54 +77,47 @@ export const AIDrawer: React.FC = () => {
     }
   };
 
+  /* Uma acção manda a intenção para o assistente. Nunca declara um resultado.
+   *
+   * Estas duas ramificações respondiam localmente, sem chamar nada:
+   * *"Pagamento de 4.500,00 € para Microsoft Ireland registado! O valor foi
+   * liquidado nas Contas a Pagar."* e *"Categoria criada com sucesso!"*. Nada
+   * tinha sido registado nem criado — a mensagem era só texto. É o mesmo
+   * defeito dos modais que inventavam registos quando a gravação falhava: o
+   * utilizador vê a confirmação, acredita nela, e descobre no fim do mês. */
   const handleActionClick = (actionLabel: string, actionName: string) => {
-    if (actionName === 'create_category') {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: nextMessageId('ai'),
-          sender: 'ai',
-          text: '**Categoria "Inteligência Artificial" criada com sucesso!** Foram associadas as palavras-chave `openai`, `chatgpt`, `claude`, `anthropic`, `api`.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-    } else if (actionName === 'confirm_payment') {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: nextMessageId('ai'),
-          sender: 'ai',
-          text: '**Pagamento de €4.500,00 para Microsoft Ireland registado!** O valor foi liquidado nas Contas a Pagar.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-    } else {
-      handleSend(actionLabel);
+    if (actionName === 'retry_last') {
+      // A resposta anterior foi "não cheguei ao servidor". Repetir tem de
+      // repetir a pergunta, não mandar a palavra "Tentar novamente".
+      const lastAsked = [...messages].reverse().find((m) => m.sender === 'user');
+      if (lastAsked) handleSend(lastAsked.text);
+      return;
     }
+    if (actionName === 'open_alerts') { router.push('/alerts'); return; }
+    if (actionName === 'open_documents') { router.push('/documents'); return; }
+    if (actionName === 'open_transactions') { router.push('/financial/cash-flow'); return; }
+    handleSend(actionLabel);
   };
 
+  /* Confirmar um cartão executa-o do lado do servidor.
+   *
+   * Antes marcava o cartão como confirmado e acrescentava *"Lançamento criado
+   * com sucesso! O valor foi registado na API"* — sem chamar a API. Agora a
+   * confirmação é enviada como instrução; o que aparece a seguir é o que o
+   * servidor responder, incluindo quando responder que não conseguiu. */
   const handleConfirmActionCard = (msgId: string) => {
+    const card = messages.find((m) => m.id === msgId)?.actionCard;
     setMessages(prev =>
-      prev.map(m => {
-        if (m.id === msgId && m.actionCard) {
-          return {
-            ...m,
-            actionCard: { ...m.actionCard, status: 'confirmed' }
-          };
-        }
-        return m;
-      })
+      prev.map(m => (m.id === msgId && m.actionCard
+        ? { ...m, actionCard: { ...m.actionCard, status: 'confirmed' } }
+        : m)),
     );
-
-    setMessages(prev => [
-      ...prev,
-      {
-        id: nextMessageId('ai'),
-        sender: 'ai',
-        text: '**Lançamento criado com sucesso!** O valor foi registado na API e refletido no Fluxo de Caixa.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]);
+    if (card?.type === 'create_transaction') {
+      const { supplier, description, amount, due_date } = card.data;
+      handleSend(
+        `Confirmo: regista ${description} de ${amount} para ${supplier}, com vencimento a ${due_date}.`,
+      );
+    }
   };
 
   const quickActions = [
@@ -241,7 +252,7 @@ export const AIDrawer: React.FC = () => {
           </div>
         ))}
 
-        {isTyping && (
+        {(isTyping || messages.length === 0) && (
           <div className="flex gap-3">
             <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
               <Bot className="w-4 h-4" />

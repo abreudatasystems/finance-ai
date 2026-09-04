@@ -29,7 +29,7 @@ import {
 } from '@/types';
 
 import {
-  apiGet, apiPatch, apiPost, apiDelete, apiFetch,
+  apiGet, apiGetPage, apiPatch, apiPost, apiDelete, apiFetch,
   apiPostOrError, apiPatchOrError, apiDeleteOrError, apiError, API_BASE,
 } from './api';
 
@@ -60,9 +60,26 @@ export async function fetchHealthScore(): Promise<FinancialHealthScore> {
   return data || ({} as FinancialHealthScore);
 }
 
-export async function fetchTransactions(companyId: string = 'COMP001'): Promise<Transaction[]> {
-  const data = await apiGet<Transaction[]>(`/transactions?company_id=${companyId}`);
+/** Todos os lançamentos da empresa activa.
+ *
+ * Continua a trazer tudo, de propósito: quem chama isto está a somar — totais
+ * do painel, margem de um cliente — e somar uma fatia dá um número errado com
+ * ar de certo. Para *listar*, use `fetchTransactionsPage`.
+ */
+export async function fetchTransactions(signal?: AbortSignal): Promise<Transaction[]> {
+  const data = await apiGet<Transaction[]>('/transactions/', signal);
   return data || [];
+}
+
+/** Uma página de lançamentos, e quantos há ao todo. */
+export async function fetchTransactionsPage(
+  { limit = 50, offset = 0, type, signal }: {
+    limit?: number; offset?: number; type?: string; signal?: AbortSignal;
+  } = {},
+): Promise<{ items: Transaction[]; total: number }> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (type) params.set('type', type);
+  return apiGetPage<Transaction>(`/transactions/?${params.toString()}`, signal);
 }
 
 export async function fetchTransaction(id: string): Promise<Transaction | null> {
