@@ -1,5 +1,6 @@
 import { Currency } from '@/types';
 import { apiFetch } from './api';
+import { fetchAlerts } from '@/components/alerts/api';
 
 export interface AIActionItem {
   label: string;
@@ -46,25 +47,74 @@ export type AIActionCard =
 export type AIActionStatus = 'pending' | 'confirmed' | 'cancelled';
 
 
-export const INITIAL_AI_MESSAGES: AIMessage[] = [
-  {
-    id: 'msg-1',
+/** A primeira mensagem, construída a partir do que a empresa tem mesmo.
+ *
+ * O que estava aqui era uma constante: cumprimentava sempre um "João", dizia
+ * sempre que monitorizava a "TechStart Lda", e anunciava sempre oito meses de
+ * autonomia com 45.230,00 € em caixa — a quem tivesse acabado de abrir conta
+ * e não tivesse um único lançamento. Um assistente financeiro que abre com um
+ * número inventado não é um assistente com um defeito: é um a dizer coisas que
+ * não sabe, e a primeira frase é onde isso custa mais caro.
+ *
+ * Os destaques passam a ser os alertas verdadeiros da empresa activa. Quando
+ * não há dados, diz que não há; quando está tudo em dia, diz isso; e quando o
+ * servidor não responde, diz que não conseguiu ler — nunca um valor.
+ */
+export async function buildOpeningMessage(
+  { userName, companyName }: { userName?: string | null; companyName?: string | null } = {},
+): Promise<AIMessage> {
+  const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const greeting = userName ? `Olá ${userName}.` : 'Olá.';
+  const scope = companyName
+    ? `Estou a acompanhar a **${companyName}**.`
+    : 'Estou a acompanhar a empresa activa.';
+
+  const payload = await fetchAlerts();
+
+  if (!payload) {
+    return {
+      id: 'msg-abertura',
+      sender: 'ai',
+      text: `${greeting} ${scope} Não consegui ler os alertas agora — tente outra vez daqui a pouco.`,
+      timestamp,
+    };
+  }
+
+  const { alertas, resumo } = payload;
+
+  if (resumo.sem_dados) {
+    return {
+      id: 'msg-abertura',
+      sender: 'ai',
+      text: `${greeting} ${scope} Ainda não há lançamentos suficientes para dizer alguma coisa sobre as contas. Carregue uma fatura ou registe um movimento e passo a acompanhar.`,
+      timestamp,
+      actions: [{ label: 'Carregar documento', action: 'open_documents' }],
+    };
+  }
+
+  if (resumo.tudo_em_dia) {
+    return {
+      id: 'msg-abertura',
+      sender: 'ai',
+      text: `${greeting} ${scope} Não há nada em atraso nem nada fora do normal neste momento.`,
+      timestamp,
+    };
+  }
+
+  return {
+    id: 'msg-abertura',
     sender: 'ai',
-    text: 'Olá João. Sou o seu **Finance AI Copilot**. Estou a monitorizar a saúde financeira da **TechStart Lda** em tempo real.',
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    text: `${greeting} ${scope} ${resumo.total === 1 ? 'Há uma coisa' : `Há ${resumo.total} coisas`} a precisar de atenção.`,
+    timestamp,
     actionCard: {
       type: 'show_alerts',
-      title: 'Destaques e Alertas Automáticos',
-      data: {
-        highlights: [
-          '[Atrasado] Fatura EDP Comercial pendente há 5 dias (€180,00)',
-          '[Aviso] Fornecedor Google Ireland aumentou preço (+43%)',
-          '[Saudável] Saldo de caixa com 8 meses de runway (€45.230,00)'
-        ]
-      }
-    }
-  }
-];
+      title: resumo.criticos ? 'A tratar primeiro' : 'A precisar de atenção',
+      // Os três primeiros: a lista vem ordenada do mais grave para o menos.
+      data: { highlights: alertas.slice(0, 3).map((a) => `${a.title} — ${a.description}`) },
+    },
+    actions: [{ label: 'Ver todos os alertas', action: 'open_alerts' }],
+  };
+}
 
 export async function processUserMessage(prompt: string, currency: Currency = 'EUR', pagePath: string = '/dashboard'): Promise<AIMessage> {
   const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -73,15 +123,18 @@ export async function processUserMessage(prompt: string, currency: Currency = 'E
     const res = await apiFetch(`/ai/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // A empresa não vai no corpo: o backend impõe a da sessão autenticada,
+      // e mandá-la daqui só criava a ilusão de que o cliente a escolhe. O
+      // período era a constante '2026-08' — dizia ao assistente que estávamos
+      // sempre em Agosto de 2026.
       body: JSON.stringify({
         message: prompt,
-        prompt: prompt,
-        company_id: 'COMP001',
+        prompt,
         currency,
         context: {
           page: pagePath,
-          period: '2026-08'
-        }
+          period: new Date().toISOString().slice(0, 7),
+        },
       })
     });
 
@@ -100,28 +153,18 @@ export async function processUserMessage(prompt: string, currency: Currency = 'E
     // API fallback
   }
 
-  // Fallback engine
-  const p = prompt.toLowerCase();
-  if (p.includes('fluxo') || p.includes('caixa')) {
-    return {
-      id: `msg-ai-${Date.now()}`,
-      sender: 'ai',
-      text: 'Com base no histórico dos últimos 30 dias, o seu **Fluxo de Caixa Operacional** apresenta um saldo líquido positivo de **+€4.500,00**.',
-      timestamp,
-      actions: [
-        { label: 'Ver Movimentos', action: 'open_transactions' },
-        { label: 'Exportar Relatório', action: 'create_report' }
-      ]
-    };
-  }
-
+  // Sem servidor não há resposta possível.
+  //
+  // Aqui dizia-se, sem falar com nada: "o seu Fluxo de Caixa Operacional
+  // apresenta um saldo líquido positivo de +4.500,00 €". O número era fixo, e
+  // aparecia justamente quando a aplicação não conseguia ler coisa nenhuma —
+  // o pior momento possível para afirmar um valor. Quem lê isto está offline,
+  // e o que precisa de saber é isso.
   return {
     id: `msg-ai-${Date.now()}`,
     sender: 'ai',
-    text: `Analisei a sua solicitação sobre "${prompt}". Todos os registos foram sincronizados com a base de dados relacional.`,
+    text: 'Não consegui chegar ao servidor, por isso não tenho como responder a isto sem inventar. Verifique a ligação e tente outra vez.',
     timestamp,
-    actions: [
-      { label: 'Ver Detalhes', action: 'open_transactions' }
-    ]
+    actions: [{ label: 'Tentar novamente', action: 'retry_last' }],
   };
 }

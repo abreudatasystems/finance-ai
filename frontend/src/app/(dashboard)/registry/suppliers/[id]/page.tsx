@@ -50,11 +50,14 @@ export default function SupplierProfilePage() {
   const [savedToast, setSavedToast] = useState(false);
 
   useEffect(() => {
+    // O guardião `active` já evitava escrever num ecrã desmontado, mas o
+    // pedido seguia à mesma até ao fim. O sinal corta-o à saída.
+    const controller = new AbortController();
     let active = true;
     (async () => {
       setLoading(true);
       const sups = await fetchSuppliers();
-      const trxs = await fetchTransactions();
+      const trxs = await fetchTransactions(controller.signal);
       const s = sups.find(x => x.id === id);
       if (active) {
         if (s) {
@@ -66,7 +69,7 @@ export default function SupplierProfilePage() {
         setLoading(false);
       }
     })();
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [id, setPageHeader]);
 
   const set = (patch: Partial<Supplier>) => setForm((f) => ({ ...f, ...patch }));

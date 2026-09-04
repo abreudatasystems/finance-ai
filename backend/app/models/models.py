@@ -33,6 +33,13 @@ class Company(Base):
     chart_template = Column(String, nullable=True)
     chart_provisioned = Column(Boolean, default=False)
 
+    # --- Ingestão automática (email, WhatsApp) ---
+    # Quem manda um documento por webhook não está autenticado como pessoa. É
+    # este segredo que diz de que empresa se trata: antes a empresa vinha no
+    # corpo do pedido, o que deixava qualquer chamador escrever no livro de
+    # quem quisesse. Nulo enquanto ninguém ligar um canal automático.
+    ingest_token = Column(String, nullable=True, unique=True, index=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class User(Base):

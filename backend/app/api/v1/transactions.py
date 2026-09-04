@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -157,14 +157,39 @@ def settle_many(
 
 @router.get("/", response_model=List[TransactionOut])
 def get_transactions(
+    response: Response,
     type: Optional[str] = None,
+    limit: Optional[int] = Query(None, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
 ):
+    """Os lançamentos da empresa activa, do mais recente para o mais antigo.
+
+    **Porque a paginação é opcional e não obrigatória.** Isto devolvia a tabela
+    inteira, sempre — com um ano de movimentos reais são milhares de linhas a
+    atravessar a rede para o browser desenhar trinta. Mas impor um limite por
+    omissão seria pior do que o problema: quem soma para um total passaria a
+    somar uma fatia sem dar por isso, e num produto de contabilidade um número
+    errado que parece certo é o defeito mais caro que há. Quem quer uma página
+    pede-a; quem não pede continua a receber tudo.
+
+    O total vai em ``X-Total-Count`` para quem pagina saber quantas há sem
+    trazer o resto.
+    """
     query = db.query(Transaction).filter(Transaction.company_id == company_id)
     if type:
         query = query.filter(Transaction.type == type)
-    return query.order_by(Transaction.date.desc()).all()
+
+    # Contado antes de cortar: é o tamanho do conjunto, não o da página.
+    response.headers["X-Total-Count"] = str(query.count())
+
+    query = query.order_by(Transaction.date.desc(), Transaction.id.desc())
+    if limit is not None:
+        query = query.offset(offset).limit(limit)
+    elif offset:
+        query = query.offset(offset)
+    return query.all()
 
 
 @router.get("/{trx_id}", response_model=TransactionOut)
