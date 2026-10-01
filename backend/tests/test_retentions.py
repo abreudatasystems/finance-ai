@@ -393,10 +393,18 @@ def test_an_unparseable_period_is_refused(tenant):
 # ---------------------------------------------------------------------------
 
 def test_the_ledger_carries_the_retention_and_the_payable(tenant):
+    """O razão leva a retenção e o valor que saiu do banco, lado a lado.
+
+    O período pede-se por ``period``, que é o único parâmetro que o endpoint
+    tem. Isto passava ``start`` e ``end``, que o FastAPI ignorava em silêncio:
+    sem período, o razão devolve o trimestre corrente, e em Setembro de 2026
+    esse trimestre continha por sorte o dia 10 lançado aqui. A 1 de Outubro o
+    trimestre virou e a linha deixou de aparecer — o teste nunca tinha pedido
+    a janela que afirmava verificar.
+    """
     _book(tenant, code="irs_b_25", when="2026-09-10", description="Avença")
 
-    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?start=2026-09-01"
-                     "&end=2026-09-30").text
+    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?period=2026-09").text
     header, *rows = [line for line in csv.splitlines() if line.strip()]
 
     assert "Retenção" in header and "Valor a pagar" in header
@@ -410,8 +418,7 @@ def test_the_ledger_carries_the_retention_and_the_payable(tenant):
 def test_a_document_without_retention_exports_zero_and_the_full_amount(tenant):
     _book(tenant, amount=123.00, when="2026-09-10", description="Sem retenção")
 
-    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?start=2026-09-01"
-                     "&end=2026-09-30").text
+    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?period=2026-09").text
     row = next(r for r in csv.splitlines() if "Sem retenção" in r)
     assert "0,00" in row
     assert "123,00" in row
