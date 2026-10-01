@@ -88,15 +88,48 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   return fetch(`${API_BASE}${path}`, { ...options, headers });
 }
 
-/** Convenience JSON GET. Returns null on any non-2xx or network error. */
-export async function apiGet<T>(path: string): Promise<T | null> {
+/** Convenience JSON GET. Returns null on any non-2xx or network error.
+ *
+ * O `signal` serve para desistir de um pedido que já não interessa. Sem ele,
+ * quem troca de página a meio de um carregamento fica à mercê da ordem de
+ * chegada: a resposta antiga aterra depois da nova e escreve por cima dela,
+ * e o ecrã passa a mostrar os números da página anterior. Um `AbortError` é
+ * um cancelamento pedido por nós, não uma falha — sai como `null`, como
+ * qualquer outra resposta que não deve ser desenhada.
+ */
+export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T | null> {
   try {
-    const res = await apiFetch(path);
+    const res = await apiFetch(path, signal ? { signal } : {});
     if (res.ok) return (await res.json()) as T;
   } catch {
     /* fall through */
   }
   return null;
+}
+
+/** Uma página de resultados, com o tamanho do conjunto inteiro.
+ *
+ * O total vem no cabeçalho `X-Total-Count` porque o corpo é a página: assim
+ * quem lista sabe quantas linhas existem sem as trazer todas. Quando o
+ * cabeçalho falta — um servidor mais antigo, um proxy que o corta — o total
+ * cai para o tamanho da página, que é a única coisa que se sabe ao certo.
+ */
+export async function apiGetPage<T>(
+  path: string,
+  signal?: AbortSignal,
+): Promise<{ items: T[]; total: number }> {
+  try {
+    const res = await apiFetch(path, signal ? { signal } : {});
+    if (res.ok) {
+      const items = ((await res.json()) as T[]) || [];
+      const header = res.headers.get('X-Total-Count');
+      const total = header !== null ? Number(header) : NaN;
+      return { items, total: Number.isFinite(total) ? total : items.length };
+    }
+  } catch {
+    /* fall through */
+  }
+  return { items: [], total: 0 };
 }
 
 /** The API's error message for a failed call, or null when it succeeded. */

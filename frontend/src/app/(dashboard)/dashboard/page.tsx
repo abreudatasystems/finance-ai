@@ -47,10 +47,15 @@ export default function DashboardPage() {
   }, [setPageHeader]);
 
   useEffect(() => {
+    // Este painel faz cinco leituras em série. Sair a meio deixava-as todas a
+    // caminho, a escreverem no estado de um ecrã que já não existe.
+    const controller = new AbortController();
     async function loadData() {
       const hs = await fetchHealthScore();
+      if (controller.signal.aborted) return;
       setHealthScore(hs);
-      const trxs = await fetchTransactions();
+      const trxs = await fetchTransactions(controller.signal);
+      if (controller.signal.aborted) return;
       setTransactions(trxs);
       await fetchFinancialEvents();
 
@@ -70,6 +75,7 @@ export default function DashboardPage() {
       }
     }
     loadData();
+    return () => controller.abort();
   }, []);
 
   // Derived trend from healthScore

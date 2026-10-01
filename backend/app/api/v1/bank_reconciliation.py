@@ -42,7 +42,7 @@ def _auto_match_entries(entries: list, company_id: str, db: Session) -> int:
             suggested += 1
 
     db.commit()
-    return matched
+    return suggested
 
 
 @router.post("/upload")
@@ -50,6 +50,7 @@ async def upload_bank_statement(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     """Upload a CSV or OFX bank statement and auto-match entries."""
     content = await file.read()

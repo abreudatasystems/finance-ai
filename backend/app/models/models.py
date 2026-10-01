@@ -33,6 +33,13 @@ class Company(Base):
     chart_template = Column(String, nullable=True)
     chart_provisioned = Column(Boolean, default=False)
 
+    # --- Ingestão automática (email, WhatsApp) ---
+    # Quem manda um documento por webhook não está autenticado como pessoa. É
+    # este segredo que diz de que empresa se trata: antes a empresa vinha no
+    # corpo do pedido, o que deixava qualquer chamador escrever no livro de
+    # quem quisesse. Nulo enquanto ninguém ligar um canal automático.
+    ingest_token = Column(String, nullable=True, unique=True, index=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class User(Base):
@@ -169,7 +176,7 @@ class Entity(Base):
     is_supplier = Column(Boolean, default=False)
     is_customer = Column(Boolean, default=False)
 
-    default_category_id = Column(String, nullable=True)
+    default_category_id = Column(String, ForeignKey("categories.id"), nullable=True)
     default_category_name = Column(String, nullable=True)
     #: A counterparty's withholding is a property of the counterparty: the
     #: accountant is always 25%, the landlord always 25%, the software vendor
@@ -340,7 +347,7 @@ class Transaction(Base):
     recurrence_period = Column(String, nullable=True)
     payment_method = Column(String, nullable=True)
     payment_reference = Column(String, nullable=True)
-    bank_account_id = Column(String, nullable=True)
+    bank_account_id = Column(String, ForeignKey("bank_accounts.id"), nullable=True)
     notes = Column(Text, nullable=True)
     tags = Column(String, nullable=True)
 
@@ -667,7 +674,7 @@ class AuditLog(Base):
 
     id = Column(String, primary_key=True, index=True)
     company_id = Column(String, ForeignKey("companies.id"), nullable=False)
-    timestamp = Column(String, default=datetime.utcnow().isoformat)
+    timestamp = Column(String, default=lambda: datetime.utcnow().isoformat())
     user = Column(String, nullable=False)
     action = Column(String, nullable=False)
     module = Column(String, nullable=False)

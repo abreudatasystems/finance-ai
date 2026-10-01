@@ -196,7 +196,7 @@ docker-compose -f docker-compose.prod.yml up --build -d
 - **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS v4, Lucide Icons, Recharts
 - **Backend**: Python 3.11, FastAPI, SQLAlchemy, Pydantic v2, Uvicorn
 - **AI & Processing**: Custom Intent Engine, PyPDF, PaddleOCR, Qwen2.5-VL Vision
-- **Storage & DB**: MinIO S3 Object Storage, PostgreSQL / SQLite Relational DB
+- **Storage & DB**: Cloudflare R2 / S3-compatible Object Storage, PostgreSQL / SQLite Relational DB
 
 ---
 
