@@ -265,7 +265,8 @@ class AIChatAction(BaseModel):
 class AIChatRequest(BaseModel):
     message: Optional[str] = None
     prompt: Optional[str] = None
-    company_id: str = "COMP001"
+    #: Always overridden by the authenticated session in ai_assistant.py — never trust the body value.
+    company_id: str = ""
     currency: str = "EUR"
     context: Optional[AIContext] = None
 

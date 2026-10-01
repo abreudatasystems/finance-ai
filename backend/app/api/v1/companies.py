@@ -148,6 +148,11 @@ def update_company(
         raise HTTPException(status_code=400, detail="Regime de IVA inválido")
     if "vat_periodicity" in data and data["vat_periodicity"] not in VALID_PERIODICITY:
         raise HTTPException(status_code=400, detail="Periodicidade inválida")
+    if "fiscal_year_start" in data and data["fiscal_year_start"] is not None:
+        fys = str(data["fiscal_year_start"]).zfill(2)
+        if not (fys.isdigit() and 1 <= int(fys) <= 12):
+            raise HTTPException(status_code=400, detail="fiscal_year_start deve ser um mês válido entre '01' e '12'")
+        data["fiscal_year_start"] = fys
 
     for field, value in data.items():
         setattr(company, field, value)

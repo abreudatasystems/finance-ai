@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import {LayoutDashboard, Wallet, BarChart3, Scale, Users, Building2, History, PanelLeftClose, PanelLeftOpen, ScanText, CheckCheck, Repeat, BellRing, FileText, HandCoins, Target, Landmark, Package, Briefcase} from 'lucide-react';
+import {LayoutDashboard, Wallet, BarChart3, Scale, Users, Building2, History, PanelLeftClose, PanelLeftOpen, ScanText, CheckCheck, Repeat, BellRing, FileText, HandCoins, Target, Landmark, Package, Briefcase, CreditCard, GitMerge} from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -35,10 +35,10 @@ export const Sidebar: React.FC = () => {
       group: 'TESOURARIA',
       items: [
         { label: 'Fluxo de Caixa', href: '/financial/cash-flow', icon: Wallet },
-        { label: 'Contas a Pagar', href: '/financial/payables', icon: Building2 },
+        { label: 'Contas a Pagar', href: '/financial/payables', icon: CreditCard },
         { label: 'Contas a Receber', href: '/financial/receivables', icon: HandCoins },
         { label: 'Cobranças', href: '/financial/collections', icon: History },
-        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 },
+        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: GitMerge },
         { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat },
         { label: 'Desempenho', href: '/financial/performance', icon: Target }
       ]

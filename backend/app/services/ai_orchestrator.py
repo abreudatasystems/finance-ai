@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.schemas.schemas import AIChatRequest, AIChatResponse, AIChatAction
-from app.models.models import Transaction, Category, Supplier, Customer
+from app.models.models import Transaction, Category, Entity
 
 
 def _to_float(val) -> float:
@@ -352,7 +352,11 @@ async def process_ai_intent_and_action(
     # ── Intent: suppliers / customers info ──
     if any(k in lower for k in ["fornecedor", "fornecedores", "cliente", "clientes"]):
         if "cliente" in lower:
-            count = db.query(func.count(Customer.id)).filter(Customer.company_id == company_id).scalar() or 0
+            count = (
+                db.query(func.count(Entity.id))
+                .filter(Entity.company_id == company_id, Entity.is_customer.is_(True), Entity.active.isnot(False))
+                .scalar()
+            ) or 0
             total_rev = (
                 db.query(func.coalesce(func.sum(Transaction.amount), 0))
                 .filter(Transaction.company_id == company_id, Transaction.type == "income")
@@ -367,7 +371,11 @@ async def process_ai_intent_and_action(
                 actions=[AIChatAction(label="Ver clientes", action="open_customers")],
             )
         else:
-            count = db.query(func.count(Supplier.id)).filter(Supplier.company_id == company_id).scalar() or 0
+            count = (
+                db.query(func.count(Entity.id))
+                .filter(Entity.company_id == company_id, Entity.is_supplier.is_(True), Entity.active.isnot(False))
+                .scalar()
+            ) or 0
             total_spent = (
                 db.query(func.coalesce(func.sum(Transaction.amount), 0))
                 .filter(Transaction.company_id == company_id, Transaction.type == "expense")
