@@ -2,12 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { fetchTransactions } from '@/services/data';
 import { settleMany } from '@/components/cashflow/api';
 import { ForecastPanel } from '@/components/cashflow/ForecastPanel';
 import { Transaction } from '@/types';
+import { formatDate, transactionStatusLabel } from '@/services/format';
 import {Search, CheckCircle2, X, RefreshCcw, Bot, User} from 'lucide-react';
 
 export interface CashFlowViewProps {
@@ -72,8 +72,11 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
 
   const filteredTransactions = transactions.filter((t) => {
     const matchesPeriod = period === 'all' || activeTab === 'open' || (t.date || '').startsWith(period);
+    // 'open' is decided by matchesOpen below — what is still owed, whatever
+    // its approval state. Requiring a pending status here emptied the
+    // payables and receivables pages, whose documents are approved.
     const matchesTab =
-      activeTab === 'all' ? true :
+      activeTab === 'all' || activeTab === 'open' ? true :
       activeTab === 'income' ? t.type === 'income' :
       activeTab === 'expense' ? t.type === 'expense' :
       t.status === 'pending_approval' || t.status === 'pending_ai';
@@ -285,11 +288,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
             <div className="p-3 rounded-xl bg-white border border-slate-200">
               <p className="text-[9px] uppercase font-bold text-slate-500">Total em aberto</p>
               <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(buckets.aberto.total)}</p>
-              <p className="text-[10px] text-slate-400">
-                <Link href="/financial/collections" className="hover:text-indigo-600">
-                  ver antiguidade →
-                </Link>
-              </p>
+              <p className="text-[10px] text-slate-400">{buckets.aberto.count} documento(s)</p>
             </div>
           </div>
         </div>
@@ -384,7 +383,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                       <span className="text-slate-200">—</span>
                     )}
                   </td>
-                  <td className="p-3.5 text-slate-500 font-mono text-[11px]">{trx.date}</td>
+                  <td className="p-3.5 text-slate-500 tabular-nums text-[11px] whitespace-nowrap">{formatDate(trx.date)}</td>
                   <td className="p-3.5 font-bold text-slate-900">{trx.description}</td>
                   <td className="p-3.5 text-slate-700 font-medium hidden md:table-cell">{trx.entity_name}</td>
                   <td className="p-3.5 text-slate-600 hidden lg:table-cell">{trx.category_name}</td>
@@ -416,7 +415,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                       trx.status === 'approved' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                       'bg-amber-50 text-amber-700 border border-amber-200'
                     }`}>
-                      {trx.status}
+                      {transactionStatusLabel(trx.status)}
                     </span>
                   </td>
                   <td className="p-3.5 hidden sm:table-cell">

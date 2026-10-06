@@ -27,6 +27,9 @@ import { useApp } from '@/context/AppContext';
 import { IncomeStatement, StatementLine, StatementSubtotal } from './types';
 import { fetchIncomeStatement } from './api';
 
+/** One decimal, the way pt-PT writes it: 3,5 — not 3.5. */
+const pct1 = (n: number) => n.toLocaleString('pt-PT', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
 const SECTIONS: Array<{ id: StatementLine['section']; title: string }> = [
   { id: 'rendimentos', title: 'Rendimentos' },
   { id: 'gastos_operacionais', title: 'Gastos operacionais' },
@@ -73,11 +76,11 @@ const MarginTile: React.FC<{ label: string; value: number; hint: string; previou
   return (
     <div className="p-4 rounded-xl bg-white border border-slate-200">
       <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">{label}</p>
-      <p className={`text-2xl font-black mt-1 ${tone}`}>{value.toFixed(1)}%</p>
+      <p className={`text-2xl font-black mt-1 ${tone}`}>{pct1(value)}%</p>
       <p className="text-[10px] text-slate-500 mt-1">
         <span className={tone}>{state}</span>
         {delta != null && delta !== 0 && (
-          <> · {delta > 0 ? '+' : ''}{delta.toFixed(1)} p.p. vs período anterior</>
+          <> · {delta > 0 ? '+' : ''}{pct1(delta)} p.p. vs período anterior</>
         )}
       </p>
       <p className="text-[10px] text-slate-400 mt-1.5 leading-snug">{hint}</p>
@@ -244,7 +247,7 @@ export const IncomeStatementView: React.FC = () => {
                                   {line.nature === 'expense' && line.amount > 0 ? '−' : ''}{formatMoney(line.amount)}
                                 </td>
                                 <td className="p-3 text-right font-mono text-slate-400">
-                                  {revenue > 0 ? `${share(line.amount).toFixed(1)}%` : '—'}
+                                  {revenue > 0 ? `${pct1(share(line.amount))}%` : '—'}
                                 </td>
                                 <td className="p-3 text-right font-mono text-slate-400">
                                   {formatMoney(line.anterior)}
@@ -296,7 +299,7 @@ export const IncomeStatementView: React.FC = () => {
                                 {formatMoney(row.amount)}
                               </td>
                               <td className={`p-3 text-right font-mono ${row.emphasis ? 'text-slate-400' : 'text-slate-500'}`}>
-                                {revenue > 0 ? `${share(row.amount).toFixed(1)}%` : '—'}
+                                {revenue > 0 ? `${pct1(share(row.amount))}%` : '—'}
                               </td>
                               <td className={`p-3 text-right font-mono ${row.emphasis ? 'text-slate-400' : 'text-slate-500'}`}>
                                 {formatMoney(row.anterior)}

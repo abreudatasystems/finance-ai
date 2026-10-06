@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from app.catalog import retentions as catalog
 from app.models.models import Entity, Transaction
+from app.core.formatting import eur
 
 CENTS = Decimal("0.01")
 
@@ -99,8 +100,8 @@ def apply_to(trx: Transaction, code: Optional[str] = None,
         raise HTTPException(
             status_code=400,
             detail=(
-                f"A retenção ({float(withheld):,.2f} €) é superior ao total do "
-                f"documento ({float(gross):,.2f} €). Verifique a base e a taxa."
+                f"A retenção ({eur(float(withheld))}) é superior ao total do "
+                f"documento ({eur(float(gross))}). Verifique a base e a taxa."
             ),
         )
 
@@ -299,16 +300,16 @@ def _message(owed: Decimal, credit: Decimal, due_on: str, today: date) -> str:
     if owed > 0:
         if due_on < today.isoformat():
             parts.append(
-                f"Há {float(owed):,.2f} € de retenções por entregar ao Estado e o "
+                f"Há {eur(float(owed))} de retenções por entregar ao Estado e o "
                 f"prazo era {due_on}."
             )
         else:
             parts.append(
-                f"Há {float(owed):,.2f} € de retenções a entregar ao Estado até {due_on}."
+                f"Há {eur(float(owed))} de retenções a entregar ao Estado até {due_on}."
             )
     if credit > 0:
         parts.append(
-            f"Os clientes retiveram {float(credit):,.2f} € — é crédito de imposto "
+            f"Os clientes retiveram {eur(float(credit))} — é crédito de imposto "
             "da empresa, não entra nesta entrega."
         )
     return " ".join(parts)

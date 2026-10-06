@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { fetchSuppliers } from '@/services/data';
 import { Supplier } from '@/types';
 import { Building2, Mail, Plus, Tag, Calendar, Trash2 } from 'lucide-react';
+import { formatDate } from '@/services/format';
 import { CreateSupplierModal } from '@/components/shared/CreateSupplierModal';
 import { deleteSupplier } from '@/services/data';
 import { useRouter } from 'next/navigation';
@@ -102,7 +103,7 @@ export default function SuppliersPage() {
                   <td className="py-3.5 px-4 font-mono text-neutral-600">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-                      <span>{s.last_transaction_date}</span>
+                      <span>{formatDate(s.last_transaction_date) || '—'}</span>
                     </div>
                   </td>
                   <td className="py-3.5 px-4 text-right font-bold text-neutral-900">

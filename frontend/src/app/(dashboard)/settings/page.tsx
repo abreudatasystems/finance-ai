@@ -43,7 +43,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { currentCompany, currency, setCurrency, currentUser, userRole, setPageHeader } = useApp();
+  const { currentCompany, currency, setCurrency, currentUser, userRole, setPageHeader, refreshCompanies } = useApp();
 
   const [activeTab, setActiveTab] = useState<Tab>('company');
   const [aiRules, setAiRules] = useState<AIRule[]>([]);
@@ -53,6 +53,9 @@ export default function SettingsPage() {
   const [vatRegime, setVatRegime] = useState('normal');
   const [vatPeriodicity, setVatPeriodicity] = useState('quarterly');
   const [legalForm, setLegalForm] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [companyNif, setCompanyNif] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const comp = currentCompany as unknown as Record<string, string> | null;
@@ -60,6 +63,8 @@ export default function SettingsPage() {
     setVatRegime(comp.vat_regime || 'normal');
     setVatPeriodicity(comp.vat_periodicity || 'quarterly');
     setLegalForm(comp.legal_form || '');
+    setCompanyName(comp.name || '');
+    setCompanyNif(comp.nif || '');
   }, [currentCompany]);
 
   useEffect(() => {
@@ -84,12 +89,25 @@ export default function SettingsPage() {
   const patch = (p: Partial<StoredSettings>) => setSettings((s) => ({ ...s, ...p }));
 
   const handleSave = async () => {
+    setSaveError(null);
     if (currentCompany?.id) {
-      await updateCompany(currentCompany.id, {
+      if (!companyName.trim()) {
+        setSaveError('O nome da empresa não pode ficar vazio.');
+        return;
+      }
+      const updated = await updateCompany(currentCompany.id, {
+        name: companyName.trim(),
+        nif: companyNif.trim() || undefined,
         vat_regime: vatRegime,
         vat_periodicity: vatPeriodicity,
         legal_form: legalForm || undefined,
       });
+      if (!updated) {
+        setSaveError('Não foi possível guardar. Só proprietários e administradores podem alterar a empresa.');
+        return;
+      }
+      // The company name also lives in the top bar and the company switcher.
+      await refreshCompanies();
     }
     try {
       window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -105,8 +123,8 @@ export default function SettingsPage() {
     router.push('/login');
   };
 
-  const displayName = currentUser?.name || 'João Silva';
-  const displayEmail = currentUser?.email || 'joao@techstart.pt';
+  const displayName = currentUser?.name || '';
+  const displayEmail = currentUser?.email || '';
   const initials = displayName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 
   return (
@@ -121,6 +139,9 @@ export default function SettingsPage() {
           <span>{savedSuccess ? 'Guardado com sucesso!' : 'Guardar Alterações'}</span>
         </button>
       </div>
+      {saveError && (
+        <p role="alert" className="-mt-3 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">{saveError}</p>
+      )}
 
       <div className="flex flex-col md:flex-row gap-6 items-start">
         {/* Settings Sidebar */}
@@ -162,7 +183,8 @@ export default function SettingsPage() {
             <label className="font-semibold text-slate-600">Nome da Empresa</label>
             <input
               type="text"
-              defaultValue={currentCompany?.name || 'TechStart Lda'}
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
             />
           </div>
@@ -172,7 +194,8 @@ export default function SettingsPage() {
               <label className="font-semibold text-slate-600">NIF</label>
               <input
                 type="text"
-                defaultValue={currentCompany?.nif || 'PT516789012'}
+                value={companyNif}
+                onChange={(e) => setCompanyNif(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"
               />
             </div>
@@ -375,8 +398,9 @@ export default function SettingsPage() {
               <label className="font-semibold text-slate-600">Nome Completo</label>
               <input
                 type="text"
-                defaultValue={displayName}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                value={displayName}
+                readOnly
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 focus:outline-none"
               />
             </div>
 
@@ -386,8 +410,9 @@ export default function SettingsPage() {
               </label>
               <input
                 type="email"
-                defaultValue={displayEmail}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                value={displayEmail}
+                readOnly
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 focus:outline-none"
               />
             </div>
           </div>

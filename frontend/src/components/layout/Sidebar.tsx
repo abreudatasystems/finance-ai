@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import {LayoutDashboard, Wallet, BarChart3, Scale, Users, Building2, History, PanelLeftClose, PanelLeftOpen, ScanText, CheckCheck, Repeat, BellRing, FileText, HandCoins, Target, Landmark, Package, Briefcase} from 'lucide-react';
+import {LayoutDashboard, Wallet, BarChart3, Scale, Users, Building2, PanelLeftClose, PanelLeftOpen, ScanText, CheckCheck, Repeat, BellRing, FileText, HandCoins, Landmark, Package, Receipt, Percent} from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -35,22 +35,26 @@ export const Sidebar: React.FC = () => {
       group: 'TESOURARIA',
       items: [
         { label: 'Fluxo de Caixa', href: '/financial/cash-flow', icon: Wallet },
-        { label: 'Contas a Pagar', href: '/financial/payables', icon: Building2 },
+        { label: 'Contas a Pagar', href: '/financial/payables', icon: Receipt },
         { label: 'Contas a Receber', href: '/financial/receivables', icon: HandCoins },
-        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 }
+        { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat },
+        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Scale }
       ]
     },
     {
       group: 'INTELIGÊNCIA ARTIFICIAL',
       items: [
-        { label: 'Automação (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true }
+        { label: 'Automação (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true },
+        { label: 'Aprovações', href: '/documents/approvals', icon: CheckCheck }
       ]
     },
     {
       group: 'RELATÓRIOS & FISCALIDADE',
       items: [
         { label: 'Relatórios', href: '/reports', icon: BarChart3 },
-        { label: 'Demonstração de Resultados', href: '/reports/dre', icon: FileText }
+        { label: 'Demonstração de Resultados', href: '/reports/dre', icon: FileText },
+        { label: 'Apuramento do IVA', href: '/fiscal/vat', icon: Landmark },
+        { label: 'Retenções na Fonte', href: '/fiscal/retentions', icon: Percent }
       ]
     },
     {
@@ -62,6 +66,13 @@ export const Sidebar: React.FC = () => {
       ]
     }
   ];
+
+  /* The most specific entry wins: on /reports/dre only "Demonstração de
+     Resultados" is lit, not "Relatórios" as well. */
+  const activeHref = navGroups
+    .flatMap((g) => g.items.map((i) => i.href))
+    .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
 
   return (
     <>
@@ -117,11 +128,13 @@ export const Sidebar: React.FC = () => {
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                const isActive = item.href === activeHref;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={closeMobileMenu}
+                    aria-current={isActive ? 'page' : undefined}
                     title={isSidebarCollapsed ? item.label : undefined}
                     className={`flex items-center h-11 rounded-xl text-xs font-semibold transition-all duration-200 group relative overflow-hidden ${
                       isActive

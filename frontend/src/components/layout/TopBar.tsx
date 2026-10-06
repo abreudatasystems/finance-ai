@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { fetchAlerts } from '@/components/alerts/api';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import {
@@ -40,6 +42,18 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
 
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false);
   const [isCreateDropdownOpen, setIsCreateDropdownOpen] = useState(false);
+  const [urgentAlerts, setUrgentAlerts] = useState(0);
+  const pathname = usePathname();
+
+  // The bell reflects what /alerts would show — re-read on every page change
+  // and company switch, so a settled bill clears it without a reload.
+  useEffect(() => {
+    let cancelled = false;
+    fetchAlerts().then((payload) => {
+      if (!cancelled) setUrgentAlerts((payload?.resumo.criticos ?? 0) + (payload?.resumo.avisos ?? 0));
+    });
+    return () => { cancelled = true; };
+  }, [pathname, currentCompany?.id]);
 
   return (
     <header className={`h-16 bg-white/80 backdrop-blur-md fixed top-0 left-0 z-50 flex items-center justify-between px-5 select-none transition-all duration-300 ${
@@ -47,7 +61,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
     }`}>
       
       {/* Left Section: Brand Logo + Company Switcher */}
-      <div className="flex items-center gap-3 sm:gap-5">
+      <div className="flex items-center gap-3 sm:gap-5 min-w-0">
         {/* Hamburger Menu (Mobile Only) */}
         <button
           onClick={toggleMobileMenu}
@@ -122,9 +136,9 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         {(pageTitle || pageSubtitle) && (
           <>
             <div className="hidden lg:block h-6 w-px bg-neutral-200 ml-1" />
-            <div className="hidden lg:flex flex-col ml-1 border-l-2 border-emerald-400 pl-3 justify-center">
-              <span className="text-[13px] font-extrabold text-neutral-900 leading-none tracking-tight">{pageTitle}</span>
-              {pageSubtitle && <span className="text-[10px] font-medium text-neutral-500 leading-none mt-1">{pageSubtitle}</span>}
+            <div className="hidden lg:flex flex-col ml-1 border-l-2 border-emerald-400 pl-3 justify-center min-w-0">
+              <span className="text-[13px] font-extrabold text-neutral-900 leading-none tracking-tight truncate">{pageTitle}</span>
+              {pageSubtitle && <span className="text-[10px] font-medium text-neutral-500 leading-none mt-1 truncate" title={pageSubtitle}>{pageSubtitle}</span>}
             </div>
           </>
         )}
@@ -132,7 +146,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
       </div>
 
       {/* Right Section: Actions & Utilities */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 shrink-0">
         
         {/* Quick Search Ctrl+K */}
         <button
@@ -140,7 +154,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
           className="flex items-center gap-2 px-2 sm:px-3.5 py-2 rounded-xl border border-neutral-200/80 bg-neutral-50/80 hover:bg-neutral-100/80 text-neutral-400 text-xs transition-colors cursor-pointer"
         >
           <Search className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-neutral-400" />
-          <span className="hidden sm:inline text-neutral-500 font-medium">Pesquisar ou atalhos...</span>
+          <span className="hidden sm:inline text-neutral-500 font-medium whitespace-nowrap">Pesquisar ou atalhos...</span>
           <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-white border border-neutral-200 rounded-md text-neutral-400 font-semibold shadow-2xs ml-2">
             ⌘K
           </kbd>
@@ -246,14 +260,21 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
           title="Alternar Painel Lateral Finance AI"
         >
           <Sparkles className={`w-4 h-4 ${isAiDrawerOpen ? 'text-emerald-400' : 'text-emerald-600 animate-pulse'}`} />
-          <span>Finance Copilot</span>
+          <span className="whitespace-nowrap">Finance Copilot</span>
         </button>
 
         {/* Notification Bell */}
-        <button className="relative p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer" title="Notificações">
+        <Link
+          href="/alerts"
+          className="relative p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer"
+          title={urgentAlerts ? `${urgentAlerts} alerta(s) a precisar de atenção` : 'Alertas'}
+          aria-label={urgentAlerts ? `Alertas: ${urgentAlerts} a precisar de atenção` : 'Alertas'}
+        >
           <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white animate-ping" />
-        </button>
+          {urgentAlerts > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+          )}
+        </Link>
 
         {/* Settings Button */}
         <Link

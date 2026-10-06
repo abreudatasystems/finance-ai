@@ -40,8 +40,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     { label: 'Ir para Dashboard', path: '/dashboard', icon: Wallet, group: 'Navegação' },
     { label: 'Ir para Finance Inbox', path: '/documents/inbox', icon: FileText, group: 'Navegação' },
     { label: 'Ir para Fluxo de Caixa', path: '/financial/cash-flow', icon: Wallet, group: 'Navegação' },
-    { label: 'Ir para Aprovações IA', path: '/approvals', icon: Sparkles, group: 'Navegação' },
-    { label: 'Ir para Categorias', path: '/registry/categories', icon: FolderTree, group: 'Navegação' },
+    { label: 'Ir para Aprovações IA', path: '/documents/approvals', icon: Sparkles, group: 'Navegação' },
+    { label: 'Ir para Categorias', path: '/settings/groups', icon: FolderTree, group: 'Navegação' },
     { label: 'Ir para Fornecedores', path: '/registry/suppliers', icon: Building2, group: 'Navegação' }
   ];
 

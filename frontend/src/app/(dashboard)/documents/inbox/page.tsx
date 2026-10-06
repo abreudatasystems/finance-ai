@@ -284,9 +284,12 @@ export default function DocumentInspectorPage() {
                 </div>
               </div>
 
-              <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                {selectedDoc?.ai_confidence || 98}% Precisão
-              </span>
+              {/* Only what the reader actually reported — no document, no figure. */}
+              {selectedDoc?.ai_confidence != null && (
+                <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                  {selectedDoc.ai_confidence}% confiança
+                </span>
+              )}
             </div>
 
             {/* Scrollable Metadata Content */}

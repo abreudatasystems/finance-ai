@@ -22,6 +22,7 @@ from app.models.models import (
 )
 from app.services import recurrences as recurrence_service
 from app.services.vat_engine import compute_vat_position, resolve_period
+from app.core.formatting import eur, pt_date
 
 CENTS = Decimal("0.01")
 
@@ -97,7 +98,7 @@ def overdue_payables(db: Session, company_id: str, today: date) -> Optional[dict
     return _alert(
         "contas_vencidas", "danger",
         f"{len(rows)} conta(s) por pagar já vencida(s)",
-        f"Estão {total} € por liquidar com o prazo ultrapassado. A mais antiga venceu a {rows[0].due_date}.",
+        f"Estão {eur(total)} por liquidar com o prazo ultrapassado. A mais antiga venceu a {pt_date(rows[0].due_date)}.",
         count=len(rows), amount=float(total),
         action="/financial/cash-flow?tab=open&dir=expense",
         action_label="Ver o que está por pagar",
@@ -116,7 +117,7 @@ def payables_due_soon(db: Session, company_id: str, today: date) -> Optional[dic
     return _alert(
         "contas_a_vencer", "warning",
         f"{len(rows)} conta(s) a vencer nos próximos {DUE_SOON_DAYS} dias",
-        f"{total} € a pagar até {horizon}.",
+        f"{eur(total)} a pagar até {pt_date(horizon)}.",
         count=len(rows), amount=float(total),
         action="/financial/cash-flow?tab=open&dir=expense",
         action_label="Ver o que está por pagar",
@@ -134,7 +135,7 @@ def overdue_receivables(db: Session, company_id: str, today: date) -> Optional[d
     return _alert(
         "recebimentos_vencidos", "danger",
         f"{len(rows)} recebimento(s) em atraso",
-        f"{total} € que já deviam ter entrado. O mais antigo venceu a {rows[0].due_date}.",
+        f"{eur(total)} que já deviam ter entrado. O mais antigo venceu a {pt_date(rows[0].due_date)}.",
         count=len(rows), amount=float(total),
         action="/financial/cash-flow?tab=open&dir=income",
         action_label="Ver o que está por receber",
@@ -168,14 +169,14 @@ def vat_deadline(db: Session, company_id: str, today: date) -> Optional[dict]:
         return _alert(
             "iva_em_atraso", "danger",
             f"IVA de {position['period']['label']} fora de prazo",
-            f"{due} € deviam ter sido entregues até {deadline.isoformat()}.",
+            f"{eur(due)} deviam ter sido entregues até {pt_date(deadline)}.",
             amount=due, action="/fiscal/vat", action_label="Ver apuramento",
         )
     return _alert(
         "iva_a_pagar", "warning",
         f"IVA de {position['period']['label']} a pagar em {days_left} dia(s)",
-        f"{due} € a entregar até {deadline.isoformat()}. Declaração até "
-        f"{position['prazos']['declaracao_ate']}.",
+        f"{eur(due)} a entregar até {pt_date(deadline)}. Declaração até "
+        f"{pt_date(position['prazos']['declaracao_ate'])}.",
         amount=due, action="/fiscal/vat", action_label="Ver apuramento",
     )
 
@@ -200,7 +201,7 @@ def retention_deadline(db: Session, company_id: str, today: date) -> Optional[di
         return _alert(
             "retencoes_em_atraso", "danger",
             f"Retenções na fonte fora de prazo ({len(late)} mês/meses)",
-            f"{total:,.2f} € de {periods} deviam ter sido entregues ao Estado.",
+            f"{eur(total)} de {periods} deviam ter sido entregues ao Estado.",
             amount=round(total, 2),
             action="/fiscal/retentions", action_label="Ver retenções",
         )
@@ -212,7 +213,7 @@ def retention_deadline(db: Session, company_id: str, today: date) -> Optional[di
     return _alert(
         "retencoes_a_entregar", "warning",
         f"Retenções de {soonest['periodo']} a entregar em {days_left} dia(s)",
-        f"{soonest['valor']:,.2f} € a entregar ao Estado até {soonest['ate']}.",
+        f"{eur(soonest['valor'])} a entregar ao Estado até {pt_date(soonest['ate'])}.",
         amount=soonest["valor"],
         action="/fiscal/retentions", action_label="Ver retenções",
     )
@@ -228,7 +229,7 @@ def pending_approvals(db: Session, company_id: str, today: date) -> Optional[dic
         return None
     total = sum((_d(r.amount) for r in rows), Decimal("0.00"))
     low = [r for r in rows if (r.ai_confidence or 0) < 80]
-    description = f"{total} € em documentos lidos pela IA à espera de decisão."
+    description = f"{eur(total)} em documentos lidos pela IA à espera de decisão."
     if low:
         description += f" {len(low)} com confiança baixa."
     return _alert(
@@ -257,7 +258,7 @@ def stale_reconciliation(db: Session, company_id: str, today: date) -> Optional[
     return _alert(
         "conciliacao_atrasada", "warning",
         f"{len(rows)} movimento(s) bancário(s) por conciliar há mais de {STALE_RECONCILIATION_DAYS} dias",
-        f"{total} € de movimentos que ainda não foram ligados a nenhum lançamento.",
+        f"{eur(total)} de movimentos que ainda não foram ligados a nenhum lançamento.",
         count=len(rows), amount=float(total),
         action="/financial/bank-reconciliation", action_label="Conciliar",
     )
@@ -287,7 +288,7 @@ def recurrences_behind(db: Session, company_id: str, today: date) -> Optional[di
     return _alert(
         "recorrencias_em_falta", "info",
         f"{len(pending)} recorrência(s) com períodos por lançar",
-        f"{total} € em lançamentos que já venceram e ainda não foram gerados.",
+        f"{eur(total)} em lançamentos que já venceram e ainda não foram gerados.",
         count=sum(p["periodos"] for p in pending), amount=total,
         action="/financial/recurrences", action_label="Gerar em falta",
         items=pending,
@@ -332,7 +333,7 @@ def unreconciled_payments(db: Session, company_id: str, today: date) -> Optional
     return _alert(
         "pagamentos_sem_extrato", "info",
         f"{len(old)} pagamento(s) sem confirmação no extrato",
-        f"{total} € registados como movimentados mas ainda não encontrados no banco.",
+        f"{eur(total)} registados como movimentados mas ainda não encontrados no banco.",
         count=len(old), amount=float(total),
         action="/financial/bank-reconciliation", action_label="Conciliar",
     )

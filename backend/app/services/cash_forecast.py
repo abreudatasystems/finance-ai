@@ -36,6 +36,7 @@ from app.services import (
     retentions as retention_service,
 )
 from app.services.vat_engine import compute_vat_position, resolve_period
+from app.core.formatting import eur
 
 CENTS = Decimal("0.01")
 
@@ -316,17 +317,17 @@ def _message(negative_from: Optional[str], low: dict, opening: Decimal,
     if negative_from:
         base = (
             f"Com o que está previsto, a conta fica negativa a partir de "
-            f"{negative_from} (mínimo de {low['balance']:,.2f} €)."
+            f"{negative_from} (mínimo de {eur(low['balance'])})."
         )
         if overdue_in > 0:
             base += (
-                f" Há {float(overdue_in):,.2f} € de faturas já vencidas por cobrar — "
+                f" Há {eur(float(overdue_in))} de faturas já vencidas por cobrar — "
                 "é o caminho mais curto para evitar isso."
             )
         return base
     if _d(low["balance"]) < opening / 4 and opening > 0:
         return (
-            f"A conta aguenta, mas desce até {low['balance']:,.2f} € por volta de "
+            f"A conta aguenta, mas desce até {eur(low['balance'])} por volta de "
             f"{low['date']}. Convém não marcar despesas novas para essa altura."
         )
-    return f"Sem apertos à vista: o saldo previsto no fim do período é {float(closing):,.2f} €."
+    return f"Sem apertos à vista: o saldo previsto no fim do período é {eur(float(closing))}."
