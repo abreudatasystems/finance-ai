@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, dashboard, transactions, documents, ai_assistant, categories, suppliers, customers, events, audit, settings, companies, webhooks, reports, bank_reconciliation, category_groups, settlements, bank_accounts, chart_templates, invitations, transaction_lines, entities, recurrences, alerts, onboarding, cost_centers, items
+from app.api.v1 import auth, dashboard, transactions, documents, ai_assistant, categories, suppliers, customers, approvals, events, audit, settings, companies, webhooks, reports, bank_reconciliation, fiscal, category_groups, settlements, bank_accounts, chart_templates, invitations, transaction_lines, entities, recurrences, alerts, collections, onboarding, budgets, retentions, cost_centers, items
 
 api_router = APIRouter()
 
@@ -21,16 +21,17 @@ api_router.include_router(recurrences.router, prefix="/recurrences", tags=["recu
 api_router.include_router(suppliers.router, prefix="/suppliers", tags=["suppliers"])
 api_router.include_router(customers.router, prefix="/customers", tags=["customers"])
 api_router.include_router(items.router, prefix="/items", tags=["items"])
-
+api_router.include_router(approvals.router, prefix="/approvals", tags=["approvals"])
 api_router.include_router(events.router, prefix="/events", tags=["events"])
 api_router.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
-
+api_router.include_router(collections.router, prefix="/collections", tags=["collections"])
 api_router.include_router(onboarding.router, prefix="/onboarding", tags=["onboarding"])
-
+api_router.include_router(budgets.router, prefix="/budgets", tags=["budgets"])
 api_router.include_router(cost_centers.router, prefix="/projects", tags=["projects"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(bank_reconciliation.router, prefix="/bank", tags=["bank"])
-
+api_router.include_router(fiscal.router, prefix="/fiscal", tags=["fiscal"])
+api_router.include_router(retentions.router, prefix="/retentions", tags=["fiscal"])
