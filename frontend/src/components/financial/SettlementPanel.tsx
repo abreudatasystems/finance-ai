@@ -9,6 +9,7 @@ import {
   registerPayment, deletePayment, createInstallments,
 } from '@/services/data';
 import { Installment, PaymentRecord, BankAccount, Transaction } from '@/types';
+import { formatDate } from '@/services/format';
 
 const METHODS = [
   { value: 'bank_transfer', label: 'Transferência' },
@@ -109,6 +110,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
   };
 
   const undo = async (p: PaymentRecord) => {
+    if (!window.confirm(`Anular o pagamento de ${formatMoney(Number(p.amount))}? O documento volta a ficar em aberto.`)) return;
     setBusy(true);
     setError(null);
     const ok = await deletePayment(transaction.id, p.id);
@@ -154,7 +156,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
         {!settled && (
           <button
             onClick={() => openFor()}
-            className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs"
+            className="px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" /> Registar {noun.toLowerCase()}
           </button>
@@ -199,17 +201,17 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
                 const st = INST_STATUS[i.status] || INST_STATUS.pending;
                 return (
                   <div key={i.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/60">
-                    <span className="w-10 text-[11px] font-black text-slate-700 font-mono shrink-0">{i.label}</span>
+                    <span className="w-10 text-[11px] font-black text-slate-700 tabular-nums shrink-0">{i.label}</span>
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-bold text-slate-800">{formatMoney(i.amount)}</div>
                       <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                        <CalendarClock className="w-2.5 h-2.5" /> vence {i.due_date}
+                        <CalendarClock className="w-2.5 h-2.5" /> vence {formatDate(i.due_date)}
                         {i.paid_amount > 0 && i.status !== 'paid' && (
                           <span className="ml-1">· pago {formatMoney(i.paid_amount)}</span>
                         )}
                       </div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border shrink-0 ${st.cls}`}>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border shrink-0 ${st.cls}`}>
                       {st.label}
                     </span>
                     {i.status !== 'paid' && (
@@ -252,7 +254,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
                   <button
                     onClick={split}
                     disabled={splitting}
-                    className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-60"
+                    className="px-3 py-1.5 rounded-lg bg-neutral-950 hover:bg-neutral-800 text-white text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-60"
                   >
                     {splitting && <Loader2 className="w-3 h-3 animate-spin" />} Criar plano
                   </button>
@@ -287,7 +289,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-bold text-slate-800">{formatMoney(p.amount)}</div>
                     <div className="text-[10px] text-slate-400 truncate">
-                      {p.payment_date}
+                      {formatDate(p.payment_date)}
                       {p.payment_method ? ` · ${METHODS.find((m) => m.value === p.payment_method)?.label || p.payment_method}` : ''}
                       {p.created_by ? ` · ${p.created_by}` : ''}
                     </div>
@@ -323,7 +325,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Valor</label>
-              <input
+              <input aria-label="Valor"
                 type="number" step="0.01" min="0" required autoFocus
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -332,7 +334,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Data</label>
-              <input
+              <input aria-label="Data"
                 type="date" required
                 value={payDate}
                 onChange={(e) => setPayDate(e.target.value)}
@@ -341,7 +343,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Método</label>
-              <select
+              <select aria-label="Método"
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
                 className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -351,7 +353,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Conta</label>
-              <select
+              <select aria-label="Conta"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -374,7 +376,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
             <button
               type="submit"
               disabled={busy}
-              className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 disabled:opacity-60"
+              className="flex-1 py-2 rounded-lg bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 disabled:opacity-60"
             >
               {busy && <Loader2 className="w-3 h-3 animate-spin" />} Confirmar
             </button>

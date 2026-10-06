@@ -7,7 +7,7 @@ import { fetchTransactions } from '@/services/data';
 import { settleMany } from '@/components/cashflow/api';
 import { ForecastPanel } from '@/components/cashflow/ForecastPanel';
 import { Transaction } from '@/types';
-import { formatDate, transactionStatusLabel } from '@/services/format';
+import { formatDate, plural, transactionStatusLabel } from '@/services/format';
 import {Search, CheckCircle2, X, RefreshCcw, Bot, User} from 'lucide-react';
 
 export interface CashFlowViewProps {
@@ -49,11 +49,11 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
 
     useEffect(() => {
     if (mode === 'payables') {
-      setPageHeader('Contas a Pagar', 'Gestão de despesas e obrigações financeiras pendentes');
+      setPageHeader('Contas a Pagar', 'O que está por pagar, por ordem de vencimento');
     } else if (mode === 'receivables') {
-      setPageHeader('Contas a Receber', 'Gestão de receitas e recebimentos pendentes');
+      setPageHeader('Contas a Receber', 'O que está por receber, por ordem de vencimento');
     } else {
-      setPageHeader('Fluxo de Caixa & Movimentos', 'Gestão profissional de todas as entradas, saídas e previsões de caixa');
+      setPageHeader('Fluxo de Caixa', 'Todas as entradas e saídas, e a previsão das próximas semanas');
     }
   }, [setPageHeader, mode]);
 
@@ -152,7 +152,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
 
   const settleSelected = async () => {
     if (selected.size === 0) return;
-    if (!window.confirm(`Marcar ${selected.size} lançamento(s) como liquidado(s) hoje?`)) return;
+    if (!window.confirm(`Marcar ${selected.size} ${plural(selected.size, 'lançamento')} como ${plural(selected.size, 'liquidado')} hoje?`)) return;
     setSettling(true);
     setNotice(null);
     const res = await settleMany([...selected]);
@@ -161,8 +161,8 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
     const { liquidados, falhados, total } = res.data;
     setNotice(
       falhados
-        ? `${liquidados} liquidado(s) (${formatMoney(total)}), ${falhados} por liquidar.`
-        : `${liquidados} lançamento(s) liquidado(s) — ${formatMoney(total)}.`,
+        ? `${liquidados} ${plural(liquidados, 'liquidado')} (${formatMoney(total)}), ${falhados} por liquidar.`
+        : `${liquidados} ${plural(liquidados, 'lançamento')} ${plural(liquidados, 'liquidado')} — ${formatMoney(total)}.`,
     );
     setSelected(new Set());
     setTransactions(await fetchTransactions());
@@ -238,7 +238,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Filtrar por movimento ou fornecedor..."
+            placeholder="Filtrar por movimento ou fornecedor…"
             className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
           />
         </div>
@@ -271,24 +271,24 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-3 rounded-xl bg-white border border-rose-200">
-              <p className="text-[9px] uppercase font-bold text-rose-600">Vencido</p>
+              <p className="text-[10px] uppercase font-bold text-rose-600">Vencido</p>
               <p className="font-bold text-rose-700 text-sm mt-0.5">{formatMoney(buckets.vencido.total)}</p>
-              <p className="text-[10px] text-slate-400">{buckets.vencido.count} documento(s)</p>
+              <p className="text-[10px] text-slate-400">{buckets.vencido.count} {plural(buckets.vencido.count, 'documento')}</p>
             </div>
             <div className="p-3 rounded-xl bg-white border border-amber-200">
-              <p className="text-[9px] uppercase font-bold text-amber-600">Vence hoje</p>
+              <p className="text-[10px] uppercase font-bold text-amber-600">Vence hoje</p>
               <p className="font-bold text-amber-700 text-sm mt-0.5">{formatMoney(buckets.hoje.total)}</p>
-              <p className="text-[10px] text-slate-400">{buckets.hoje.count} documento(s)</p>
+              <p className="text-[10px] text-slate-400">{buckets.hoje.count} {plural(buckets.hoje.count, 'documento')}</p>
             </div>
             <div className="p-3 rounded-xl bg-white border border-slate-200">
-              <p className="text-[9px] uppercase font-bold text-slate-500">Próximos 7 dias</p>
+              <p className="text-[10px] uppercase font-bold text-slate-500">Próximos 7 dias</p>
               <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(buckets.semana.total)}</p>
-              <p className="text-[10px] text-slate-400">{buckets.semana.count} documento(s)</p>
+              <p className="text-[10px] text-slate-400">{buckets.semana.count} {plural(buckets.semana.count, 'documento')}</p>
             </div>
             <div className="p-3 rounded-xl bg-white border border-slate-200">
-              <p className="text-[9px] uppercase font-bold text-slate-500">Total em aberto</p>
+              <p className="text-[10px] uppercase font-bold text-slate-500">Total em aberto</p>
               <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(buckets.aberto.total)}</p>
-              <p className="text-[10px] text-slate-400">{buckets.aberto.count} documento(s)</p>
+              <p className="text-[10px] text-slate-400">{buckets.aberto.count} {plural(buckets.aberto.count, 'documento')}</p>
             </div>
           </div>
         </div>
@@ -297,15 +297,15 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
       {/* Totals for what is on screen, and the batch action */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="p-3 rounded-xl bg-white border border-emerald-100">
-          <p className="text-[9px] uppercase font-bold text-emerald-600">Entradas do período</p>
+          <p className="text-[10px] uppercase font-bold text-emerald-600">Entradas do período</p>
           <p className="font-bold text-emerald-700 text-sm mt-0.5">{formatMoney(totals.entradas)}</p>
         </div>
         <div className="p-3 rounded-xl bg-white border border-rose-100">
-          <p className="text-[9px] uppercase font-bold text-rose-600">Saídas do período</p>
+          <p className="text-[10px] uppercase font-bold text-rose-600">Saídas do período</p>
           <p className="font-bold text-rose-700 text-sm mt-0.5">{formatMoney(totals.saidas)}</p>
         </div>
         <div className="p-3 rounded-xl bg-white border border-slate-200">
-          <p className="text-[9px] uppercase font-bold text-slate-500">Resultado do período</p>
+          <p className="text-[10px] uppercase font-bold text-slate-500">Resultado do período</p>
           <p className={`font-bold text-sm mt-0.5 ${
             totals.entradas - totals.saidas < 0 ? 'text-rose-700' : 'text-slate-900'
           }`}>
@@ -313,7 +313,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
           </p>
         </div>
         <div className="p-3 rounded-xl bg-white border border-slate-200">
-          <p className="text-[9px] uppercase font-bold text-slate-500">Ainda em aberto</p>
+          <p className="text-[10px] uppercase font-bold text-slate-500">Ainda em aberto</p>
           <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(totals.aberto)}</p>
           {/* Money that never reaches either side: it goes to the State. */}
           {totals.retido > 0 && (
@@ -330,7 +330,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
 
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs">
-          <span className="font-bold">{selected.size} selecionado(s)</span>
+          <span className="font-bold">{selected.size} {plural(selected.size, 'selecionado')}</span>
           <button
             onClick={settleSelected} disabled={settling}
             className="ml-auto px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 font-bold flex items-center gap-1.5 disabled:opacity-50"
@@ -338,7 +338,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
             {settling ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
             Marcar como liquidado hoje
           </button>
-          <button onClick={() => setSelected(new Set())} className="px-2 py-1.5 rounded-lg hover:bg-white/10">
+          <button aria-label="Limpar seleção" onClick={() => setSelected(new Set())} className="px-2 py-1.5 rounded-lg hover:bg-white/10">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -369,6 +369,9 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                 <tr
                   key={trx.id}
                   onClick={() => router.push(`/financial/cash-flow/${trx.id}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/financial/cash-flow/${trx.id}`); }}
+                  tabIndex={0}
+                  role="link"
                   className="hover:bg-indigo-50/40 transition-colors cursor-pointer font-medium"
                 >
                   <td className="p-3.5" onClick={(e) => e.stopPropagation()}>
@@ -402,7 +405,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                     {trx.type === 'income' ? '+' : '-'}{formatMoney(moves(trx))}
                     {Number(trx.retention_amount ?? 0) > 0 && (
                       <span
-                        className="block text-[9px] font-bold text-amber-700 normal-case"
+                        className="block text-[10px] font-bold text-amber-700 normal-case"
                         title={`Documento de ${formatMoney(Number(trx.gross_amount ?? trx.amount))}, com ${formatMoney(Number(trx.retention_amount))} de retenção na fonte`}
                       >
                         ret. −{formatMoney(Number(trx.retention_amount))}
@@ -435,12 +438,12 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                       <span className="text-slate-300">—</span>
                     )}
                   </td>
-                  <td className={`p-3.5 text-right font-mono text-[11px] hidden lg:table-cell ${
+                  <td className={`p-3.5 text-right tabular-nums text-[11px] hidden lg:table-cell ${
                     (withRunning.get(trx.id) ?? 0) < 0 ? 'text-rose-600 font-bold' : 'text-slate-500'
                   }`}>
                     {formatMoney(withRunning.get(trx.id) ?? 0)}
                   </td>
-                  <td className="p-3.5 text-right font-mono text-[11px] text-slate-500 hidden xl:table-cell">
+                  <td className="p-3.5 text-right tabular-nums text-[11px] text-slate-500 hidden xl:table-cell">
                     {trx.source === 'ai' ? (
                       <span className="flex items-center justify-end gap-1"><Bot className="w-3.5 h-3.5" /> IA</span>
                     ) : (

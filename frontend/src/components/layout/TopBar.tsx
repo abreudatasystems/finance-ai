@@ -21,6 +21,7 @@ import {
   Settings,
   Menu
 } from 'lucide-react';
+import { plural } from '@/services/format';
 
 interface TopBarProps {
   onOpenSearch?: () => void;
@@ -63,7 +64,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
       {/* Left Section: Brand Logo + Company Switcher */}
       <div className="flex items-center gap-3 sm:gap-5 min-w-0">
         {/* Hamburger Menu (Mobile Only) */}
-        <button
+        <button aria-label="Abrir menu"
           onClick={toggleMobileMenu}
           className="md:hidden p-1.5 rounded-lg text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"
         >
@@ -114,7 +115,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
                   <span className="truncate">{comp.name}</span>
                   {/* The role travels with the company: the same login can be
                       owner here and consulta there. */}
-                  <span className="text-[9px] text-neutral-500 font-bold uppercase shrink-0">
+                  <span className="text-[10px] text-neutral-500 font-bold uppercase shrink-0">
                     {comp.role_label || comp.currency}
                   </span>
                 </button>
@@ -154,7 +155,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
           className="flex items-center gap-2 px-2 sm:px-3.5 py-2 rounded-xl border border-neutral-200/80 bg-neutral-50/80 hover:bg-neutral-100/80 text-neutral-400 text-xs transition-colors cursor-pointer"
         >
           <Search className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-neutral-400" />
-          <span className="hidden sm:inline text-neutral-500 font-medium whitespace-nowrap">Pesquisar ou atalhos...</span>
+          <span className="hidden sm:inline text-neutral-500 font-medium whitespace-nowrap">Pesquisar ou atalhos…</span>
           <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-white border border-neutral-200 rounded-md text-neutral-400 font-semibold shadow-2xs ml-2">
             ⌘K
           </kbd>
@@ -164,7 +165,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         <div className="relative">
           <button
             onClick={() => setIsCreateDropdownOpen(!isCreateDropdownOpen)}
-            className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs shadow-xs border border-neutral-900 transition-all cursor-pointer"
+            className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs shadow-xs border border-neutral-900 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4 text-emerald-400" />
             <span className="hidden sm:inline">Novo</span>
@@ -267,7 +268,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         <Link
           href="/alerts"
           className="relative p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer"
-          title={urgentAlerts ? `${urgentAlerts} alerta(s) a precisar de atenção` : 'Alertas'}
+          title={urgentAlerts ? `${urgentAlerts} ${plural(urgentAlerts, 'alerta')} a precisar de atenção` : 'Alertas'}
           aria-label={urgentAlerts ? `Alertas: ${urgentAlerts} a precisar de atenção` : 'Alertas'}
         >
           <Bell className="w-4 h-4" />

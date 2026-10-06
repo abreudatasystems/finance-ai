@@ -36,7 +36,7 @@ from app.services import (
     retentions as retention_service,
 )
 from app.services.vat_engine import compute_vat_position, resolve_period
-from app.core.formatting import eur
+from app.core.formatting import eur, pt_date
 
 CENTS = Decimal("0.01")
 
@@ -242,7 +242,9 @@ def build(db: Session, company_id: str, weeks: int = DEFAULT_WEEKS,
     buckets = []
     balance = opening
     low = {"balance": float(opening), "date": today.isoformat()}
-    negative_from: Optional[str] = None
+    # Already overdrawn counts, even when the week's receipts would close it
+    # positive: the first bill that clears before they arrive bounces.
+    negative_from: Optional[str] = today.isoformat() if opening < 0 else None
 
     for index in range(weeks):
         start = week_start + timedelta(weeks=index)
@@ -314,10 +316,18 @@ def _message(negative_from: Optional[str], low: dict, opening: Decimal,
             "Ainda não há dados para projetar. Comece por indicar o saldo da "
             "conta e registar o primeiro documento."
         )
+    if opening < 0:
+        base = f"A conta já está negativa hoje ({eur(float(opening))})."
+        if overdue_in > 0:
+            base += (
+                f" Há {eur(float(overdue_in))} de faturas já vencidas por cobrar — "
+                "é o caminho mais curto para a repor."
+            )
+        return base
     if negative_from:
         base = (
             f"Com o que está previsto, a conta fica negativa a partir de "
-            f"{negative_from} (mínimo de {eur(low['balance'])})."
+            f"{pt_date(negative_from)} (mínimo de {eur(low['balance'])})."
         )
         if overdue_in > 0:
             base += (
@@ -328,6 +338,6 @@ def _message(negative_from: Optional[str], low: dict, opening: Decimal,
     if _d(low["balance"]) < opening / 4 and opening > 0:
         return (
             f"A conta aguenta, mas desce até {eur(low['balance'])} por volta de "
-            f"{low['date']}. Convém não marcar despesas novas para essa altura."
+            f"{pt_date(low['date'])}. Convém não marcar despesas novas para essa altura."
         )
     return f"Sem apertos à vista: o saldo previsto no fim do período é {eur(float(closing))}."

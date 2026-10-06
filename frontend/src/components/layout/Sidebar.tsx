@@ -118,7 +118,7 @@ export const Sidebar: React.FC = () => {
           <div key={idx} className="space-y-1">
             {/* FIXED HEADER HEIGHT (h-5) */}
             <div className="h-5 flex items-center px-4">
-              <h3 className={`text-[9px] font-bold text-neutral-500 uppercase tracking-widest whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${
+              <h3 className={`text-[10px] font-bold text-neutral-500 uppercase tracking-widest whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${
                 isSidebarCollapsed ? 'opacity-0' : 'opacity-100'
               }`}>
                 {group.group}

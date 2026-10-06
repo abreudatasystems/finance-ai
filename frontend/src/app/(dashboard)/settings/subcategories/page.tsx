@@ -119,7 +119,7 @@ export default function CreateSubcategoryPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">1. Grupo</label>
-                <select
+                <select aria-label="1. Grupo"
                   value={groupId}
                   onChange={(e) => setGroupId(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
@@ -135,7 +135,7 @@ export default function CreateSubcategoryPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">2. Categoria-mãe *</label>
-                <select
+                <select aria-label="2. Categoria-mãe"
                   required
                   value={parentId}
                   onChange={(e) => setParentId(e.target.value)}
@@ -156,7 +156,7 @@ export default function CreateSubcategoryPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">3. Nome da Subcategoria *</label>
-              <input
+              <input aria-label="3. Nome da Subcategoria"
                 type="text"
                 required
                 value={name}
@@ -168,7 +168,7 @@ export default function CreateSubcategoryPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Descrição</label>
-              <textarea
+              <textarea aria-label="Descrição"
                 rows={2}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -182,12 +182,12 @@ export default function CreateSubcategoryPage() {
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                 Palavras-chave da IA (separadas por vírgula)
               </label>
-              <input
+              <input aria-label="Palavras-chave da IA (separadas por vírgula)"
                 type="text"
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
                 placeholder="ex: google, adwords, ads"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 font-mono text-[11px]"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 tabular-nums text-[11px]"
               />
               <p className="text-[10px] text-slate-400 mt-1.5">
                 A IA usa estas palavras para classificar faturas automaticamente nesta subcategoria.
@@ -198,7 +198,7 @@ export default function CreateSubcategoryPage() {
               <button
                 type="submit"
                 disabled={submitting || !parentId || !name.trim()}
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-2 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs flex items-center gap-2 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Criar Subcategoria

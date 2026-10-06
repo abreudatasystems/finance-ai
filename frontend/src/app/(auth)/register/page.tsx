@@ -49,7 +49,7 @@ export default function RegisterPage() {
         <form onSubmit={handleRegister} className="space-y-3.5 text-xs">
           <div className="space-y-1">
             <label className="font-semibold text-neutral-300">O seu Nome</label>
-            <input
+            <input aria-label="O seu Nome"
               type="text"
               required
               value={name}
@@ -61,7 +61,7 @@ export default function RegisterPage() {
 
           <div className="space-y-1">
             <label className="font-semibold text-neutral-300">Nome da Empresa</label>
-            <input
+            <input aria-label="Nome da Empresa"
               type="text"
               required
               value={companyName}
@@ -73,7 +73,7 @@ export default function RegisterPage() {
 
           <div className="space-y-1">
             <label className="font-semibold text-neutral-300">Email Empresarial</label>
-            <input
+            <input aria-label="Email Empresarial"
               type="email"
               required
               value={email}
@@ -85,7 +85,7 @@ export default function RegisterPage() {
 
           <div className="space-y-1">
             <label className="font-semibold text-neutral-300">Palavra-passe</label>
-            <input
+            <input aria-label="Palavra-passe"
               type="password"
               required
               value={password}

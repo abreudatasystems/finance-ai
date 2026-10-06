@@ -6,6 +6,7 @@ import { AccountingExport } from '@/components/exports/AccountingExport';
 import { fetchVatPosition, fetchRealCash } from '@/services/data';
 import { VatPosition, RealCash, VatSide } from '@/types';
 import {Loader2, TrendingUp, TrendingDown, CalendarClock, ShieldCheck, Wallet, AlertTriangle, Info} from 'lucide-react';
+import { formatDate, plural } from '@/services/format';
 
 const SITUACAO: Record<string, { title: string; hint: string; cls: string; bar: string }> = {
   a_entregar: {
@@ -40,7 +41,7 @@ function SideCard({ title, side, icon, tone, formatMoney }: {
         <span className={tone}>{icon}</span> {title}
       </h3>
       <p className="text-[11px] text-slate-400 mb-3">
-        Base tributável {formatMoney(side.base_tributavel)} · {side.num_documentos} documento(s)
+        Base tributável {formatMoney(side.base_tributavel)} · {side.num_documentos} {plural(side.num_documentos, 'documento')}
       </p>
       <div className={`text-2xl font-black mb-3 ${tone}`}>{formatMoney(side.total)}</div>
 
@@ -50,7 +51,7 @@ function SideCard({ title, side, icon, tone, formatMoney }: {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs min-w-[320px]">
             <thead>
-              <tr className="text-[9px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-200">
+              <tr className="text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-200">
                 <th className="py-2">Taxa</th>
                 <th className="py-2 text-right">Base</th>
                 <th className="py-2 text-right">IVA</th>
@@ -169,11 +170,11 @@ export default function VatPage() {
           </div>
 
           <div className="text-right space-y-1.5 text-[11px]">
-            <div className="flex items-center justify-end gap-1.5 text-white/60 font-bold uppercase tracking-wide text-[9px]">
+            <div className="flex items-center justify-end gap-1.5 text-white/60 font-bold uppercase tracking-wide text-[10px]">
               <CalendarClock className="w-3 h-3" /> Prazos legais
             </div>
-            <div className="font-mono">Declaração até <b>{position.prazos.declaracao_ate}</b></div>
-            <div className="font-mono">Pagamento até <b>{position.prazos.pagamento_ate}</b></div>
+            <div className="tabular-nums">Declaração até <b>{formatDate(position.prazos.declaracao_ate)}</b></div>
+            <div className="tabular-nums">Pagamento até <b>{formatDate(position.prazos.pagamento_ate)}</b></div>
           </div>
         </div>
 
@@ -181,15 +182,15 @@ export default function VatPage() {
         {!position.regime.exempt && (
           <div className="mt-5 pt-4 border-t border-white/15 grid grid-cols-3 gap-3 text-center">
             <div>
-              <div className="text-[9px] uppercase tracking-wider text-white/50 font-bold">Liquidado</div>
+              <div className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Liquidado</div>
               <div className="text-base font-bold tabular-nums">{formatMoney(position.iva_liquidado.total)}</div>
             </div>
             <div>
-              <div className="text-[9px] uppercase tracking-wider text-white/50 font-bold">− Dedutível</div>
+              <div className="text-[10px] uppercase tracking-wider text-white/50 font-bold">− Dedutível</div>
               <div className="text-base font-bold tabular-nums">{formatMoney(position.iva_dedutivel.total)}</div>
             </div>
             <div>
-              <div className="text-[9px] uppercase tracking-wider text-white/50 font-bold">= Saldo</div>
+              <div className="text-[10px] uppercase tracking-wider text-white/50 font-bold">= Saldo</div>
               <div className="text-base font-black tabular-nums">{formatMoney(position.apuramento.saldo)}</div>
             </div>
           </div>
@@ -216,7 +217,7 @@ export default function VatPage() {
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200">
               <div className="text-[10px] uppercase tracking-wider text-rose-500 font-bold">− IVA do Estado</div>
               <div className="text-xl font-bold text-rose-700 tabular-nums">{formatMoney(cash.iva_a_entregar)}</div>
-              <div className="text-[10px] text-rose-500 mt-0.5">a pagar até {cash.prazo_pagamento_iva}</div>
+              <div className="text-[10px] text-rose-500 mt-0.5">a pagar até {formatDate(cash.prazo_pagamento_iva)}</div>
             </div>
             <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
               <div className="text-[10px] uppercase tracking-wider text-emerald-600 font-bold">= Dinheiro real</div>

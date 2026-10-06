@@ -23,6 +23,7 @@ import {
   fetchRecurrences, fetchUpcoming, createRecurrence, updateRecurrence,
   deleteRecurrence, runGeneration, skipPeriod, RecurrenceInput,
 } from './api';
+import { formatDate, plural } from '@/services/format';
 
 const FREQUENCIES = [
   { value: 'monthly', label: 'Mensal' },
@@ -136,8 +137,8 @@ export const RecurrencesPanel: React.FC = () => {
           <div className="flex items-center gap-2">
             <Repeat className="w-4 h-4 text-indigo-600" />
             <h3 className="font-bold text-sm text-slate-900">Recorrências</h3>
-            <span className="text-[10px] text-slate-400 font-mono">
-              {rows.filter((r) => r.active).length} ativa(s) · {upcoming.length} por lançar em 90 dias
+            <span className="text-[10px] text-slate-400 tabular-nums">
+              {rows.filter((r) => r.active).length} {plural(rows.filter((r) => r.active).length, 'ativa')} · {upcoming.length} por lançar em 90 dias
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -151,7 +152,7 @@ export const RecurrencesPanel: React.FC = () => {
             </button>
             <button
               onClick={() => setOpen((v) => !v)}
-              className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5"
+              className="px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center gap-1.5"
             >
               {open ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
               {open ? 'Fechar' : 'Nova recorrência'}
@@ -210,12 +211,12 @@ export const RecurrencesPanel: React.FC = () => {
                 <span className="font-bold text-slate-700">Valor (com IVA) *</span>
                 <input required value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal"
                        placeholder="615,00"
-                       className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-100" />
+                       className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white tabular-nums focus:outline-hidden focus:ring-2 focus:ring-indigo-100" />
               </label>
               <label className="space-y-1.5">
                 <span className="font-bold text-slate-700">Taxa de IVA (%)</span>
                 <input value={vatRate} onChange={(e) => setVatRate(e.target.value)} inputMode="decimal"
-                       className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-100" />
+                       className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white tabular-nums focus:outline-hidden focus:ring-2 focus:ring-indigo-100" />
               </label>
               <label className="space-y-1.5">
                 <span className="font-bold text-slate-700">Frequência</span>
@@ -228,7 +229,7 @@ export const RecurrencesPanel: React.FC = () => {
                 <label className="space-y-1.5">
                   <span className="font-bold text-slate-700">Dia do mês</span>
                   <input value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} inputMode="numeric"
-                         className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-100" />
+                         className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white tabular-nums focus:outline-hidden focus:ring-2 focus:ring-indigo-100" />
                   <span className="text-[10px] text-slate-400">Dia 31 num mês curto cai no último dia.</span>
                 </label>
               )}
@@ -246,7 +247,7 @@ export const RecurrencesPanel: React.FC = () => {
               </label>
             </div>
             <button type="submit" disabled={busy}
-                    className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50">
+                    className="px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50">
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               Criar recorrência
             </button>
@@ -277,30 +278,30 @@ export const RecurrencesPanel: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-slate-900 truncate">{rec.name}</span>
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200">
                       {rec.frequency_label}
                     </span>
                     {!rec.active && (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">
                         Em pausa
                       </span>
                     )}
                   </div>
                   <p className="text-[10px] text-slate-500">
                     {rec.category_name || 'Por classificar'}
-                    {rec.proximo_vencimento ? ` · próximo ${rec.proximo_vencimento}` : ' · terminada'}
-                    {rec.occurrences_created > 0 && ` · ${rec.occurrences_created} lançado(s)`}
+                    {rec.proximo_vencimento ? ` · próximo ${formatDate(rec.proximo_vencimento)}` : ' · terminada'}
+                    {rec.occurrences_created > 0 && ` · ${rec.occurrences_created} ${plural(rec.occurrences_created, 'lançado')}`}
                   </p>
                 </div>
 
-                <span className="font-bold font-mono text-slate-900 shrink-0">{formatMoney(rec.amount)}</span>
+                <span className="font-bold tabular-nums text-slate-900 shrink-0">{formatMoney(rec.amount)}</span>
 
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => toggle(rec)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
                           title={rec.active ? 'Pausar' : 'Retomar'}>
                     {rec.active ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                   </button>
-                  <button onClick={() => drop(rec)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Eliminar">
+                  <button aria-label="Eliminar" onClick={() => drop(rec)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Eliminar">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -323,13 +324,13 @@ export const RecurrencesPanel: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-800 truncate">{item.name}</p>
                   <p className="text-[10px] text-slate-500">
-                    {item.period} · vence {item.due_date}{item.category_name ? ` · ${item.category_name}` : ''}
+                    {item.period} · vence {formatDate(item.due_date)}{item.category_name ? ` · ${item.category_name}` : ''}
                   </p>
                 </div>
-                <span className={`font-bold font-mono shrink-0 ${item.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                <span className={`font-bold tabular-nums shrink-0 ${item.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
                   {item.type === 'income' ? '+' : '−'}{formatMoney(item.amount)}
                 </span>
-                <button onClick={() => skip(item)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50"
+                <button aria-label="Saltar este período" onClick={() => skip(item)} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50"
                         title="Saltar este período">
                   <SkipForward className="w-3.5 h-3.5" />
                 </button>

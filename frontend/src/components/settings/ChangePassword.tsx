@@ -12,6 +12,7 @@
 import React, { useState } from 'react';
 import { KeyRound, Loader2, Check, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { changePassword } from '@/services/api';
+import { plural } from '@/services/format';
 
 const MIN_LENGTH = 10;
 
@@ -79,7 +80,7 @@ export const ChangePassword: React.FC = () => {
         </div>
         {tooShort && (
           <span className="text-[10px] text-amber-700">
-            Faltam {MIN_LENGTH - next.length} caractere(s).
+            Faltam {MIN_LENGTH - next.length} {plural(MIN_LENGTH - next.length, 'caractere')}.
           </span>
         )}
       </label>
@@ -109,7 +110,7 @@ export const ChangePassword: React.FC = () => {
 
       <button
         type="submit" disabled={busy || mismatch || tooShort}
-        className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50"
+        className="px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50"
       >
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
         Alterar

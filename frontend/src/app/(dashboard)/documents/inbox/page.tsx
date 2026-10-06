@@ -11,6 +11,7 @@ import {
 import { AIDocument, AIApprovalItem } from '@/types';
 import { InvoiceDocumentViewer } from '@/components/documents/InvoiceDocumentViewer';
 import {UploadCloud, CheckCircle2, FileText, Building2, Calendar, Layers, Check, RefreshCw, Zap, Download, AlertTriangle} from 'lucide-react';
+import { plural } from '@/services/format';
 
 export default function DocumentInspectorPage() {
   const { formatMoney, setPageHeader } = useApp();
@@ -40,7 +41,7 @@ export default function DocumentInspectorPage() {
   }, []);
 
   useEffect(() => {
-    setPageHeader('Automação de Faturas (OCR)', 'Visualizador completo com validação fiscal');
+    setPageHeader('Automação (OCR)', 'Envie faturas e recibos — a IA lê-os e propõe o lançamento');
   }, [setPageHeader]);
 
   useEffect(() => {
@@ -175,7 +176,7 @@ export default function DocumentInspectorPage() {
         >
           <span className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
-            {approvals.length} documento(s) à espera de aprovação
+            {approvals.length} {plural(approvals.length, 'documento')} à espera de aprovação
           </span>
           <span className="font-bold underline">Rever agora</span>
         </Link>
@@ -189,14 +190,14 @@ export default function DocumentInspectorPage() {
           <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Faturas Inspecionadas</span>
-              <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono font-bold">
+              <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded tabular-nums font-bold">
                 {documents.length}
               </span>
             </div>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-bold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-lg text-[11px] font-bold shadow-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
             >
               {isUploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5 text-white" />}
               <span>Adicionar Faturas</span>
@@ -223,7 +224,7 @@ export default function DocumentInspectorPage() {
                   </div>
 
                   <div className="mt-1 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500 truncate">{doc.extracted_supplier || 'A processar...'}</span>
+                    <span className="text-slate-500 truncate">{doc.extracted_supplier || 'A processar…'}</span>
                     <span className="font-extrabold text-slate-900">
                       {doc.extracted_amount ? formatMoney(doc.extracted_amount) : '---'}
                     </span>
@@ -314,7 +315,7 @@ export default function DocumentInspectorPage() {
                       placeholder="Emissor Desconhecido" 
                       className="font-extrabold text-slate-900 text-sm bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 -mx-1 w-full outline-none transition-colors" 
                     />
-                    <div className="text-slate-500 font-mono text-[11px] flex items-center justify-between mt-1">
+                    <div className="text-slate-500 tabular-nums text-[11px] flex items-center justify-between mt-1">
                       <div className="flex items-center gap-1 w-[70%]">
                         <span>NIF:</span>
                         <input 
@@ -339,7 +340,7 @@ export default function DocumentInspectorPage() {
                         type="date" 
                         value={selectedDoc.extracted_date || ''} 
                         onChange={(e) => setSelectedDoc({...selectedDoc, extracted_date: e.target.value})} 
-                        className="font-semibold text-slate-800 font-mono bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 -mx-1 w-full outline-none transition-colors" 
+                        className="font-semibold text-slate-800 tabular-nums bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 -mx-1 w-full outline-none transition-colors" 
                       />
                     </div>
                     <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
@@ -350,7 +351,7 @@ export default function DocumentInspectorPage() {
                         type="date" 
                         value={selectedDoc.extracted_due_date || ''} 
                         onChange={(e) => setSelectedDoc({...selectedDoc, extracted_due_date: e.target.value})} 
-                        className="font-semibold text-slate-800 font-mono bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 -mx-1 w-full outline-none transition-colors" 
+                        className="font-semibold text-slate-800 tabular-nums bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 -mx-1 w-full outline-none transition-colors" 
                       />
                     </div>
                   </div>
@@ -360,7 +361,7 @@ export default function DocumentInspectorPage() {
                     <span className="text-[10px] uppercase font-bold text-indigo-900">Decomposição Financeira &amp; IVA</span>
                     <div className="grid grid-cols-3 gap-1.5 text-center">
                       <div className="bg-white p-2 rounded-lg border border-indigo-100 flex flex-col">
-                        <span className="text-[9px] text-slate-400 uppercase font-bold block mb-1">Base Líquida</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Base Líquida</span>
                         <div className="flex items-center text-xs font-bold text-slate-800 justify-center">
                           <span>€</span>
                           <input 
@@ -373,7 +374,7 @@ export default function DocumentInspectorPage() {
                         </div>
                       </div>
                       <div className="bg-white p-2 rounded-lg border border-indigo-100 flex flex-col">
-                        <span className="text-[9px] text-slate-400 uppercase font-bold flex items-center justify-center gap-0.5 mb-1">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center justify-center gap-0.5 mb-1">
                           IVA (
                           <input 
                             type="number" 
@@ -395,7 +396,7 @@ export default function DocumentInspectorPage() {
                         </div>
                       </div>
                       <div className="bg-white p-2 rounded-lg border border-indigo-200 flex flex-col">
-                        <span className="text-[9px] text-indigo-600 uppercase font-bold block mb-1">Total Bruto</span>
+                        <span className="text-[10px] text-indigo-600 uppercase font-bold block mb-1">Total Bruto</span>
                         <div className="flex items-center text-xs font-extrabold text-indigo-700 justify-center">
                           <span>€</span>
                           <input 
@@ -437,7 +438,7 @@ export default function DocumentInspectorPage() {
                       <button
                         onClick={handleApprove}
                         disabled={isApproving}
-                        className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        className="w-full py-3 bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                       >
                         {isApproving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4 text-emerald-400" />}
                         <span>Aprovar &amp; Lançar no Fluxo de Caixa</span>

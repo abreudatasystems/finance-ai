@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { createCompany } from '@/services/data';
+import { plural } from '@/services/format';
 
 const LEGAL_FORMS = ['Unipessoal Lda', 'Lda', 'SA', 'ENI', 'Associação', 'Outra'];
 
@@ -69,12 +70,12 @@ export default function CompaniesPage() {
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-indigo-600" />
             <h3 className="font-bold text-sm text-slate-900">Empresas deste login</h3>
-            <span className="text-[10px] text-slate-400 font-mono">{companies.length}</span>
+            <span className="text-[10px] text-slate-400 tabular-nums">{companies.length}</span>
           </div>
           {canCreateCompanies && (
             <button
               onClick={() => setOpen((v) => !v)}
-              className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs"
+              className="px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" /> Nova empresa
             </button>
@@ -152,7 +153,7 @@ export default function CompaniesPage() {
             </div>
             <button
               type="submit" disabled={busy}
-              className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50"
+              className="px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50"
             >
               {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               Criar empresa
@@ -174,7 +175,7 @@ export default function CompaniesPage() {
                     <p className="text-[10px] text-slate-500 font-mono mt-0.5">{comp.nif}</p>
                   </div>
                   {active && (
-                    <span className="text-[9px] font-bold uppercase bg-indigo-600 text-white px-2 py-0.5 rounded shrink-0">
+                    <span className="text-[10px] font-bold uppercase bg-indigo-600 text-white px-2 py-0.5 rounded shrink-0">
                       Ativa
                     </span>
                   )}
@@ -185,7 +186,7 @@ export default function CompaniesPage() {
                     <ShieldCheck className="w-3 h-3 text-slate-400" /> {comp.role_label || comp.role}
                   </span>
                   <span className="flex items-center gap-1">
-                    <Users className="w-3 h-3 text-slate-400" /> {comp.member_count ?? 1} membro(s)
+                    <Users className="w-3 h-3 text-slate-400" /> {comp.member_count ?? 1} {plural(comp.member_count ?? 1, 'membro')}
                   </span>
                 </div>
 

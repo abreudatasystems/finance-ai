@@ -18,6 +18,7 @@ import {
 import { useApp } from '@/context/AppContext';
 import { Alert, AlertSeverity, AlertsPayload } from './types';
 import { fetchAlerts } from './api';
+import { formatDate, plural } from '@/services/format';
 
 const TONE: Record<AlertSeverity, { box: string; icon: React.ReactNode; label: string }> = {
   danger: {
@@ -76,13 +77,13 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
           <AlertTriangle className="w-4 h-4 text-indigo-600" />
           <h3 className="font-bold text-sm text-slate-900">A precisar de atenção</h3>
           {!data.resumo.tudo_em_dia && (
-            <span className="text-[10px] text-slate-400 font-mono">
-              {data.resumo.criticos > 0 && `${data.resumo.criticos} crítico(s) · `}
-              {data.resumo.avisos} aviso(s)
+            <span className="text-[10px] text-slate-400 tabular-nums">
+              {data.resumo.criticos > 0 && `${data.resumo.criticos} ${plural(data.resumo.criticos, 'crítico')} · `}
+              {data.resumo.avisos} {plural(data.resumo.avisos, 'aviso')}
             </span>
           )}
         </div>
-        <button onClick={load} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" title="Verificar de novo">
+        <button aria-label="Verificar de novo" onClick={load} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" title="Verificar de novo">
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -144,10 +145,10 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
                             <span className="truncate">
                               {String(item.description || item.name || '—')}
                               {item.entity_name ? ` · ${item.entity_name}` : ''}
-                              {item.due_date ? ` · vence ${item.due_date}` : ''}
-                              {item.periodos ? ` · ${item.periodos} período(s)` : ''}
+                              {item.due_date ? ` · vence ${formatDate(item.due_date)}` : ''}
+                              {item.periodos ? ` · ${item.periodos} ${plural(Number(item.periodos), 'período')}` : ''}
                             </span>
-                            <span className="font-mono font-bold shrink-0">
+                            <span className="tabular-nums font-bold shrink-0">
                               {formatMoney(Number(item.outstanding ?? item.amount ?? 0))}
                             </span>
                           </li>
@@ -157,7 +158,7 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
                   </div>
 
                   {alert.amount > 0 && (
-                    <span className="font-bold font-mono text-slate-900 shrink-0">
+                    <span className="font-bold tabular-nums text-slate-900 shrink-0">
                       {formatMoney(alert.amount)}
                     </span>
                   )}

@@ -34,7 +34,7 @@ from sqlalchemy.orm import Session
 
 from app.catalog import retentions as catalog
 from app.models.models import Entity, Transaction
-from app.core.formatting import eur
+from app.core.formatting import eur, pt_date
 
 CENTS = Decimal("0.01")
 
@@ -301,11 +301,11 @@ def _message(owed: Decimal, credit: Decimal, due_on: str, today: date) -> str:
         if due_on < today.isoformat():
             parts.append(
                 f"Há {eur(float(owed))} de retenções por entregar ao Estado e o "
-                f"prazo era {due_on}."
+                f"prazo era {pt_date(due_on)}."
             )
         else:
             parts.append(
-                f"Há {eur(float(owed))} de retenções a entregar ao Estado até {due_on}."
+                f"Há {eur(float(owed))} de retenções a entregar ao Estado até {pt_date(due_on)}."
             )
     if credit > 0:
         parts.append(

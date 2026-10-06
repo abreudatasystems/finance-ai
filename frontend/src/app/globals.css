@@ -58,3 +58,50 @@ nextjs-portal,
     animation-duration: 0.01ms;
   }
 }
+
+/* ---- Accessibility & consistency (applies app-wide) ---- */
+
+html {
+  color-scheme: light;
+}
+
+/* Keyboard users must see where they are. Most controls strip the browser
+   outline (`outline-none`) and only style :focus for the mouse, so the ring
+   comes back here for keyboard focus only — unlayered so utilities cannot
+   remove it. */
+:where(a, button, summary, [role="button"], [tabindex]:not([tabindex="-1"]), input[type="checkbox"], input[type="radio"]):focus-visible {
+  outline: 2px solid #6366f1 !important;
+  outline-offset: 2px;
+}
+
+/* Figures line up in columns and don't jump while they update. */
+td,
+th,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+a,
+button,
+[role="button"],
+label,
+select {
+  touch-action: manipulation;
+}
+
+/* Native selects keep the app's colours on Windows high-contrast/dark. */
+select {
+  background-color: #fff;
+  color: #0f172a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

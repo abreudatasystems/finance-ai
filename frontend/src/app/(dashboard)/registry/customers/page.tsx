@@ -25,7 +25,7 @@ export default function CustomersPage() {
   }, []);
 
   useEffect(() => {
-    setPageHeader('Gestão de Clientes', 'Cadastro de clientes para emissão e reconciliação automática de recebimentos');
+    setPageHeader('Clientes', 'A quem fatura, e quanto cada um ainda deve');
   }, [setPageHeader]);
 
   const handleCustomerCreated = (newCust: Customer) => {
@@ -47,7 +47,7 @@ export default function CustomersPage() {
       <div className="flex justify-end pb-3">
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"
+          className="px-4 py-2 bg-neutral-950 hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"
         >
           <Plus className="w-4 h-4 text-emerald-400" />
           <span>Novo Cliente</span>
@@ -74,6 +74,9 @@ export default function CustomersPage() {
                 <tr 
                   key={c.id} 
                   onClick={() => router.push(`/registry/customers/${c.id}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/registry/customers/${c.id}`); }}
+                  tabIndex={0}
+                  role="link"
                   className="hover:bg-neutral-50/60 transition-colors cursor-pointer"
                 >
                   <td className="py-3.5 px-4 font-bold text-neutral-900">
@@ -99,7 +102,7 @@ export default function CustomersPage() {
                       <span>{c.email || 'Sem email'}</span>
                     </div>
                   </td>
-                  <td className="py-3.5 px-4 text-neutral-600 font-mono">
+                  <td className="py-3.5 px-4 text-neutral-600 tabular-nums">
                     <div className="flex items-center gap-1.5">
                       <Phone className="w-3.5 h-3.5 text-neutral-400" />
                       <span>{c.phone || 'Sem contacto'}</span>
@@ -109,7 +112,7 @@ export default function CustomersPage() {
                     +{formatMoney(c.total_revenue)}
                   </td>
                   <td className="py-3.5 px-4 text-right">
-                    <button
+                    <button aria-label="Eliminar Cliente"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(c.id);

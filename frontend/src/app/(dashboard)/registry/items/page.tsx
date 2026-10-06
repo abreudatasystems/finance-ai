@@ -49,7 +49,7 @@ export default function ItemsPage() {
       <div className="flex justify-end pb-3">
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"
+          className="px-4 py-2 bg-neutral-950 hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"
         >
           <Plus className="w-4 h-4 text-emerald-400" />
           <span>Novo Item</span>
@@ -99,7 +99,7 @@ export default function ItemsPage() {
                       {p.kind === 'service' ? 'Serviço' : 'Produto'}
                     </span>
                   </td>
-                  <td className="py-3.5 px-4 font-mono text-neutral-600">
+                  <td className="py-3.5 px-4 tabular-nums text-neutral-600">
                     {p.ean || '-'}
                   </td>
                   <td className="py-3.5 px-4 text-neutral-600">
@@ -114,11 +114,11 @@ export default function ItemsPage() {
                   <td className="py-3.5 px-4 text-right font-bold text-indigo-600">
                     <div className="flex flex-col items-end">
                       <span>{formatMoney(p.price_1)}</span>
-                      {p.price_includes_vat && <span className="text-[9px] text-neutral-400 font-medium">c/ IVA</span>}
+                      {p.price_includes_vat && <span className="text-[10px] text-neutral-400 font-medium">c/ IVA</span>}
                     </div>
                   </td>
                   <td className="py-3.5 px-4 text-right">
-                    <button
+                    <button aria-label="Eliminar Item"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(p.id);

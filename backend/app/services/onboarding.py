@@ -32,6 +32,8 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.formatting import plural
+
 from app.models.models import (
     PLACEHOLDER_NIF, BankAccount, Company, Entity, Payment, Recurrence, Transaction,
     UserMembership,
@@ -181,14 +183,17 @@ def _message(essential_missing: list, missing: list) -> str:
         return "Está tudo configurado. Os números do painel são de confiança."
     if essential_missing:
         first = essential_missing[0]
+        count = len(essential_missing)
         return (
-            f"Faltam {len(essential_missing)} passo(s) essencial(is) — comece por "
-            f"«{first['titulo'].lower()}». Até lá, os valores de caixa e de IVA "
+            f"{plural(count, 'Falta', 'Faltam')} {count} "
+            f"{plural(count, 'passo essencial', 'passos essenciais')} — comece por "
+            f"«{first['titulo']}». Até lá, os valores de caixa e de IVA "
             "ainda não refletem a realidade da empresa."
         )
+    count = len(missing)
     return (
-        f"O essencial está feito. Faltam {len(missing)} passo(s) que tornam as "
-        "previsões mais certeiras."
+        f"O essencial está feito. {plural(count, 'Falta', 'Faltam')} {count} "
+        f"{plural(count, 'passo')} que tornam as previsões mais certeiras."
     )
 
 

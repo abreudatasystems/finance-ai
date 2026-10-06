@@ -22,7 +22,7 @@ from app.models.models import (
 )
 from app.services import recurrences as recurrence_service
 from app.services.vat_engine import compute_vat_position, resolve_period
-from app.core.formatting import eur, pt_date
+from app.core.formatting import eur, plural, pt_date
 
 CENTS = Decimal("0.01")
 
@@ -97,7 +97,7 @@ def overdue_payables(db: Session, company_id: str, today: date) -> Optional[dict
     total = sum((_d(t.outstanding_amount) for t in rows), Decimal("0.00"))
     return _alert(
         "contas_vencidas", "danger",
-        f"{len(rows)} conta(s) por pagar já vencida(s)",
+        f"{len(rows)} {plural(len(rows), 'conta')} por pagar já {plural(len(rows), 'vencida')}",
         f"Estão {eur(total)} por liquidar com o prazo ultrapassado. A mais antiga venceu a {pt_date(rows[0].due_date)}.",
         count=len(rows), amount=float(total),
         action="/financial/cash-flow?tab=open&dir=expense",
@@ -116,7 +116,7 @@ def payables_due_soon(db: Session, company_id: str, today: date) -> Optional[dic
     total = sum((_d(t.outstanding_amount) for t in rows), Decimal("0.00"))
     return _alert(
         "contas_a_vencer", "warning",
-        f"{len(rows)} conta(s) a vencer nos próximos {DUE_SOON_DAYS} dias",
+        f"{len(rows)} {plural(len(rows), 'conta')} a vencer nos próximos {DUE_SOON_DAYS} dias",
         f"{eur(total)} a pagar até {pt_date(horizon)}.",
         count=len(rows), amount=float(total),
         action="/financial/cash-flow?tab=open&dir=expense",
@@ -134,7 +134,7 @@ def overdue_receivables(db: Session, company_id: str, today: date) -> Optional[d
     total = sum((_d(t.outstanding_amount) for t in rows), Decimal("0.00"))
     return _alert(
         "recebimentos_vencidos", "danger",
-        f"{len(rows)} recebimento(s) em atraso",
+        f"{len(rows)} {plural(len(rows), 'recebimento')} em atraso",
         f"{eur(total)} que já deviam ter entrado. O mais antigo venceu a {pt_date(rows[0].due_date)}.",
         count=len(rows), amount=float(total),
         action="/financial/cash-flow?tab=open&dir=income",
@@ -174,7 +174,7 @@ def vat_deadline(db: Session, company_id: str, today: date) -> Optional[dict]:
         )
     return _alert(
         "iva_a_pagar", "warning",
-        f"IVA de {position['period']['label']} a pagar em {days_left} dia(s)",
+        f"IVA de {position['period']['label']} a pagar em {days_left} {plural(days_left, 'dia')}",
         f"{eur(due)} a entregar até {pt_date(deadline)}. Declaração até "
         f"{pt_date(position['prazos']['declaracao_ate'])}.",
         amount=due, action="/fiscal/vat", action_label="Ver apuramento",
@@ -200,7 +200,7 @@ def retention_deadline(db: Session, company_id: str, today: date) -> Optional[di
         periods = ", ".join(d["periodo"] for d in late[:3])
         return _alert(
             "retencoes_em_atraso", "danger",
-            f"Retenções na fonte fora de prazo ({len(late)} mês/meses)",
+            f"Retenções na fonte fora de prazo ({len(late)} {plural(len(late), 'mês', 'meses')})",
             f"{eur(total)} de {periods} deviam ter sido entregues ao Estado.",
             amount=round(total, 2),
             action="/fiscal/retentions", action_label="Ver retenções",
@@ -212,7 +212,7 @@ def retention_deadline(db: Session, company_id: str, today: date) -> Optional[di
         return None
     return _alert(
         "retencoes_a_entregar", "warning",
-        f"Retenções de {soonest['periodo']} a entregar em {days_left} dia(s)",
+        f"Retenções de {soonest['periodo']} a entregar em {days_left} {plural(days_left, 'dia')}",
         f"{eur(soonest['valor'])} a entregar ao Estado até {pt_date(soonest['ate'])}.",
         amount=soonest["valor"],
         action="/fiscal/retentions", action_label="Ver retenções",
@@ -234,7 +234,7 @@ def pending_approvals(db: Session, company_id: str, today: date) -> Optional[dic
         description += f" {len(low)} com confiança baixa."
     return _alert(
         "aprovacoes_pendentes", "warning",
-        f"{len(rows)} documento(s) por aprovar",
+        f"{len(rows)} {plural(len(rows), 'documento')} por aprovar",
         description,
         count=len(rows), amount=float(total),
         action="/documents/approvals", action_label="Rever agora",
@@ -257,7 +257,7 @@ def stale_reconciliation(db: Session, company_id: str, today: date) -> Optional[
     total = sum((_d(r.amount).copy_abs() for r in rows), Decimal("0.00"))
     return _alert(
         "conciliacao_atrasada", "warning",
-        f"{len(rows)} movimento(s) bancário(s) por conciliar há mais de {STALE_RECONCILIATION_DAYS} dias",
+        f"{len(rows)} {plural(len(rows), 'movimento bancário', 'movimentos bancários')} por conciliar há mais de {STALE_RECONCILIATION_DAYS} dias",
         f"{eur(total)} de movimentos que ainda não foram ligados a nenhum lançamento.",
         count=len(rows), amount=float(total),
         action="/financial/bank-reconciliation", action_label="Conciliar",
@@ -287,7 +287,7 @@ def recurrences_behind(db: Session, company_id: str, today: date) -> Optional[di
     total = sum(p["periodos"] * p["amount"] for p in pending)
     return _alert(
         "recorrencias_em_falta", "info",
-        f"{len(pending)} recorrência(s) com períodos por lançar",
+        f"{len(pending)} {plural(len(pending), 'recorrência')} com períodos por lançar",
         f"{eur(total)} em lançamentos que já venceram e ainda não foram gerados.",
         count=sum(p["periodos"] for p in pending), amount=total,
         action="/financial/recurrences", action_label="Gerar em falta",
@@ -309,7 +309,7 @@ def unclassified(db: Session, company_id: str, today: date) -> Optional[dict]:
         return None
     return _alert(
         "por_classificar", "info",
-        f"{len(rows)} lançamento(s) por classificar",
+        f"{len(rows)} {plural(len(rows), 'lançamento')} por classificar",
         "Sem categoria, não entram nos relatórios por rubrica nem no razão com conta SNC.",
         count=len(rows),
         amount=float(sum((_d(t.amount) for t in rows), Decimal("0.00"))),
@@ -332,7 +332,7 @@ def unreconciled_payments(db: Session, company_id: str, today: date) -> Optional
     total = sum((_d(p.amount) for p in old), Decimal("0.00"))
     return _alert(
         "pagamentos_sem_extrato", "info",
-        f"{len(old)} pagamento(s) sem confirmação no extrato",
+        f"{len(old)} {plural(len(old), 'pagamento')} sem confirmação no extrato",
         f"{eur(total)} registados como movimentados mas ainda não encontrados no banco.",
         count=len(old), amount=float(total),
         action="/financial/bank-reconciliation", action_label="Conciliar",

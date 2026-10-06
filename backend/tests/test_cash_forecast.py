@@ -180,3 +180,19 @@ def test_a_viewer_cannot_settle(client, tenant):
                            headers={"Authorization": f"Bearer {token}"},
                            json={"transaction_ids": [trx["id"]]})
     assert response.status_code == 403
+
+
+def test_an_account_already_overdrawn_is_not_told_all_is_well(tenant):
+    # Paid out 1 000 € more than came in: the account is negative today, even
+    # if an overdue invoice "lands" this week and closes the week positive.
+    bill = tenant.book("expense", 1000.00, date="2026-08-20")
+    tenant.post(f"/api/v1/transactions/{bill['id']}/payments",
+                {"amount": 1000.00, "payment_date": "2026-08-20"})
+    tenant.book("income", 5000.00, date="2026-07-01", due_date="2026-07-31",
+                paid=False, category=tenant.category("income"))
+    forecast = _forecast(tenant)
+    assert forecast["saldo_inicial"] < 0
+    assert forecast["resumo"]["aperta"] is True
+    assert forecast["fica_negativo_em"] == TODAY
+    assert "já está negativa hoje" in forecast["resumo"]["mensagem"]
+    assert "Sem apertos" not in forecast["resumo"]["mensagem"]

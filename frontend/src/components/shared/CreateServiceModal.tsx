@@ -104,7 +104,7 @@ export const CreateServiceModal: React.FC<CreateServiceModalProps> = ({ onClose,
             type="submit"
             form={FORM_ID}
             disabled={submitting}
-            className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+            className="flex-1 py-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
           >
             {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Guardar Serviço
@@ -126,7 +126,7 @@ export const CreateServiceModal: React.FC<CreateServiceModalProps> = ({ onClose,
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Código *</label>
-                <input
+                <input aria-label="Código"
                   type="text"
                   required
                   autoFocus
@@ -138,7 +138,7 @@ export const CreateServiceModal: React.FC<CreateServiceModalProps> = ({ onClose,
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Unidade Base</label>
-                <select
+                <select aria-label="Unidade Base"
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
@@ -153,7 +153,7 @@ export const CreateServiceModal: React.FC<CreateServiceModalProps> = ({ onClose,
             
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Descrição *</label>
-              <input
+              <input aria-label="Descrição"
                 type="text"
                 required
                 value={description}
@@ -166,7 +166,7 @@ export const CreateServiceModal: React.FC<CreateServiceModalProps> = ({ onClose,
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Família / Categoria</label>
-                <input
+                <input aria-label="Família / Categoria"
                   type="text"
                   value={family}
                   onChange={(e) => setFamily(e.target.value)}
@@ -176,7 +176,7 @@ export const CreateServiceModal: React.FC<CreateServiceModalProps> = ({ onClose,
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Grupo de Serviço</label>
-                <select
+                <select aria-label="Grupo de Serviço"
                   value={serviceGroup}
                   onChange={(e) => setServiceGroup(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"

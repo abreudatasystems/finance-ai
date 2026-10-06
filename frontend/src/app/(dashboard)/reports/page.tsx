@@ -67,7 +67,7 @@ export default function ReportsPage() {
   }, [year]);
 
   useEffect(() => {
-    setPageHeader('Relatórios Financeiros & Exportação', 'Análise consolidada do desempenho financeiro, IVA e exportação SAF-T (PT)');
+    setPageHeader('Relatórios', 'Receitas e despesas do ano, resumo de IVA e exportação SAF-T');
   }, [setPageHeader]);
 
   const totalReceitas = reportData.reduce((sum, d) => sum + d.Receitas, 0);
@@ -123,7 +123,7 @@ export default function ReportsPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportCsv}
-            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>Exportar CSV / Excel</span>
@@ -132,7 +132,7 @@ export default function ReportsPage() {
           <button
             onClick={handleSaftExport}
             disabled={isExporting}
-            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+            className="px-3.5 py-1.5 bg-neutral-950 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
           >
             {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             <span>SAF-T (PT) XML</span>

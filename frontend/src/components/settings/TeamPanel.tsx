@@ -26,6 +26,7 @@ import {
   resendInvitation, updateMemberRole, removeMember, fetchMemberActivity,
 } from '@/services/data';
 import { API_BASE } from '@/services/api';
+import { formatDate, formatDateTime, plural } from '@/services/format';
 
 /** What each role may do, in the words the user sees. */
 const ROLES: { value: UserRole; label: string; hint: string }[] = [
@@ -187,14 +188,14 @@ export const TeamPanel: React.FC = () => {
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-indigo-600" />
             <h3 className="font-bold text-sm text-slate-900">Equipa de {currentCompany?.name || 'a empresa'}</h3>
-            <span className="text-[10px] text-slate-400 font-mono">
-              {members.length} membro(s){invites.length ? ` · ${invites.length} convite(s) por aceitar` : ''}
+            <span className="text-[10px] text-slate-400 tabular-nums">
+              {members.length} {plural(members.length, 'membro')}{invites.length ? ` · ${invites.length} ${plural(invites.length, 'convite')} por aceitar` : ''}
             </span>
           </div>
           {canManage && (
             <button
               onClick={() => setInviteOpen((v) => !v)}
-              className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs"
+              className="px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs"
             >
               {inviteOpen ? <X className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
               {inviteOpen ? 'Fechar' : 'Convidar pessoa'}
@@ -248,7 +249,7 @@ export const TeamPanel: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 type="submit" disabled={sending}
-                className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50"
+                className="px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50"
               >
                 {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
                 Gerar convite
@@ -273,7 +274,7 @@ export const TeamPanel: React.FC = () => {
                 <div key={inv.id} className="px-4 py-2.5 flex flex-wrap items-center gap-2 justify-between">
                   <div className="min-w-0">
                     <span className="font-semibold text-slate-800">{inv.email}</span>
-                    <span className={`ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${roleStyle(inv.role)}`}>
+                    <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${roleStyle(inv.role)}`}>
                       {inv.role_label}
                     </span>
                     <p className="text-[10px] text-slate-500 mt-0.5">
@@ -297,7 +298,7 @@ export const TeamPanel: React.FC = () => {
                       {copied === inv.token ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                       {copied === inv.token ? 'Copiado' : 'Copiar link'}
                     </button>
-                    <button
+                    <button aria-label="Cancelar convite"
                       onClick={() => revoke(inv.id)}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                       title="Cancelar convite"
@@ -326,15 +327,15 @@ export const TeamPanel: React.FC = () => {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-slate-800">{m.name}</span>
-                        {m.is_you && <span className="text-[9px] font-bold uppercase bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Você</span>}
+                        {m.is_you && <span className="text-[10px] font-bold uppercase bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Você</span>}
                         {m.account_type === 'invited' && (
-                          <span className="text-[9px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">
                             Convidado
                           </span>
                         )}
                       </div>
                       <p className="text-[10px] text-slate-500 mt-0.5">
-                        {m.email} · entrou a {fmtDate(m.joined_at)} · {m.movimentos} movimento(s)
+                        {m.email} · entrou a {fmtDate(m.joined_at)} · {m.movimentos} {plural(m.movimentos, 'movimento')}
                       </p>
                     </div>
 
@@ -361,7 +362,7 @@ export const TeamPanel: React.FC = () => {
                       )}
 
                       {(canManage || m.is_you) && (
-                        <button
+                        <button aria-label="Eliminar"
                           onClick={() => drop(m)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                           title={m.is_you ? 'Sair da empresa' : 'Remover da equipa'}
@@ -383,17 +384,17 @@ export const TeamPanel: React.FC = () => {
                         <div className="pt-3 space-y-3">
                           <div className="grid grid-cols-3 gap-2">
                             <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                              <p className="text-[9px] uppercase font-bold text-slate-400">Lançamentos</p>
+                              <p className="text-[10px] uppercase font-bold text-slate-400">Lançamentos</p>
                               <p className="font-bold text-slate-900 text-sm">{activity.lancamentos}</p>
                             </div>
                             <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                              <p className="text-[9px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                              <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
                                 <ArrowUpRight className="w-3 h-3 text-emerald-600" /> Entradas
                               </p>
                               <p className="font-bold text-emerald-700 text-sm">{formatMoney(activity.total_entradas)}</p>
                             </div>
                             <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                              <p className="text-[9px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                              <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
                                 <ArrowDownRight className="w-3 h-3 text-rose-600" /> Saídas
                               </p>
                               <p className="font-bold text-rose-700 text-sm">{formatMoney(activity.total_saidas)}</p>
@@ -406,8 +407,8 @@ export const TeamPanel: React.FC = () => {
                             <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
                               {activity.movimentos.map((t) => (
                                 <div key={t.id} className="px-3 py-2 flex items-center justify-between border-b border-slate-100 last:border-0">
-                                  <span className="truncate text-slate-700">{t.date} · {t.description}</span>
-                                  <span className={`font-bold font-mono ${t.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                  <span className="truncate text-slate-700">{formatDate(t.date)} · {t.description}</span>
+                                  <span className={`font-bold tabular-nums ${t.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
                                     {t.type === 'income' ? '+' : '−'}{formatMoney(t.amount)}
                                   </span>
                                 </div>
@@ -417,11 +418,11 @@ export const TeamPanel: React.FC = () => {
 
                           {activity.acoes.length > 0 && (
                             <div>
-                              <p className="text-[9px] uppercase font-bold text-slate-400 mb-1">Últimas ações</p>
+                              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Últimas ações</p>
                               <ul className="space-y-1">
                                 {activity.acoes.slice(0, 6).map((a, idx) => (
                                   <li key={idx} className="text-[10px] text-slate-600">
-                                    <span className="font-mono text-slate-400">{a.timestamp.slice(0, 16).replace('T', ' ')}</span>
+                                    <span className="tabular-nums text-slate-400">{formatDateTime(a.timestamp)}</span>
                                     {' · '}{a.description}
                                   </li>
                                 ))}

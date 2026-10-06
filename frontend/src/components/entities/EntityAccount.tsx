@@ -16,6 +16,7 @@ import {
 import Link from 'next/link';
 import { EntityStatement } from './types';
 import { fetchEntityStatement } from './api';
+import { formatDate } from '@/services/format';
 
 interface Props {
   entityId: string;
@@ -71,7 +72,7 @@ export const EntityAccount: React.FC<Props> = ({ entityId, formatMoney, focus = 
         <div className="flex items-center gap-2">
           <Scale className="w-4 h-4 text-indigo-600" />
           <h3 className="font-bold text-sm text-slate-900">Conta-corrente</h3>
-          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200">
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-600 border border-slate-200">
             {e.papel}
           </span>
         </div>
@@ -85,7 +86,7 @@ export const EntityAccount: React.FC<Props> = ({ entityId, formatMoney, focus = 
       <div className="grid sm:grid-cols-3 gap-3">
         {showBuy && (
           <div className="p-3 rounded-xl border border-rose-100 bg-rose-50/40">
-            <p className="text-[9px] uppercase font-bold text-rose-600 flex items-center gap-1">
+            <p className="text-[10px] uppercase font-bold text-rose-600 flex items-center gap-1">
               <ArrowDownLeft className="w-3 h-3" /> Compras
             </p>
             <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(e.compras.faturado)}</p>
@@ -96,7 +97,7 @@ export const EntityAccount: React.FC<Props> = ({ entityId, formatMoney, focus = 
         )}
         {showSell && (
           <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
-            <p className="text-[9px] uppercase font-bold text-emerald-600 flex items-center gap-1">
+            <p className="text-[10px] uppercase font-bold text-emerald-600 flex items-center gap-1">
               <ArrowUpRight className="w-3 h-3" /> Vendas
             </p>
             <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(e.vendas.faturado)}</p>
@@ -106,7 +107,7 @@ export const EntityAccount: React.FC<Props> = ({ entityId, formatMoney, focus = 
           </div>
         )}
         <div className="p-3 rounded-xl border border-slate-200 bg-slate-50">
-          <p className="text-[9px] uppercase font-bold text-slate-500">Saldo</p>
+          <p className="text-[10px] uppercase font-bold text-slate-500">Saldo</p>
           <p className={`font-bold text-sm mt-0.5 ${e.saldo > 0 ? 'text-rose-700' : e.saldo < 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
             {formatMoney(Math.abs(e.saldo))}
           </p>
@@ -134,18 +135,18 @@ export const EntityAccount: React.FC<Props> = ({ entityId, formatMoney, focus = 
                   {m.document_number ? `${m.document_number} · ` : ''}{m.description}
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  {m.date}{m.due_date ? ` · vence ${m.due_date}` : ''}{m.category_name ? ` · ${m.category_name}` : ''}
+                  {formatDate(m.date)}{m.due_date ? ` · vence ${formatDate(m.due_date)}` : ''}{m.category_name ? ` · ${m.category_name}` : ''}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className={`font-bold font-mono ${m.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                <p className={`font-bold tabular-nums ${m.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
                   {m.type === 'income' ? '+' : '−'}{formatMoney(m.amount)}
                 </p>
                 {m.outstanding_amount > 0 && (
-                  <p className="text-[9px] text-slate-400 font-mono">falta {formatMoney(m.outstanding_amount)}</p>
+                  <p className="text-[10px] text-slate-400 tabular-nums">falta {formatMoney(m.outstanding_amount)}</p>
                 )}
               </div>
-              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border shrink-0 ${statusStyle(m.payment_status)}`}>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border shrink-0 ${statusStyle(m.payment_status)}`}>
                 {statusLabel(m.payment_status)}
               </span>
             </Link>

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { AccountingPackage, fetchAccountingPackage, downloadCsv } from './api';
+import { formatDate, plural } from '@/services/format';
 
 /** The last few periods, in the shapes the backend accepts. */
 const periodOptions = () => {
@@ -109,21 +110,21 @@ export const AccountingExport: React.FC = () => {
           {/* Control figures: tie the file to a total before sending it. */}
           <div className="grid sm:grid-cols-3 gap-3">
             <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
-              <p className="text-[9px] uppercase font-bold text-emerald-600">Receita</p>
+              <p className="text-[10px] uppercase font-bold text-emerald-600">Receita</p>
               <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(data.totais.receita_total)}</p>
               <p className="text-[10px] text-slate-600 mt-1">
                 base {formatMoney(data.totais.receita_base)} · IVA {formatMoney(data.totais.receita_iva)}
               </p>
             </div>
             <div className="p-3 rounded-xl border border-rose-100 bg-rose-50/40">
-              <p className="text-[9px] uppercase font-bold text-rose-600">Despesa</p>
+              <p className="text-[10px] uppercase font-bold text-rose-600">Despesa</p>
               <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(data.totais.despesa_total)}</p>
               <p className="text-[10px] text-slate-600 mt-1">
                 base {formatMoney(data.totais.despesa_base)} · IVA {formatMoney(data.totais.despesa_iva)}
               </p>
             </div>
             <div className="p-3 rounded-xl border border-slate-200 bg-slate-50">
-              <p className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1">
+              <p className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
                 <Landmark className="w-3 h-3" /> IVA do período
               </p>
               <p className={`font-bold text-sm mt-0.5 ${data.apuramento.a_entregar > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
@@ -131,20 +132,20 @@ export const AccountingExport: React.FC = () => {
               </p>
               <p className="text-[10px] text-slate-600 mt-1">
                 {data.apuramento.a_entregar > 0 ? 'a entregar' : data.apuramento.a_recuperar > 0 ? 'a recuperar' : 'neutro'}
-                {' · '}pagar até {data.prazos.pagamento_ate}
+                {' · '}pagar até {formatDate(data.prazos.pagamento_ate)}
               </p>
             </div>
           </div>
 
           <p className="text-[11px] text-slate-500">
-            {data.periodo.label} · {data.totais.linhas} linha(s) de razão · {data.empresa.nome} ({data.empresa.nif}).
+            {data.periodo.label} · {data.totais.linhas} {plural(data.totais.linhas, 'linha')} de razão · {data.empresa.nome} ({data.empresa.nif}).
             Uma fatura detalhada por linhas é exportada linha a linha, cada uma com a sua taxa e conta SNC.
           </p>
 
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => download('ledger')} disabled={busy !== null || data.totais.linhas === 0}
-              className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50"
+              className="px-3 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50"
             >
               {busy === 'ledger' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
               Razão do período (CSV)

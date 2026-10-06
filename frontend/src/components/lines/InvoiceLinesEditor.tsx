@@ -21,6 +21,7 @@ import {
   fetchLines, replaceLines, clearLines, fetchCatalogue, fetchVatRates, LinePayload,
 } from './api';
 import { ItemPicker } from './ItemPicker';
+import { plural } from '@/services/format';
 
 interface Props {
   transactionId: string;
@@ -188,8 +189,8 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
           <Rows3 className="w-4 h-4 text-indigo-600" />
           <h3 className="font-bold text-sm text-slate-900">Linhas do documento</h3>
           {saved.length > 0 && (
-            <span className="text-[10px] text-slate-400 font-mono">
-              {saved.length} linha(s) · {byRate.length} taxa(s)
+            <span className="text-[10px] text-slate-400 tabular-nums">
+              {saved.length} {plural(saved.length, 'linha')} · {byRate.length} {plural(byRate.length, 'taxa')}
             </span>
           )}
         </div>
@@ -203,7 +204,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
             )}
             <button
               onClick={() => { setEditing((v) => !v); if (!editing && rows.length === 0) setRows([emptyRow()]); }}
-              className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5"
+              className="px-2.5 py-1.5 rounded-lg bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[11px] flex items-center gap-1.5"
             >
               {editing ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
               {editing ? 'Cancelar' : saved.length ? 'Editar linhas' : 'Detalhar por linhas'}
@@ -228,7 +229,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
       {/* --------------------------------------------------------- editing */}
       {editing ? (
         <div className="space-y-2">
-          <div className="hidden sm:grid grid-cols-12 gap-2 px-1 text-[9px] uppercase font-bold text-slate-400">
+          <div className="hidden sm:grid grid-cols-12 gap-2 px-1 text-[10px] uppercase font-bold text-slate-400">
             <span className="col-span-5">Artigo e descrição</span>
             <span className="col-span-2">Qtd.</span>
             <span className="col-span-2">Preço unit.</span>
@@ -257,21 +258,21 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
                 <input
                   value={row.quantity} onChange={(e) => update(index, { quantity: e.target.value })}
                   inputMode="decimal" placeholder="1"
-                  className="col-span-4 sm:col-span-2 px-2.5 py-2 rounded-lg border border-slate-200 font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
+                  className="col-span-4 sm:col-span-2 px-2.5 py-2 rounded-lg border border-slate-200 tabular-nums focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
                 />
                 <input
                   value={row.unit_price} onChange={(e) => update(index, { unit_price: e.target.value })}
                   inputMode="decimal" placeholder="0,00"
-                  className="col-span-4 sm:col-span-2 px-2.5 py-2 rounded-lg border border-slate-200 font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
+                  className="col-span-4 sm:col-span-2 px-2.5 py-2 rounded-lg border border-slate-200 tabular-nums focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
                 />
                 <div className="col-span-3 sm:col-span-2 flex items-center gap-1">
                   <input
                     value={row.vat_rate} onChange={(e) => update(index, { vat_rate: e.target.value })}
                     inputMode="decimal" list="taxas-iva"
-                    className="w-full px-2.5 py-2 rounded-lg border border-slate-200 font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
+                    className="w-full px-2.5 py-2 rounded-lg border border-slate-200 tabular-nums focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
                   />
                 </div>
-                <button
+                <button aria-label="Remover linha"
                   onClick={() => setRows((prev) => prev.filter((_, i) => i !== index))}
                   className="col-span-1 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 justify-self-end"
                   title="Remover linha"
@@ -280,7 +281,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
                 </button>
               </div>
 
-              <div className="flex items-center justify-between px-1 text-[10px] text-slate-500 font-mono">
+              <div className="flex items-center justify-between px-1 text-[10px] text-slate-500 tabular-nums">
                 <span>
                   base {formatMoney(preview.lines[index]?.net || 0)} + IVA {formatMoney(preview.lines[index]?.vat || 0)}
                 </span>
@@ -309,7 +310,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
           </button>
 
           {/* -------------------------------------------------- live totals */}
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1 font-mono text-[11px]">
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1 tabular-nums text-[11px]">
             {preview.buckets.map(([rate, b]) => (
               <div key={rate} className="flex justify-between text-slate-600">
                 <span>IVA {rate}% sobre {formatMoney(b.base)}</span>
@@ -330,7 +331,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
 
           <button
             onClick={save} disabled={busy}
-            className="w-full px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="w-full px-3 py-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Guardar linhas e recalcular o lançamento
@@ -354,7 +355,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
                     )}
                     {line.description}
                   </p>
-                  <p className="text-[10px] text-slate-500 font-mono">
+                  <p className="text-[10px] text-slate-500 tabular-nums">
                     {line.quantity != null && line.unit_price != null && (
                       <>{line.quantity} × {formatMoney(line.unit_price)} · </>
                     )}
@@ -364,13 +365,13 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
                     <p className="text-[10px] text-amber-700">{line.vat_exemption_reason}</p>
                   )}
                 </div>
-                <span className="font-bold font-mono text-slate-900 shrink-0">{formatMoney(line.gross_amount)}</span>
+                <span className="font-bold tabular-nums text-slate-900 shrink-0">{formatMoney(line.gross_amount)}</span>
               </div>
             ))}
           </div>
 
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1 font-mono text-[11px]">
-            <p className="text-[9px] uppercase font-bold text-slate-400 font-sans mb-1">Resumo por taxa</p>
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1 tabular-nums text-[11px]">
+            <p className="text-[10px] uppercase font-bold text-slate-400 font-sans mb-1">Resumo por taxa</p>
             {byRate.map((b) => (
               <div key={b.vat_rate} className="flex justify-between text-slate-600">
                 <span>{b.vat_rate}% · base {formatMoney(b.base_tributavel)}</span>

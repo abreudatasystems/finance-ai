@@ -7,6 +7,7 @@ import { apiPost } from '@/services/api';
 import { fetchCategories } from '@/services/data';
 import { Category } from '@/types';
 import { SideDrawer } from './SideDrawer';
+import { formatDate, plural } from '@/services/format';
 
 
 interface CreateTransactionModalProps {
@@ -186,7 +187,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
               type="submit"
               form={FORM_ID}
               disabled={submitting}
-              className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+              className="flex-1 py-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
             >
               {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Confirmar Lançamento
@@ -213,7 +214,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-70"
+            className="w-full py-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-70"
           >
             Simular Processamento IA
           </button>
@@ -244,7 +245,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-slate-600">Estado do Movimento</label>
-            <select
+            <select aria-label="Estado do Movimento"
               value={paymentStatus}
               onChange={(e) => setPaymentStatus(e.target.value as 'paid' | 'pending')}
               className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 font-semibold"
@@ -289,7 +290,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-slate-600">Fornecedor / Cliente</label>
-              <input
+              <input aria-label="Fornecedor / Cliente"
                 type="text"
                 value={entityName}
                 onChange={(e) => setEntityName(e.target.value)}
@@ -300,7 +301,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
 
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-slate-600">Valor ({currencySymbol}) *</label>
-              <input
+              <input aria-label="Valor ()"
                 type="number"
                 step="0.01"
                 required
@@ -331,7 +332,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                 <option value="6">6%</option>
                 <option value="13">13%</option>
                 <option value="23">23%</option>
-                <option value="custom">Outra taxa...</option>
+                <option value="custom">Outra taxa…</option>
               </select>
 
               {customVat && (
@@ -356,15 +357,15 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             )}
             <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 rounded-xl text-center border border-slate-200/80">
               <div>
-                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Líquido</div>
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Líquido</div>
                 <div className="text-xs font-bold text-slate-800">{currencySymbol}{breakdown.net.toFixed(2)}</div>
               </div>
               <div>
-                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">IVA</div>
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">IVA</div>
                 <div className="text-xs font-bold text-slate-800">{currencySymbol}{breakdown.vat.toFixed(2)}</div>
               </div>
               <div>
-                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Total</div>
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Total</div>
                 <div className="text-xs font-black text-indigo-700">{currencySymbol}{breakdown.gross.toFixed(2)}</div>
               </div>
             </div>
@@ -395,7 +396,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                 <option value="4">4 parcelas (4x)</option>
                 <option value="6">6 parcelas (6x)</option>
                 <option value="12">12 parcelas (12x)</option>
-                <option value="custom">Personalizado...</option>
+                <option value="custom">Personalizado…</option>
               </select>
               {customInstallment && (
                 <input
@@ -418,15 +419,15 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                 </div>
                 {schedulePreview.map((p) => (
                   <div key={p.number} className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500 font-mono">
-                      {p.number}/{installmentCount} · {p.due_date}
+                    <span className="text-slate-500 tabular-nums">
+                      {p.number}/{installmentCount} · {formatDate(p.due_date)}
                     </span>
                     <span className="font-bold text-slate-800">{currencySymbol}{p.amount.toFixed(2)}</span>
                   </div>
                 ))}
                 {installmentCount > 6 && (
                   <p className="text-[10px] text-slate-400 pt-0.5">
-                    …e mais {installmentCount - 6} parcela(s). A última absorve o arredondamento para somar exatamente o total.
+                    …e mais {installmentCount - 6} {plural(installmentCount - 6, 'parcela')}. A última absorve o arredondamento para somar exatamente o total.
                   </p>
                 )}
               </div>
@@ -505,22 +506,22 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
 
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-semibold text-slate-600">Etiquetas (separadas por vírgula)</label>
-                    <input
+                    <input aria-label="Etiquetas (separadas por vírgula)"
                       type="text"
                       value={tags}
                       onChange={(e) => setTags(e.target.value)}
-                      placeholder="Projeto X, Urgente..."
+                      placeholder="Projeto X, Urgente…"
                       className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
                     />
                   </div>
                 </div>
                 <div>
                   <label className="text-[11px] font-semibold text-slate-600">Observações Internas (Notas)</label>
-                  <textarea
+                  <textarea aria-label="Observações Internas (Notas)"
                     rows={2}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Detalhes adicionais do lançamento..."
+                    placeholder="Detalhes adicionais do lançamento…"
                     className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 resize-none"
                   />
                 </div>

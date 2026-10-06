@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.models.models import Transaction
 from app.services import financials
-from app.core.formatting import eur
+from app.core.formatting import eur, plural
 
 
 def _to_float(val) -> float:
@@ -223,14 +223,14 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
         total_overdue = sum(_to_float(t.outstanding_amount or t.amount) for t in overdue_payables)
         key_insights.append({
             "type": "danger",
-            "text": f"{len(overdue_payables)} fatura(s) a pagar vencida(s) ({eur(total_overdue)})"
+            "text": f"{len(overdue_payables)} {plural(len(overdue_payables), 'fatura')} a pagar {plural(len(overdue_payables), 'vencida')} ({eur(total_overdue)})"
         })
 
     if overdue_receivables:
         total_overdue_recv = sum(_to_float(t.outstanding_amount or t.amount) for t in overdue_receivables)
         key_insights.append({
             "type": "warning",
-            "text": f"{len(overdue_receivables)} fatura(s) a receber vencida(s) ({eur(total_overdue_recv)})"
+            "text": f"{len(overdue_receivables)} {plural(len(overdue_receivables), 'fatura')} a receber {plural(len(overdue_receivables), 'vencida')} ({eur(total_overdue_recv)})"
         })
 
     if operating_margin > 20:

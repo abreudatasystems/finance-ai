@@ -22,6 +22,7 @@ import {
 import { useApp } from '@/context/AppContext';
 import { EntityYearRow, PendingDelivery, RetentionPosition, RetentionSide } from './types';
 import { fetchByEntity, fetchPending, fetchPosition } from './api';
+import { formatDate } from '@/services/format';
 
 const MONTHS = [
   'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -64,7 +65,7 @@ const SidePanel: React.FC<{
 
     {side.por_taxa.length ? (
       <table className="w-full text-left">
-        <thead className="text-[9px] uppercase text-slate-500 font-bold">
+        <thead className="text-[10px] uppercase text-slate-500 font-bold">
           <tr>
             <th className="py-1.5">Tipo</th>
             <th className="py-1.5 text-right">Base</th>
@@ -78,7 +79,7 @@ const SidePanel: React.FC<{
                 <span className="font-semibold text-slate-800">{group.label}</span>
                 {/* The article, so the figure can be checked rather than trusted. */}
                 {group.base_legal && (
-                  <span className="block text-[9px] text-slate-400">{group.base_legal}</span>
+                  <span className="block text-[10px] text-slate-400">{group.base_legal}</span>
                 )}
               </td>
               <td className="py-1.5 text-right text-slate-600">{formatMoney(group.base)}</td>
@@ -147,7 +148,7 @@ export const RetentionsView: React.FC = () => {
             {options.map((p) => <option key={p} value={p}>{periodLabel(p)}</option>)}
           </select>
         </div>
-        <button onClick={load} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+        <button aria-label="Atualizar" onClick={load} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -174,7 +175,7 @@ export const RetentionsView: React.FC = () => {
             {late.map((row) => (
               <li key={row.periodo} className="flex items-center justify-between py-1.5">
                 <span className="font-semibold text-slate-700">{periodLabel(row.periodo)}</span>
-                <span className="text-[10px] text-slate-400">prazo {row.ate}</span>
+                <span className="text-[10px] text-slate-400">prazo {formatDate(row.ate)}</span>
                 <span className="font-bold text-rose-700">{formatMoney(row.valor)}</span>
               </li>
             ))}
@@ -207,7 +208,7 @@ export const RetentionsView: React.FC = () => {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-slate-50 text-[9px] uppercase text-slate-500 font-bold">
+            <thead className="bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
               <tr>
                 <th className="px-4 py-2.5">Data</th>
                 <th className="px-4 py-2.5">Entidade</th>
@@ -223,7 +224,7 @@ export const RetentionsView: React.FC = () => {
                 .sort((a, b) => (a.data < b.data ? 1 : -1))
                 .map((row) => (
                   <tr key={row.id} className="hover:bg-slate-50/60">
-                    <td className="px-4 py-2.5 text-slate-500 font-mono text-[10px]">{row.data}</td>
+                    <td className="px-4 py-2.5 text-slate-500 tabular-nums text-[10px]">{formatDate(row.data)}</td>
                     <td className="px-4 py-2.5">
                       <span className="font-semibold text-slate-800">{row.entidade}</span>
                       <span className="block text-[10px] text-slate-400">
@@ -272,7 +273,7 @@ export const RetentionsView: React.FC = () => {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-slate-50 text-[9px] uppercase text-slate-500 font-bold">
+              <thead className="bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
                 <tr>
                   <th className="px-4 py-2.5">Entidade</th>
                   <th className="px-4 py-2.5">NIF</th>

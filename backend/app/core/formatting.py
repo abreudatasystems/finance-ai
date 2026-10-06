@@ -49,3 +49,8 @@ def pt_date(value: Union[str, date, None]) -> str:
     except ValueError:
         return text
     return parsed.strftime("%d/%m/%Y")
+
+
+def plural(count: int, singular: str, plural_form: str | None = None) -> str:
+    """``plural(1, "conta")`` → ``conta``; ``plural(3, "conta")`` → ``contas``."""
+    return singular if count == 1 else (plural_form or f"{singular}s")

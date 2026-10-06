@@ -75,7 +75,7 @@ const MarginTile: React.FC<{ label: string; value: number; hint: string; previou
 
   return (
     <div className="p-4 rounded-xl bg-white border border-slate-200">
-      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">{label}</p>
+      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{label}</p>
       <p className={`text-2xl font-black mt-1 ${tone}`}>{pct1(value)}%</p>
       <p className="text-[10px] text-slate-500 mt-1">
         <span className={tone}>{state}</span>
@@ -136,7 +136,7 @@ export const IncomeStatementView: React.FC = () => {
             <FileText className="w-4 h-4 text-indigo-600" />
             <h3 className="font-bold text-sm text-slate-900">Demonstração de Resultados</h3>
             {data && (
-              <span className="text-[10px] text-slate-400 font-mono">
+              <span className="text-[10px] text-slate-400 tabular-nums">
                 {data.empresa.nome} · {data.periodo.label}
               </span>
             )}
@@ -194,7 +194,7 @@ export const IncomeStatementView: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px]">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[9px] uppercase tracking-wider font-bold text-slate-500">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider font-bold text-slate-500">
                     <th className="text-left p-3">Rubrica</th>
                     <th className="text-right p-3 w-28">Período</th>
                     <th className="text-right p-3 w-20">% receita</th>
@@ -209,7 +209,7 @@ export const IncomeStatementView: React.FC = () => {
                     return (
                       <React.Fragment key={section.id}>
                         <tr className="bg-slate-50/60">
-                          <td colSpan={5} className="px-3 py-1.5 text-[9px] uppercase font-bold text-slate-400 tracking-wider">
+                          <td colSpan={5} className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
                             {section.title}
                           </td>
                         </tr>
@@ -232,7 +232,7 @@ export const IncomeStatementView: React.FC = () => {
                                       )}
                                     </span>
                                     {line.contas.length > 0 && (
-                                      <span className="text-[9px] font-mono text-slate-400">
+                                      <span className="text-[10px] font-mono text-slate-400">
                                         conta{line.contas.length > 1 ? 's' : ''} {line.contas.join(', ')}
                                       </span>
                                     )}
@@ -241,18 +241,18 @@ export const IncomeStatementView: React.FC = () => {
                                     )}
                                   </button>
                                 </td>
-                                <td className={`p-3 text-right font-mono font-bold ${
+                                <td className={`p-3 text-right tabular-nums font-bold ${
                                   line.nature === 'income' ? 'text-slate-900' : 'text-slate-700'
                                 }`}>
                                   {line.nature === 'expense' && line.amount > 0 ? '−' : ''}{formatMoney(line.amount)}
                                 </td>
-                                <td className="p-3 text-right font-mono text-slate-400">
+                                <td className="p-3 text-right tabular-nums text-slate-400">
                                   {revenue > 0 ? `${pct1(share(line.amount))}%` : '—'}
                                 </td>
-                                <td className="p-3 text-right font-mono text-slate-400">
+                                <td className="p-3 text-right tabular-nums text-slate-400">
                                   {formatMoney(line.anterior)}
                                 </td>
-                                <td className="p-3 text-right font-mono font-semibold">
+                                <td className="p-3 text-right tabular-nums font-semibold">
                                   <Variation value={line.variacao} pct={line.variacao_pct} format={formatMoney} />
                                 </td>
                               </tr>
@@ -264,7 +264,7 @@ export const IncomeStatementView: React.FC = () => {
                                       {line.detalhe.map((item) => (
                                         <li key={item.categoria} className="flex justify-between text-[11px] text-slate-600">
                                           <span>{item.categoria}</span>
-                                          <span className="font-mono">{formatMoney(item.amount)}</span>
+                                          <span className="tabular-nums">{formatMoney(item.amount)}</span>
                                         </li>
                                       ))}
                                     </ul>
@@ -293,18 +293,18 @@ export const IncomeStatementView: React.FC = () => {
                                   </span>
                                 )}
                               </td>
-                              <td className={`p-3 text-right font-mono font-black ${
+                              <td className={`p-3 text-right tabular-nums font-black ${
                                 row.emphasis ? (negative ? 'text-rose-300' : 'text-emerald-300') : 'text-slate-900'
                               }`}>
                                 {formatMoney(row.amount)}
                               </td>
-                              <td className={`p-3 text-right font-mono ${row.emphasis ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <td className={`p-3 text-right tabular-nums ${row.emphasis ? 'text-slate-400' : 'text-slate-500'}`}>
                                 {revenue > 0 ? `${pct1(share(row.amount))}%` : '—'}
                               </td>
-                              <td className={`p-3 text-right font-mono ${row.emphasis ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <td className={`p-3 text-right tabular-nums ${row.emphasis ? 'text-slate-400' : 'text-slate-500'}`}>
                                 {formatMoney(row.anterior)}
                               </td>
-                              <td className="p-3 text-right font-mono font-semibold">
+                              <td className="p-3 text-right tabular-nums font-semibold">
                                 <Variation value={row.variacao} pct={row.variacao_pct} format={formatMoney} />
                               </td>
                             </tr>
@@ -327,19 +327,19 @@ export const IncomeStatementView: React.FC = () => {
             <p className="text-[11px] text-slate-600">{data.ponte_caixa.explicacao}</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-3 rounded-xl border border-slate-200">
-                <p className="text-[9px] uppercase font-bold text-slate-400">Resultado do período</p>
+                <p className="text-[10px] uppercase font-bold text-slate-400">Resultado do período</p>
                 <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(data.ponte_caixa.resultado)}</p>
               </div>
               <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
-                <p className="text-[9px] uppercase font-bold text-emerald-600">Ainda por receber</p>
+                <p className="text-[10px] uppercase font-bold text-emerald-600">Ainda por receber</p>
                 <p className="font-bold text-emerald-700 text-sm mt-0.5">{formatMoney(data.ponte_caixa.a_receber)}</p>
               </div>
               <div className="p-3 rounded-xl border border-rose-100 bg-rose-50/40">
-                <p className="text-[9px] uppercase font-bold text-rose-600">Ainda por pagar</p>
+                <p className="text-[10px] uppercase font-bold text-rose-600">Ainda por pagar</p>
                 <p className="font-bold text-rose-700 text-sm mt-0.5">{formatMoney(data.ponte_caixa.a_pagar)}</p>
               </div>
               <div className="p-3 rounded-xl border border-slate-200 bg-slate-50">
-                <p className="text-[9px] uppercase font-bold text-slate-500">Saldo em conta</p>
+                <p className="text-[10px] uppercase font-bold text-slate-500">Saldo em conta</p>
                 <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(data.ponte_caixa.saldo_em_conta)}</p>
               </div>
             </div>

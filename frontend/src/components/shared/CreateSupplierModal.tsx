@@ -150,7 +150,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
             type="submit"
             form={FORM_ID}
             disabled={submitting}
-            className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+            className="flex-1 py-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
           >
             {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Guardar Fornecedor
@@ -171,20 +171,20 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nome do Fornecedor *</label>
-              <input
+              <input aria-label="Nome do Fornecedor"
                 type="text"
                 required
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Microsoft, Empresa XPTO Lda..."
+                placeholder="Ex: Microsoft, Empresa XPTO Lda…"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">NIF / NIPC</label>
-                <input
+                <input aria-label="NIF / NIPC"
                   type="text"
                   value={nif}
                   onChange={(e) => setNif(e.target.value)}
@@ -194,7 +194,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Website</label>
-                <input
+                <input aria-label="Website"
                   type="text"
                   value={website}
                   onChange={(e) => setWebsite(e.target.value)}
@@ -206,7 +206,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email Principal</label>
-                <input
+                <input aria-label="Email Principal"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -216,7 +216,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Telefone Fixo</label>
-                <input
+                <input aria-label="Telefone Fixo"
                   type="text"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -228,7 +228,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nome do Contacto</label>
-                <input
+                <input aria-label="Nome do Contacto"
                   type="text"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
@@ -238,7 +238,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Telemóvel Contacto</label>
-                <input
+                <input aria-label="Telemóvel Contacto"
                   type="text"
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
@@ -254,7 +254,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
            <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nome do Endereço (ex: Sede, Armazém)</label>
-              <input
+              <input aria-label="Nome do Endereço (ex: Sede, Armazém)"
                 type="text"
                 value={addressName}
                 onChange={(e) => setAddressName(e.target.value)}
@@ -264,18 +264,18 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Morada Completa</label>
-              <textarea
+              <textarea aria-label="Morada Completa"
                 rows={2}
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Rua da Empresa, Nº 123..."
+                placeholder="Rua da Empresa, Nº 123…"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 resize-none"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Código Postal</label>
-                <input
+                <input aria-label="Código Postal"
                   type="text"
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value)}
@@ -285,7 +285,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Localidade / Cidade</label>
-                <input
+                <input aria-label="Localidade / Cidade"
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
@@ -296,7 +296,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">País</label>
-              <select
+              <select aria-label="País"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
@@ -315,7 +315,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
            <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Sub-conta (Plano de Contas)</label>
-              <input
+              <input aria-label="Sub-conta (Plano de Contas)"
                 type="text"
                 value={subAccount}
                 onChange={(e) => setSubAccount(e.target.value)}
@@ -325,7 +325,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Categoria Padrão (IA)</label>
-              <select
+              <select aria-label="Categoria Padrão (IA)"
                 value={defaultCategory}
                 onChange={(e) => setDefaultCategory(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
@@ -377,17 +377,17 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
                 rows={2}
                 value={documentObservations}
                 onChange={(e) => setDocumentObservations(e.target.value)}
-                placeholder="Texto que aparecerá impresso nos documentos..."
+                placeholder="Texto que aparecerá impresso nos documentos…"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 resize-none"
               />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Observações Internas</label>
-              <textarea
+              <textarea aria-label="Observações Internas"
                 rows={2}
                 value={internalObservations}
                 onChange={(e) => setInternalObservations(e.target.value)}
-                placeholder="Informações apenas para uso interno..."
+                placeholder="Informações apenas para uso interno…"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 resize-none"
               />
             </div>
