@@ -37,33 +37,26 @@ export const Sidebar: React.FC = () => {
         { label: 'Fluxo de Caixa', href: '/financial/cash-flow', icon: Wallet },
         { label: 'Contas a Pagar', href: '/financial/payables', icon: Building2 },
         { label: 'Contas a Receber', href: '/financial/receivables', icon: HandCoins },
-        { label: 'Cobranças', href: '/financial/collections', icon: History },
-        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 },
-        { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat },
-        { label: 'Desempenho', href: '/financial/performance', icon: Target }
+        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 }
       ]
     },
     {
       group: 'INTELIGÊNCIA ARTIFICIAL',
       items: [
-        { label: 'Automação (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true },
-        { label: 'Aprovações', href: '/documents/approvals', icon: CheckCheck }
+        { label: 'Automação (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true }
       ]
     },
     {
       group: 'RELATÓRIOS & FISCALIDADE',
       items: [
         { label: 'Relatórios', href: '/reports', icon: BarChart3 },
-        { label: 'Demonstração de Resultados', href: '/reports/dre', icon: FileText },
-        { label: 'Apuramento do IVA', href: '/fiscal/vat', icon: Scale },
-        { label: 'Retenções na Fonte', href: '/fiscal/retentions', icon: Landmark }
+        { label: 'Demonstração de Resultados', href: '/reports/dre', icon: FileText }
       ]
     },
     {
       group: 'REGISTOS',
       items: [
-        { label: 'Produtos', href: '/registry/products', icon: Package },
-        { label: 'Serviços', href: '/registry/services', icon: Briefcase },
+        { label: 'Produtos e Serviços', href: '/registry/items', icon: Package },
         { label: 'Fornecedores', href: '/registry/suppliers', icon: Building2 },
         { label: 'Clientes', href: '/registry/customers', icon: Users }
       ]

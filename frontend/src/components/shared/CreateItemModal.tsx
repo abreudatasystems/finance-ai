@@ -6,21 +6,42 @@ import { Item } from '@/types';
 import { apiPost } from '@/services/api';
 import { SideDrawer } from './SideDrawer';
 
-interface CreateProductModalProps {
+interface CreateItemModalProps {
+  items: Item[];
   onClose: () => void;
   onCreated: (newItem: Item) => void;
 }
 
-const FORM_ID = 'create-product-form';
+const FORM_ID = 'create-item-form';
 type Tab = 'geral' | 'precos';
 
-export const CreateProductModal: React.FC<CreateProductModalProps> = ({ onClose, onCreated }) => {
+export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose, onCreated }) => {
   const [activeTab, setActiveTab] = useState<Tab>('geral');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Campos Gerais
-  const [code, setCode] = useState('');
+  const generateCode = (k: 'product' | 'service') => {
+    const prefix = k === 'product' ? 'PROD' : 'SERV';
+    const sameKindItems = items.filter(i => i.kind === k && i.code.startsWith(`${prefix}-`));
+    let max = 0;
+    for (const item of sameKindItems) {
+      const numPart = item.code.split('-')[1];
+      if (numPart && !isNaN(Number(numPart))) {
+        max = Math.max(max, Number(numPart));
+      }
+    }
+    return `${prefix}-${String(max + 1).padStart(3, '0')}`;
+  };
+
+  const [kind, setKind] = useState<'product' | 'service'>('product');
+  const [code, setCode] = useState(() => generateCode('product'));
+  
+  const handleKindChange = (newKind: 'product' | 'service') => {
+    setKind(newKind);
+    setCode(generateCode(newKind));
+  };
+
   const [description, setDescription] = useState('');
   const [family, setFamily] = useState('');
   const [unit, setUnit] = useState('UN');
@@ -40,7 +61,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({ onClose,
     setError(null);
 
     const payload = {
-      kind: 'product',
+      kind,
       code: code.trim(),
       description: description.trim(),
       family: family.trim() || undefined,
@@ -77,7 +98,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({ onClose,
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${activeTab === 'geral' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
       >
         <Package className="w-3.5 h-3.5" />
-        Dados do Produto
+        Dados do {kind === 'product' ? 'Produto' : 'Serviço'}
       </button>
       <button
         type="button"
@@ -92,8 +113,8 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({ onClose,
 
   return (
     <SideDrawer
-      title="Cadastrar Novo Produto"
-      subtitle="Registe uma nova mercadoria ou produto"
+      title="Cadastrar Novo Item"
+      subtitle="Registe um novo produto ou serviço no seu catálogo"
       onClose={onClose}
       footer={
         <>
@@ -111,7 +132,7 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({ onClose,
             className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
           >
             {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Guardar Produto
+            Guardar Item
           </button>
         </>
       }
@@ -122,34 +143,51 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({ onClose,
         </p>
       )}
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600 mb-6">
+        <button
+          type="button"
+          onClick={() => handleKindChange('product')}
+          className={`py-2 rounded-lg transition-colors ${kind === 'product' ? 'bg-white text-indigo-600 font-bold shadow-sm border border-slate-200/50' : 'hover:bg-slate-200/50'}`}
+        >
+          Produto
+        </button>
+        <button
+          type="button"
+          onClick={() => handleKindChange('service')}
+          className={`py-2 rounded-lg transition-colors ${kind === 'service' ? 'bg-white text-amber-600 font-bold shadow-sm border border-slate-200/50' : 'hover:bg-slate-200/50'}`}
+        >
+          Serviço
+        </button>
+      </div>
+
       {renderTabs()}
 
       <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
         <div className={activeTab === 'geral' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
           <div className="space-y-4">
+
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Código *</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Código (Automático)</label>
                 <input
                   type="text"
-                  required
-                  autoFocus
+                  readOnly
                   value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="PROD-001"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 uppercase"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none bg-slate-100 text-slate-500 font-mono cursor-not-allowed"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Código de Barras (EAN)</label>
-                <input
-                  type="text"
-                  value={ean}
-                  onChange={(e) => setEan(e.target.value)}
-                  placeholder="5600000000000"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                />
-              </div>
+              {kind === 'product' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Código de Barras (EAN)</label>
+                  <input
+                    type="text"
+                    value={ean}
+                    onChange={(e) => setEan(e.target.value)}
+                    placeholder="5600000000000"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
+                  />
+                </div>
+              )}
             </div>
             
             <div>
@@ -157,51 +195,56 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({ onClose,
               <input
                 type="text"
                 required
+                autoFocus
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ex: Monitor Dell 24 polegadas"
+                placeholder={kind === 'product' ? "Ex: Monitor Dell 24 polegadas" : "Ex: Consultoria de Gestão"}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Família / Categoria</label>
-                <input
-                  type="text"
-                  value={family}
-                  onChange={(e) => setFamily(e.target.value)}
-                  placeholder="Informática"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                />
+            {kind === 'product' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Família / Categoria</label>
+                  <input
+                    type="text"
+                    value={family}
+                    onChange={(e) => setFamily(e.target.value)}
+                    placeholder="Informática"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Unidade</label>
+                  <select
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
+                  >
+                    <option value="UN">Unidade (UN)</option>
+                    <option value="KG">Quilograma (KG)</option>
+                    <option value="CX">Caixa (CX)</option>
+                    <option value="MT">Metro (MT)</option>
+                  </select>
+                </div>
               </div>
+            )}
+
+            {kind === 'product' && (
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Unidade</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Produto</label>
                 <select
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
+                  value={productType}
+                  onChange={(e) => setProductType(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
                 >
-                  <option value="UN">Unidade (UN)</option>
-                  <option value="KG">Quilograma (KG)</option>
-                  <option value="CX">Caixa (CX)</option>
-                  <option value="MT">Metro (MT)</option>
+                  <option value="Mercadoria">Mercadoria</option>
+                  <option value="Produto Acabado">Produto Acabado</option>
+                  <option value="Matéria Prima">Matéria Prima</option>
                 </select>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Produto</label>
-              <select
-                value={productType}
-                onChange={(e) => setProductType(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-              >
-                <option value="Mercadoria">Mercadoria</option>
-                <option value="Produto Acabado">Produto Acabado</option>
-                <option value="Matéria Prima">Matéria Prima</option>
-              </select>
-            </div>
+            )}
           </div>
         </div>
 
@@ -249,21 +292,23 @@ export const CreateProductModal: React.FC<CreateProductModalProps> = ({ onClose,
               </select>
             </div>
 
-            <div className="pt-4 border-t border-slate-200/60">
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Preço de Custo (Compra)</label>
-              <div className="relative w-1/2">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={purchasePrice}
-                  onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
-                  className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                />
-                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">€</span>
+            {kind === 'product' && (
+              <div className="pt-4 border-t border-slate-200/60">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Preço de Custo (Compra)</label>
+                <div className="relative w-1/2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={purchasePrice}
+                    onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
+                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
+                  />
+                  <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">€</span>
+                </div>
+                <p className="mt-1.5 text-[10px] text-slate-500">O preço de custo ajuda a calcular a margem de lucro nos relatórios.</p>
               </div>
-              <p className="mt-1.5 text-[10px] text-slate-500">O preço de custo ajuda a calcular a margem de lucro nos relatórios.</p>
-            </div>
+            )}
           </div>
         </div>
       </form>

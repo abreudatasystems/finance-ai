@@ -7,8 +7,7 @@ import { apiPost } from '@/services/api';
 import { fetchCategories } from '@/services/data';
 import { Category } from '@/types';
 import { SideDrawer } from './SideDrawer';
-import { RetentionType } from '@/components/retentions/types';
-import { fetchTypes } from '@/components/retentions/api';
+
 
 interface CreateTransactionModalProps {
   initialType: string;
@@ -29,9 +28,10 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
   const [amount, setAmount] = useState('');
   const [vatRate, setVatRate] = useState<number>(23);
   const [customVat, setCustomVat] = useState(false);
-  const [retentionCode, setRetentionCode] = useState('');
-  const [retentionTypes, setRetentionTypes] = useState<RetentionType[]>([]);
+
   const [installmentCount, setInstallmentCount] = useState<number>(1);
+  const [customInstallment, setCustomInstallment] = useState(false);
+  const [isRecurring, setIsRecurring] = useState<boolean>(false);
   // A data do documento, não a de hoje: uma fatura de agosto lançada em
   // setembro é um documento de agosto, e é isso que decide o período de IVA,
   // o mês da DRE e o orçamento a que pertence.
@@ -107,19 +107,11 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
     return rows;
   }, [amount, installmentCount, dueDate]);
 
-  // The catalogue depends on the side: rents and capital only ever appear on
-  // what the company pays.
-  useEffect(() => {
-    if (type === 'document') return;
-    fetchTypes(type).then((data) => setRetentionTypes(data?.tipos || []));
-  }, [type]);
+
 
   // Only open projects: a finished job should not collect new documents.
 
-  const retention = retentionTypes.find((t) => t.codigo === retentionCode);
-  // The withholding rides on the base, never on the total — the same rule the
-  // backend applies, shown here so the number is not a surprise at settlement.
-  const retained = retention ? (breakdown.net * retention.taxa) / 100 : 0;
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,8 +142,9 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
         category_name: categoryOptions.find((o) => o.id === selectedCategory)?.label || '',
         amount: parseFloat(amount) || 0,
         vat_rate: vatRate,
-        retention_code: retentionCode || undefined,
+
         installment_count: installmentCount > 1 ? installmentCount : undefined,
+        is_recurring: isRecurring,
         due_date: dueDate,
         is_paid: paymentStatus === 'paid',
         notes: notes.trim() || undefined,
@@ -249,22 +242,36 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
-            <button
-              type="button"
-              onClick={() => setPaymentStatus('paid')}
-              className={`py-1.5 rounded-lg transition-colors ${paymentStatus === 'paid' ? 'bg-white text-indigo-600 font-bold' : ''}`}
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-slate-600">Estado do Movimento</label>
+            <select
+              value={paymentStatus}
+              onChange={(e) => setPaymentStatus(e.target.value as 'paid' | 'pending')}
+              className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 font-semibold"
             >
-              Já Recebido / Pago
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaymentStatus('pending')}
-              className={`py-1.5 rounded-lg transition-colors ${paymentStatus === 'pending' ? 'bg-white text-orange-600 font-bold' : ''}`}
-            >
-              A Receber / A Pagar (Futuro)
-            </button>
+              {type === 'income' ? (
+                <>
+                  <option value="paid">Já Recebido (Concluído)</option>
+                  <option value="pending">A Receber (Futuro)</option>
+                </>
+              ) : (
+                <>
+                  <option value="paid">Já Pago (Concluído)</option>
+                  <option value="pending">A Pagar (Futuro)</option>
+                </>
+              )}
+            </select>
           </div>
+
+          <label className="flex items-center gap-2 px-1 text-xs font-semibold text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isRecurring}
+              onChange={(e) => setIsRecurring(e.target.checked)}
+              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+            />
+            Tornar este movimento Recorrente (mensalidade, subscrição, etc)
+          </label>
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-slate-600">Descrição do Movimento *</label>
@@ -307,50 +314,45 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-slate-600">Taxa de IVA</label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-              {[0, 6, 13, 23].map((rate) => (
-                <button
-                  key={rate}
-                  type="button"
-                  onClick={() => { setCustomVat(false); setVatRate(rate); }}
-                  className={`py-2 rounded-lg border text-[11px] font-bold transition-all ${
-                    !customVat && vatRate === rate
-                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  {rate === 0 ? 'Isento' : `${rate}%`}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setCustomVat(true)}
-                className={`py-2 rounded-lg border text-[11px] font-bold transition-all ${
-                  customVat
-                    ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
+            <div className="flex gap-2">
+              <select
+                value={customVat ? 'custom' : vatRate}
+                onChange={(e) => {
+                  if (e.target.value === 'custom') {
+                    setCustomVat(true);
+                  } else {
+                    setCustomVat(false);
+                    setVatRate(Number(e.target.value));
+                  }
+                }}
+                className="flex-1 px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 font-semibold"
               >
-                Outra
-              </button>
-            </div>
+                <option value="0">Isento (0%)</option>
+                <option value="6">6%</option>
+                <option value="13">13%</option>
+                <option value="23">23%</option>
+                <option value="custom">Outra taxa...</option>
+              </select>
 
+              {customVat && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    autoFocus
+                    value={vatRate}
+                    onChange={(e) => setVatRate(Math.min(100, Math.max(0, Number(e.target.value))))}
+                    placeholder="17.5"
+                    className="w-20 px-3 py-2.5 text-xs rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-bold text-center"
+                  />
+                  <span className="text-xs font-bold text-slate-500">%</span>
+                </div>
+              )}
+            </div>
             {customVat && (
-              <div className="flex items-center gap-2 pt-0.5">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  autoFocus
-                  value={vatRate}
-                  onChange={(e) => setVatRate(Math.min(100, Math.max(0, Number(e.target.value))))}
-                  placeholder="17.5"
-                  className="w-24 px-3 py-2 text-xs rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-bold"
-                />
-                <span className="text-xs font-bold text-slate-500">%</span>
-                <span className="text-[10px] text-slate-400">Qualquer percentagem entre 0 e 100 (aceita decimais).</span>
-              </div>
+              <div className="text-[10px] text-slate-400">Qualquer percentagem entre 0 e 100 (aceita decimais).</div>
             )}
             <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 rounded-xl text-center border border-slate-200/80">
               <div>
@@ -369,78 +371,43 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             <p className="text-[10px] text-slate-400">O valor introduzido é o total com IVA; o líquido é calculado a partir da taxa.</p>
           </div>
 
-          {/* Retenção na fonte — o que sai do banco não é o total do documento */}
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-600">
-              Retenção na fonte
-            </label>
-            <select
-              value={retentionCode}
-              onChange={(e) => setRetentionCode(e.target.value)}
-              className="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 font-semibold"
-            >
-              <option value="">Sem retenção</option>
-              {retentionTypes
-                .filter((t) => t.codigo !== 'isento')
-                .map((t) => (
-                  <option key={t.codigo} value={t.codigo}>{t.label}</option>
-                ))}
-            </select>
 
-            {retention && retention.taxa > 0 && (
-              <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
-                    Retido ({retention.taxa}% sobre {currencySymbol}{breakdown.net.toFixed(2)})
-                  </span>
-                  <span className="text-xs font-bold text-amber-900">
-                    −{currencySymbol}{retained.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
-                    {type === 'income' ? 'O cliente transfere' : 'Sai do banco'}
-                  </span>
-                  <span className="text-xs font-black text-slate-900">
-                    {currencySymbol}{(breakdown.gross - retained).toFixed(2)}
-                  </span>
-                </div>
-                <p className="text-[10px] text-amber-800/80 leading-relaxed pt-0.5">
-                  {type === 'income'
-                    ? 'O cliente retém e entrega ao Estado; fica um crédito de imposto a favor da empresa.'
-                    : `A empresa entrega ao Estado até ao dia 20 do mês seguinte. ${retention.base_legal}.`}
-                </p>
-              </div>
-            )}
-          </div>
 
           {/* Parcelas */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-slate-600">Parcelas</label>
-            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
-              {[1, 2, 3, 4, 6, 12].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setInstallmentCount(n)}
-                  className={`py-2 rounded-lg border text-[11px] font-bold transition-all ${
-                    installmentCount === n
-                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  {n === 1 ? 'À vista' : `${n}x`}
-                </button>
-              ))}
-              <input
-                type="number"
-                min={1}
-                max={120}
-                value={installmentCount}
-                onChange={(e) => setInstallmentCount(Math.min(120, Math.max(1, Number(e.target.value) || 1)))}
-                aria-label="Número de parcelas"
-                className="py-2 px-2 rounded-lg border border-slate-200 text-[11px] font-bold text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
-              />
+            <div className="flex gap-2">
+              <select
+                value={customInstallment ? 'custom' : installmentCount}
+                onChange={(e) => {
+                  if (e.target.value === 'custom') {
+                    setCustomInstallment(true);
+                  } else {
+                    setCustomInstallment(false);
+                    setInstallmentCount(Number(e.target.value));
+                  }
+                }}
+                className="flex-1 px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 font-semibold"
+              >
+                <option value="1">À vista (1x)</option>
+                <option value="2">2 parcelas (2x)</option>
+                <option value="3">3 parcelas (3x)</option>
+                <option value="4">4 parcelas (4x)</option>
+                <option value="6">6 parcelas (6x)</option>
+                <option value="12">12 parcelas (12x)</option>
+                <option value="custom">Personalizado...</option>
+              </select>
+              {customInstallment && (
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  autoFocus
+                  value={installmentCount}
+                  onChange={(e) => setInstallmentCount(Math.min(120, Math.max(1, Number(e.target.value) || 1)))}
+                  className="w-20 px-3 py-2.5 rounded-xl border border-indigo-200 text-xs font-bold text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white"
+                />
+              )}
             </div>
 
             {installmentCount > 1 && (
