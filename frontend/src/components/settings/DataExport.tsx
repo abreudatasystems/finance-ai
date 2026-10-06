@@ -99,13 +99,13 @@ export const DataExport: React.FC = () => {
         <>
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-              <p className="text-[9px] uppercase font-bold text-slate-500">Registos</p>
+              <p className="text-[10px] uppercase font-bold text-slate-500">Registos</p>
               <p className="font-bold text-slate-900 text-sm mt-0.5">
                 {summary.total_registos.toLocaleString('pt-PT')}
               </p>
             </div>
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-              <p className="text-[9px] uppercase font-bold text-slate-500">Tabelas</p>
+              <p className="text-[10px] uppercase font-bold text-slate-500">Tabelas</p>
               <p className="font-bold text-slate-900 text-sm mt-0.5">{summary.total_tabelas}</p>
             </div>
           </div>
@@ -139,7 +139,7 @@ export const DataExport: React.FC = () => {
       <button
         onClick={download}
         disabled={downloading}
-        className="px-3.5 py-2 rounded-xl text-[11px] font-bold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2"
+        className="px-3.5 py-2 rounded-xl text-[11px] font-bold bg-neutral-950 text-white hover:bg-neutral-800 disabled:opacity-50 flex items-center gap-2"
       >
         {downloading
           ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> A preparar o ficheiro…</>

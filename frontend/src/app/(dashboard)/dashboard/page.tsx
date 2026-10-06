@@ -20,6 +20,10 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { formatDate, plural, transactionStatusLabel } from '@/services/format';
+
+/** 3.5 → "3,5" — percentages and month counts the way pt-PT writes them. */
+const pctPt = (n: number) => Number(n).toLocaleString('pt-PT', { maximumFractionDigits: 1 });
 
 interface ChartDataItem {
   month: string;
@@ -43,7 +47,7 @@ export default function DashboardPage() {
   const [pieData, setPieData] = useState<PieDataItem[]>([]);
 
   useEffect(() => {
-    setPageHeader('Financial Command Center', 'Painel de Controlo Executivo (CEO View)');
+    setPageHeader('Dashboard', 'A saúde financeira da empresa num só ecrã');
   }, [setPageHeader]);
 
   useEffect(() => {
@@ -77,7 +81,7 @@ export default function DashboardPage() {
   const burnRate = healthScore?.burn_rate;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-104px)] space-y-3 overflow-hidden animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-3 animate-in fade-in duration-300">
       
       {/* O que ainda falta configurar, antes de acreditar em qualquer número */}
       <div className="shrink-0">
@@ -104,23 +108,26 @@ export default function DashboardPage() {
           </div>
           <div className={`mt-1 flex items-center gap-1 text-[10px] font-semibold ${balanceTrend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
             {balanceTrend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            <span>{balanceTrend >= 0 ? '+' : ''}{balanceTrend}% ms/ms</span>
+            <span>{balanceTrend >= 0 ? '+' : ''}{balanceTrend.toLocaleString('pt-PT')}% vs mês anterior</span>
           </div>
         </div>
 
         {/* Card 2: Runway */}
         <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-            <span>Runway (Caixa)</span>
+            <span>Autonomia de caixa</span>
             <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <Clock className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="mt-2 text-lg font-bold text-slate-900 tracking-tight">
-            {healthScore?.runway_months || 0} Meses
+            {/* A negative or zero balance has no runway to count in months. */}
+            {(healthScore?.runway_months ?? 0) > 0
+              ? `${pctPt(healthScore!.runway_months)} ${plural(healthScore!.runway_months, 'mês', 'meses')}`
+              : 'Sem caixa'}
           </div>
           <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-500 font-medium truncate">
-            {burnRate ? <span>Burn: {formatMoney(burnRate)}/m</span> : <span>Cobertura Segura</span>}
+            {burnRate ? <span>Gasto médio: {formatMoney(burnRate)}/mês</span> : <span>Sem gastos recentes</span>}
           </div>
         </div>
 
@@ -133,11 +140,11 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-lg font-bold text-slate-900 tracking-tight">
-            {healthScore?.operating_margin || 0}%
+            {pctPt(healthScore?.operating_margin || 0)}%
           </div>
           <div className={`mt-1 flex items-center gap-1 text-[10px] font-semibold ${(healthScore?.operating_margin || 0) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
             {(healthScore?.operating_margin || 0) > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            <span>Tempo real</span>
+            <span>Resultado sobre receita</span>
           </div>
         </div>
 
@@ -193,10 +200,10 @@ export default function DashboardPage() {
 
 
       {/* CHARTS SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         
         {/* Fluxo Financeiro Area Chart (2 cols) */}
-        <div className="lg:col-span-2 p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col space-y-3">
+        <div className="lg:col-span-2 p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col space-y-3 h-[360px]">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-sm text-slate-900">Fluxo Financeiro (Últimos 6 Meses)</h3>
@@ -223,7 +230,7 @@ export default function DashboardPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748B' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748B' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748B' }} tickFormatter={(v: number) => v.toLocaleString('pt-PT', { useGrouping: 'always' } as Intl.NumberFormatOptions)} width={56} />
                 <Tooltip formatter={(value) => formatMoney(Number(value))} />
                 <Area type="monotone" dataKey="Entradas" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorEntradas)" />
                 <Area type="monotone" dataKey="Saídas" stroke="#EF4444" strokeWidth={2} fillOpacity={1} fill="url(#colorSaidas)" />
@@ -233,7 +240,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Despesas por Categoria Donut (1 col) */}
-        <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col space-y-3">
+        <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col space-y-3 h-[360px]">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm text-slate-900">Despesas por Categoria</h3>
             <PieIcon className="w-4 h-4 text-slate-400" />
@@ -267,7 +274,7 @@ export default function DashboardPage() {
                   <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                   <span>{item.name}</span>
                 </div>
-                <span className="font-bold text-slate-800">{item.value}%</span>
+                <span className="font-bold text-slate-800 tabular-nums">{pctPt(item.value)}%</span>
               </div>
             ))}
           </div>
@@ -303,7 +310,7 @@ export default function DashboardPage() {
             <tbody className="divide-y divide-slate-100">
               {transactions.slice(0, 3).map((trx) => (
                 <tr key={trx.id} className="hover:bg-slate-50/80 transition-colors font-medium">
-                  <td className="p-3 text-slate-500">{trx.date}</td>
+                  <td className="p-3 text-slate-500">{formatDate(trx.date)}</td>
                   <td className="p-3 font-semibold text-slate-800">{trx.description}</td>
                   <td className="p-3 text-slate-600 hidden sm:table-cell">{trx.entity_name}</td>
                   <td className="p-3 text-slate-600 hidden md:table-cell">{trx.category_name}</td>
@@ -316,10 +323,10 @@ export default function DashboardPage() {
                       trx.status === 'approved' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                       'bg-amber-50 text-amber-700 border border-amber-200'
                     }`}>
-                      {trx.status}
+                      {transactionStatusLabel(trx.status)}
                     </span>
                   </td>
-                  <td className="p-3 text-right font-mono text-[11px] text-slate-500 hidden lg:table-cell">
+                  <td className="p-3 text-right tabular-nums text-[11px] text-slate-500 hidden lg:table-cell">
                     {trx.source === 'ai' ? (
                       <span className="flex items-center justify-end gap-1"><Bot className="w-3.5 h-3.5" /> IA</span>
                     ) : (

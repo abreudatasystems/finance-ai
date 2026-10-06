@@ -43,11 +43,11 @@ export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType })
         <div className="flex items-center gap-1 shrink-0">
           {isImage && (
             <>
-              <button onClick={() => setZoom((z) => Math.max(50, z - 25))} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Reduzir">
+              <button aria-label="Reduzir" onClick={() => setZoom((z) => Math.max(50, z - 25))} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Reduzir">
                 <ZoomOut className="w-3.5 h-3.5" />
               </button>
-              <span className="text-[10px] font-mono text-slate-400 w-9 text-center">{zoom}%</span>
-              <button onClick={() => setZoom((z) => Math.min(300, z + 25))} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Ampliar">
+              <span className="text-[10px] tabular-nums text-slate-400 w-9 text-center">{zoom}%</span>
+              <button aria-label="Ampliar" onClick={() => setZoom((z) => Math.min(300, z + 25))} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Ampliar">
                 <ZoomIn className="w-3.5 h-3.5" />
               </button>
             </>

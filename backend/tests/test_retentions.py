@@ -191,7 +191,7 @@ def test_the_delivery_is_due_on_the_twentieth_of_the_next_month(tenant):
 
     assert position["entrega"]["ate"] == "2026-10-20"
     assert position["entrega"]["em_atraso"] is False
-    assert "a entregar ao Estado até 2026-10-20" in position["mensagem"]
+    assert "a entregar ao Estado até 20/10/2026" in position["mensagem"]
 
 
 def test_a_missed_delivery_is_flagged_as_late(tenant):
@@ -199,7 +199,7 @@ def test_a_missed_delivery_is_flagged_as_late(tenant):
     position = tenant.get("/api/v1/retentions/position?period=2026-07&today=2026-09-01").json()
 
     assert position["entrega"]["em_atraso"] is True
-    assert "o prazo era 2026-08-20" in position["mensagem"]
+    assert "o prazo era 20/08/2026" in position["mensagem"]
 
 
 def test_the_position_groups_by_rate_the_way_it_is_declared(tenant):
@@ -395,8 +395,7 @@ def test_an_unparseable_period_is_refused(tenant):
 def test_the_ledger_carries_the_retention_and_the_payable(tenant):
     _book(tenant, code="irs_b_25", when="2026-09-10", description="Avença")
 
-    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?start=2026-09-01"
-                     "&end=2026-09-30").text
+    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?period=2026-09").text
     header, *rows = [line for line in csv.splitlines() if line.strip()]
 
     assert "Retenção" in header and "Valor a pagar" in header
@@ -410,8 +409,7 @@ def test_the_ledger_carries_the_retention_and_the_payable(tenant):
 def test_a_document_without_retention_exports_zero_and_the_full_amount(tenant):
     _book(tenant, amount=123.00, when="2026-09-10", description="Sem retenção")
 
-    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?start=2026-09-01"
-                     "&end=2026-09-30").text
+    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?period=2026-09").text
     row = next(r for r in csv.splitlines() if "Sem retenção" in r)
     assert "0,00" in row
     assert "123,00" in row

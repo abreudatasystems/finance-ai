@@ -8,6 +8,7 @@ import { Transaction } from '@/types';
 import { SettlementPanel } from '@/components/financial/SettlementPanel';
 import { InvoiceLinesEditor } from '@/components/lines/InvoiceLinesEditor';
 import {ArrowLeft, Pencil, Save, X, Loader2, FileText, Sparkles, RefreshCcw, ShieldCheck, Wallet, Building2, Tag, Upload, ExternalLink, Check, AlertTriangle, Landmark, Bot, User} from 'lucide-react';
+import { formatDate, formatDateTime, transactionStatusLabel } from '@/services/format';
 
 /* ---------- helpers ---------- */
 
@@ -197,7 +198,7 @@ export default function TransactionDetailPage() {
             </span>
           )}
           {!editMode ? (
-            <button onClick={startEdit} className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs">
+            <button onClick={startEdit} className="px-4 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs">
               <Pencil className="w-3.5 h-3.5" /> Editar
             </button>
           ) : (
@@ -205,7 +206,7 @@ export default function TransactionDetailPage() {
               <button onClick={cancelEdit} className="px-3 py-2 rounded-xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50 flex items-center gap-1.5">
                 <X className="w-3.5 h-3.5" /> Cancelar
               </button>
-              <button onClick={save} disabled={saving} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs disabled:opacity-70">
+              <button onClick={save} disabled={saving} className="px-4 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs disabled:opacity-70">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Guardar
               </button>
             </>
@@ -228,7 +229,7 @@ export default function TransactionDetailPage() {
               Estado, por isso o valor do banco aparece ao lado dele. */}
           {Number(trx.retention_amount ?? 0) > 0 && (
             <div className="text-[11px] mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span className="px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-200 text-[9px] font-bold uppercase">
+              <span className="px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-200 text-[10px] font-bold uppercase">
                 Retenção {trx.retention_rate ? `${trx.retention_rate}%` : ''}
               </span>
               <span className="text-amber-200">−{formatMoney(Number(trx.retention_amount))}</span>
@@ -242,7 +243,7 @@ export default function TransactionDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${STATUS_STYLES[trx.status] || STATUS_STYLES.draft}`}>
-            {trx.status}
+            {transactionStatusLabel(trx.status)}
           </span>
           <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ${payStatus.cls}`}>
             {payStatus.label}
@@ -363,7 +364,7 @@ export default function TransactionDetailPage() {
                   <Field label="Categoria">{v.category_name}</Field>
                   <Field label="ID categoria">{v.category_id}</Field>
                   <Field label="Centro de custo">{v.cost_center_name}</Field>
-                  <Field label="Data do movimento">{v.date}</Field>
+                  <Field label="Data do movimento">{formatDate(v.date)}</Field>
                 </>
               )}
             </div>
@@ -402,10 +403,10 @@ export default function TransactionDetailPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <Field label="Criado por">{trx.created_by}</Field>
               <Field label="Aprovado por">{trx.approved_by}</Field>
-              <Field label="Aprovado em">{trx.approved_at}</Field>
+              <Field label="Aprovado em">{formatDateTime(trx.approved_at)}</Field>
               <Field label="Origem">{trx.source}</Field>
               <Field label="Confiança IA">{trx.ai_confidence != null ? `${trx.ai_confidence}%` : '—'}</Field>
-              <Field label="Última alteração">{trx.updated_at}</Field>
+              <Field label="Última alteração">{formatDateTime(trx.updated_at)}</Field>
             </div>
           </SectionCard>
         </div>
@@ -434,7 +435,7 @@ export default function TransactionDetailPage() {
                   <Upload className="w-8 h-8 text-slate-300 mx-auto" />
                   <p className="text-xs font-semibold text-slate-600">Nenhuma fatura anexada</p>
                   <p className="text-[11px] text-slate-400">Arraste o PDF/imagem original aqui para guardar e validar.</p>
-                  <button className="mt-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700">
+                  <button className="mt-1 px-3 py-1.5 rounded-lg bg-neutral-950 text-white text-[11px] font-bold hover:bg-neutral-800">
                     Anexar documento
                   </button>
                 </div>
@@ -468,7 +469,7 @@ export default function TransactionDetailPage() {
             <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
               <Field label="Nº documento">{trx.document_number}</Field>
               <Field label="Tipo">{trx.document_type}</Field>
-              <Field label="Data documento">{trx.document_date}</Field>
+              <Field label="Data documento">{formatDate(trx.document_date)}</Field>
               <Field label="ID documento">{trx.document_id}</Field>
             </div>
           </SectionCard>
@@ -479,7 +480,7 @@ export default function TransactionDetailPage() {
               <span className="font-bold text-xs flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Confiança da extração IA
               </span>
-              <span className="font-mono text-emerald-400 font-bold text-sm">{trx.ai_confidence ?? '—'}{trx.ai_confidence != null ? '%' : ''}</span>
+              <span className="tabular-nums text-emerald-400 font-bold text-sm">{trx.ai_confidence ?? '—'}{trx.ai_confidence != null ? '%' : ''}</span>
             </div>
             <p className="text-[11px] text-slate-300">
               Classificado com base no histórico do fornecedor e palavras-chave. Reveja os valores antes de confirmar o pagamento.

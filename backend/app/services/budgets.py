@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 
 from app.models.models import Budget, Category
 from app.services import financials
+from app.core.formatting import eur
 
 CENTS = Decimal("0.01")
 
@@ -371,21 +372,21 @@ def _message(plans: list, lines: list, planned_result: Decimal,
     gap = actual_result - planned_result
     if gap >= 0:
         parts.append(
-            f"O resultado do mês está {float(gap):,.2f} € acima do orçamentado."
+            f"O resultado do mês está {eur(float(gap))} acima do orçamentado."
         )
     else:
         parts.append(
-            f"O resultado do mês está {abs(float(gap)):,.2f} € abaixo do orçamentado."
+            f"O resultado do mês está {eur(abs(float(gap)))} abaixo do orçamentado."
         )
     if worst:
         parts.append(
-            f"O maior desvio é em {worst['categoria']}: {worst['realizado']:,.2f} € "
-            f"contra {worst['orcamento']:,.2f} € previstos."
+            f"O maior desvio é em {worst['categoria']}: {eur(worst['realizado'])} "
+            f"contra {eur(worst['orcamento'])} previstos."
         )
     if unplanned:
         total = sum(line["realizado"] for line in unplanned)
         parts.append(
-            f"Há ainda {float(total):,.2f} € em {len(unplanned)} categoria(s) "
+            f"Há ainda {eur(float(total))} em {len(unplanned)} categoria(s) "
             "sem orçamento nenhum."
         )
     return " ".join(parts)

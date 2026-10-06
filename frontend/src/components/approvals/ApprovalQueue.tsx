@@ -17,6 +17,7 @@ import { useApp } from '@/context/AppContext';
 import { ApprovalDetail, ApprovalRow, ApprovalSummary } from './types';
 import { QueueFilter, fetchApproval, fetchQueue, fetchSummary, decideMany } from './api';
 import { ApprovalInspector } from './ApprovalInspector';
+import { formatDate, plural } from '@/services/format';
 
 const FILTERS: { id: QueueFilter; label: string }[] = [
   { id: 'pending', label: 'Por aprovar' },
@@ -73,7 +74,7 @@ export const ApprovalQueue: React.FC = () => {
 
   const runBatch = async (action: 'approved' | 'rejected') => {
     if (selected.size === 0) return;
-    if (action === 'rejected' && !window.confirm(`Rejeitar ${selected.size} documento(s)?`)) return;
+    if (action === 'rejected' && !window.confirm(`Rejeitar ${selected.size} ${plural(selected.size, 'documento')}?`)) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -83,8 +84,8 @@ export const ApprovalQueue: React.FC = () => {
     const { decididos, falhados, erros } = res.data;
     setNotice(
       falhados
-        ? `${decididos} processado(s), ${falhados} falhado(s): ${erros.map((e) => e.detail).join('; ')}`
-        : `${decididos} documento(s) ${action === 'approved' ? 'aprovados — obrigações criadas' : 'rejeitados'}.`,
+        ? `${decididos} ${plural(decididos, 'processado')}, ${falhados} ${plural(falhados, 'falhado')}: ${erros.map((e) => e.detail).join('; ')}`
+        : `${decididos} ${plural(decididos, 'documento')} ${action === 'approved' ? 'aprovados — obrigações criadas' : 'rejeitados'}.`,
     );
     await reload();
   };
@@ -106,19 +107,19 @@ export const ApprovalQueue: React.FC = () => {
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-3 rounded-xl bg-white border border-slate-200">
-            <p className="text-[9px] uppercase font-bold text-slate-400">Por aprovar</p>
+            <p className="text-[10px] uppercase font-bold text-slate-400">Por aprovar</p>
             <p className="font-bold text-slate-900 text-base">{summary.pendentes}</p>
           </div>
           <div className="p-3 rounded-xl bg-white border border-slate-200">
-            <p className="text-[9px] uppercase font-bold text-slate-400">Valor em espera</p>
+            <p className="text-[10px] uppercase font-bold text-slate-400">Valor em espera</p>
             <p className="font-bold text-slate-900 text-base">{formatMoney(summary.valor_pendente)}</p>
           </div>
           <div className="p-3 rounded-xl bg-white border border-amber-200">
-            <p className="text-[9px] uppercase font-bold text-amber-600">A precisar de revisão</p>
+            <p className="text-[10px] uppercase font-bold text-amber-600">A precisar de revisão</p>
             <p className="font-bold text-amber-700 text-base">{summary.por_rever}</p>
           </div>
           <div className="p-3 rounded-xl bg-white border border-slate-200">
-            <p className="text-[9px] uppercase font-bold text-slate-400">Já decididos</p>
+            <p className="text-[10px] uppercase font-bold text-slate-400">Já decididos</p>
             <p className="font-bold text-slate-900 text-base">{summary.aprovados + summary.rejeitados}</p>
           </div>
         </div>
@@ -139,7 +140,7 @@ export const ApprovalQueue: React.FC = () => {
               </button>
             ))}
           </div>
-          <button onClick={reload} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" title="Atualizar">
+          <button aria-label="Atualizar" onClick={reload} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" title="Atualizar">
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -152,7 +153,7 @@ export const ApprovalQueue: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200">
             <label className="flex items-center gap-2 font-semibold text-slate-700">
               <input type="checkbox" checked={selected.size === rows.length && rows.length > 0} onChange={toggleAll} className="rounded" />
-              {selected.size > 0 ? `${selected.size} selecionado(s)` : 'Selecionar tudo'}
+              {selected.size > 0 ? `${selected.size} ${plural(selected.size, 'selecionado')}` : 'Selecionar tudo'}
             </label>
             {selected.size > 0 && (
               <div className="flex items-center gap-1.5 ml-auto">
@@ -197,12 +198,12 @@ export const ApprovalQueue: React.FC = () => {
                     <span className="font-bold text-slate-900 truncate">{r.supplier_name}</span>
                     <span className="text-[10px] text-slate-400 font-mono">{r.document_number || r.document_name}</span>
                     {r.needs_attention && r.status === 'pending' && (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
                         <AlertTriangle className="w-2.5 h-2.5" /> Rever
                       </span>
                     )}
                     {r.status !== 'pending' && (
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
                         r.status === 'rejected'
                           ? 'bg-rose-50 text-rose-700 border-rose-200'
                           : 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -212,16 +213,16 @@ export const ApprovalQueue: React.FC = () => {
                     )}
                   </div>
                   <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                    {channelIcon(r.channel)} {r.date}
-                    {r.due_date && <> · vence {r.due_date}</>}
+                    {channelIcon(r.channel)} {formatDate(r.date)}
+                    {r.due_date && <> · vence {formatDate(r.due_date)}</>}
                     {' · '}{r.suggested_category}
                     {r.decided_by && <> · decidido por {r.decided_by}</>}
                   </p>
                 </button>
 
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-slate-900 font-mono">{formatMoney(r.amount)}</p>
-                  <p className="text-[9px] text-slate-400 flex items-center justify-end gap-1">
+                  <p className="font-bold text-slate-900 tabular-nums">{formatMoney(r.amount)}</p>
+                  <p className="text-[10px] text-slate-400 flex items-center justify-end gap-1">
                     <Sparkles className="w-2.5 h-2.5" /> {r.ai_confidence}%
                   </p>
                 </div>

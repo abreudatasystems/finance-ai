@@ -17,6 +17,7 @@ import {
   Building2,
   RefreshCcw
 } from 'lucide-react';
+import { formatDate } from '@/services/format';
 
 interface Statement {
   id: string;
@@ -156,7 +157,7 @@ export default function BankReconciliationPage() {
           <button
             onClick={handleSync}
             disabled={isSyncing}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-900/20 flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+            className="px-4 py-2 bg-neutral-950 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
           >
             <RefreshCcw className={`w-4 h-4 text-white ${isSyncing ? 'animate-spin' : ''}`} />
             <span>Sincronizar Banco</span>
@@ -182,7 +183,7 @@ export default function BankReconciliationPage() {
         {isUploading ? (
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-            <p className="text-sm font-semibold text-indigo-700">A processar extrato bancário...</p>
+            <p className="text-sm font-semibold text-indigo-700">A processar extrato bancário…</p>
             <p className="text-xs text-slate-500">A IA está a analisar e conciliar os movimentos.</p>
           </div>
         ) : (
@@ -198,7 +199,7 @@ export default function BankReconciliationPage() {
                 Formatos aceites: CSV, OFX, QFX • Millennium BCP, CGD, Santander, Novo Banco, BPI, etc.
               </p>
             </div>
-            <label className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer transition-colors shadow-sm">
+            <label className="mt-2 px-4 py-2 bg-neutral-950 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl cursor-pointer transition-colors shadow-sm">
               Selecionar Ficheiro
               <input type="file" accept=".csv,.ofx,.qfx,.txt,.tsv" onChange={handleFileSelect} className="hidden" />
             </label>
@@ -320,7 +321,7 @@ export default function BankReconciliationPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="p-3 text-slate-500">{entry.date}</td>
+                    <td className="p-3 text-slate-500">{formatDate(entry.date)}</td>
                     <td className="p-3 font-semibold text-slate-800 max-w-[250px] truncate">{entry.description}</td>
                     <td className={`p-3 font-bold ${entry.type === 'credit' ? 'text-emerald-600' : 'text-slate-900'}`}>
                       {entry.type === 'credit' ? '+' : '-'}{formatMoney(entry.amount)}

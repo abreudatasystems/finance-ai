@@ -40,8 +40,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     { label: 'Ir para Dashboard', path: '/dashboard', icon: Wallet, group: 'Navegação' },
     { label: 'Ir para Finance Inbox', path: '/documents/inbox', icon: FileText, group: 'Navegação' },
     { label: 'Ir para Fluxo de Caixa', path: '/financial/cash-flow', icon: Wallet, group: 'Navegação' },
-    { label: 'Ir para Aprovações IA', path: '/approvals', icon: Sparkles, group: 'Navegação' },
-    { label: 'Ir para Categorias', path: '/registry/categories', icon: FolderTree, group: 'Navegação' },
+    { label: 'Ir para Aprovações IA', path: '/documents/approvals', icon: Sparkles, group: 'Navegação' },
+    { label: 'Ir para Categorias', path: '/settings/groups', icon: FolderTree, group: 'Navegação' },
     { label: 'Ir para Fornecedores', path: '/registry/suppliers', icon: Building2, group: 'Navegação' }
   ];
 
@@ -63,11 +63,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Pesquisar documentos, fornecedores, lançamentos ou comandos (Ctrl+K)..."
+            placeholder="Pesquisar documentos, fornecedores, lançamentos ou comandos (Ctrl+K)…"
             className="w-full px-3 py-4 text-xs bg-transparent border-none focus:outline-none text-slate-800 placeholder-slate-400 font-medium"
             autoFocus
           />
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+          <button aria-label="Fechar" onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
             <X className="w-4 h-4" />
           </button>
         </div>

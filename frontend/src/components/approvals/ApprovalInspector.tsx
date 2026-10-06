@@ -21,6 +21,7 @@ import { ApprovalDetail } from './types';
 import { decide } from './api';
 import { DocumentViewer } from './DocumentViewer';
 import { ValidationChecklist } from './ValidationChecklist';
+import { formatDate } from '@/services/format';
 
 interface Props {
   detail: ApprovalDetail;
@@ -118,10 +119,10 @@ export const ApprovalInspector: React.FC<Props> = ({ detail, onDone, onClose, fo
               <div className="min-w-0">
                 <p className="font-bold text-sm text-slate-900 truncate">{item.supplier_name}</p>
                 <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                  {item.document_number || item.document_name} · {item.date}
+                  {item.document_number || item.document_name} · {formatDate(item.date)}
                 </p>
               </div>
-              <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border shrink-0 flex items-center gap-1 ${
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border shrink-0 flex items-center gap-1 ${
                 item.needs_attention
                   ? 'bg-rose-50 text-rose-700 border-rose-200'
                   : 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -142,14 +143,14 @@ export const ApprovalInspector: React.FC<Props> = ({ detail, onDone, onClose, fo
                 <span className="font-bold text-slate-700">Total do documento (com IVA)</span>
                 <input
                   value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 tabular-nums focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
                 />
               </label>
               <label className="space-y-1.5">
                 <span className="font-bold text-slate-700">Taxa de IVA (%)</span>
                 <input
                   value={vatRate} onChange={(e) => setVatRate(e.target.value)} inputMode="decimal"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 tabular-nums focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
                 />
               </label>
               <label className="space-y-1.5 sm:col-span-2">
@@ -179,7 +180,7 @@ export const ApprovalInspector: React.FC<Props> = ({ detail, onDone, onClose, fo
             </div>
 
             {/* The identity the reviewer is checking against the paper. */}
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1 font-mono text-[11px]">
+            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1 tabular-nums text-[11px]">
               <div className="flex justify-between"><span className="text-slate-500">Base tributável</span><span className="font-bold text-slate-800">{formatMoney(preview.net)}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">IVA ({preview.rate}%)</span><span className="font-bold text-slate-800">{formatMoney(preview.vat)}</span></div>
               <div className="flex justify-between pt-1 border-t border-slate-200"><span className="text-slate-700 font-bold">Total</span><span className="font-bold text-slate-900">{formatMoney(preview.gross)}</span></div>
@@ -230,12 +231,12 @@ export const ApprovalInspector: React.FC<Props> = ({ detail, onDone, onClose, fo
                 <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> O que a IA leu
               </p>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-slate-600">
-                <span>Fornecedor</span><span className="font-mono text-slate-800">{detail.extraction.supplier || '—'}</span>
+                <span>Fornecedor</span><span className="text-slate-800">{detail.extraction.supplier || '—'}</span>
                 <span>NIF</span><span className="font-mono text-slate-800">{detail.extraction.nif || '—'}</span>
                 <span>Nº documento</span><span className="font-mono text-slate-800">{detail.extraction.document_number || '—'}</span>
-                <span>Data</span><span className="font-mono text-slate-800">{detail.extraction.document_date || '—'}</span>
+                <span>Data</span><span className="tabular-nums text-slate-800">{detail.extraction.document_date || '—'}</span>
                 <span>Base / IVA / Total</span>
-                <span className="font-mono text-slate-800">
+                <span className="tabular-nums text-slate-800">
                   {detail.extraction.net_amount ?? '—'} / {detail.extraction.vat_amount ?? '—'} / {detail.extraction.gross_amount ?? '—'}
                 </span>
                 <span>Motor</span><span className="font-mono text-slate-800">{detail.extraction.ai_model || '—'}</span>

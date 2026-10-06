@@ -107,3 +107,29 @@ def test_entities_are_invisible_to_another_company(tenant, other_tenant):
         "name": "Silva Lda", "nif": "501234567", "is_supplier": True}).json()
     assert other_tenant.get(f"/api/v1/entities/{entity['id']}").status_code == 404
     assert other_tenant.get("/api/v1/entities/").json() == []
+
+
+def test_the_list_shows_the_latest_movement_not_the_first(tenant):
+    entity = tenant.post("/api/v1/entities/", {
+        "name": "EDP", "nif": "503504564", "is_supplier": True}).json()
+    tenant.book("expense", 100.00, date="2026-01-12", entity_name="EDP", entity_id=entity["id"])
+    tenant.book("expense", 100.00, date="2026-09-12", entity_name="EDP", entity_id=entity["id"])
+    tenant.book("expense", 100.00, date="2026-05-12", entity_name="EDP", entity_id=entity["id"])
+
+    supplier = tenant.get("/api/v1/suppliers/").json()[0]
+    assert supplier["last_transaction_date"] == "2026-09-12"
+    account = tenant.get(f"/api/v1/entities/{entity['id']}").json()["entidade"]
+    assert account["ultimo_movimento"] == "2026-09-12"
+
+
+def test_what_is_owed_to_a_supplier_leaves_out_the_withholding(tenant):
+    # 150 € + 23% = 184,50 €, with 25% (37,50 €) withheld for the State:
+    # the landlord is owed 147,00 €, not the document total.
+    entity = tenant.post("/api/v1/entities/", {
+        "name": "Senhorio", "nif": "192884031", "is_supplier": True}).json()
+    tenant.book("expense", 184.50, vat_rate=23, retention_code="irs_b_25",
+                entity_name="Senhorio", entity_id=entity["id"])
+
+    account = tenant.get(f"/api/v1/entities/{entity['id']}").json()["entidade"]
+    assert account["compras"]["faturado"] == 184.50
+    assert account["compras"]["em_divida"] == 147.00

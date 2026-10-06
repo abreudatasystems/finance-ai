@@ -113,10 +113,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const currencySymbol = getSymbol(currency);
 
+  // pt-PT leaves four-digit figures ungrouped by default ("9660,53 €" next to
+  // "10 418,10 €" in the same column). 'always' groups every amount the same way.
   const formatMoney = (amount: number) => {
+    if (!Number.isFinite(amount)) return '—';
     return new Intl.NumberFormat('pt-PT', {
       style: 'currency',
-      currency: currency
+      currency: currency,
+      useGrouping: 'always',
     }).format(amount);
   };
 

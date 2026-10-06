@@ -19,6 +19,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.models import Entity, Transaction
+from app.services.retentions import payable_of
 
 CENTS = Decimal("0.01")
 PLACEHOLDER_NIFS = {"000000000", "500000000"}
@@ -70,7 +71,9 @@ def balances(movements: Iterable[Transaction]) -> dict:
             continue
         gross = _d(trx.gross_amount if trx.gross_amount is not None else trx.amount)
         paid = _d(trx.paid_amount)
-        open_amount = (gross - paid).quantize(CENTS, rounding=ROUND_HALF_UP)
+        # What is owed is what moves through the bank: a withholding at source
+        # goes to the State, never to the counterparty.
+        open_amount = max(payable_of(trx) - paid, Decimal("0.00")).quantize(CENTS, rounding=ROUND_HALF_UP)
         if trx.type == "expense":
             out["compras"]["faturado"] += gross
             out["compras"]["pago"] += paid
@@ -81,7 +84,9 @@ def balances(movements: Iterable[Transaction]) -> dict:
             out["vendas"]["recebido"] += paid
             out["vendas"]["por_receber"] += open_amount
             out["vendas"]["documentos"] += 1
-        last = last or trx.date
+        # The list endpoint hands movements over in no particular order.
+        if trx.date and (last is None or trx.date > last):
+            last = trx.date
 
     return {
         "compras": {k: (float(v) if isinstance(v, Decimal) else v) for k, v in out["compras"].items()},

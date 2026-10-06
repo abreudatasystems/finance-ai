@@ -10,6 +10,7 @@ import {
   ArrowLeft, Pencil, Save, X, Loader2, Building2, Wallet,
   Mail, Phone, Tag, MapPin, Check, AlertTriangle
 } from 'lucide-react';
+import { formatDate } from '@/services/format';
 
 function EditInput({ value, onChange, placeholder }: { value: string | undefined; onChange: (v: string) => void; placeholder?: string }) {
   return (
@@ -125,7 +126,7 @@ export default function SupplierProfilePage() {
             </span>
           )}
           {!editMode ? (
-            <button onClick={startEdit} className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors">
+            <button onClick={startEdit} className="px-4 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors">
               <Pencil className="w-3.5 h-3.5" /> Editar Perfil
             </button>
           ) : (
@@ -133,7 +134,7 @@ export default function SupplierProfilePage() {
               <button onClick={cancelEdit} className="px-3 py-2 rounded-xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50 flex items-center gap-1.5">
                 <X className="w-3.5 h-3.5" /> Cancelar
               </button>
-              <button onClick={save} disabled={saving} className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs disabled:opacity-70 transition-colors">
+              <button onClick={save} disabled={saving} className="px-4 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs disabled:opacity-70 transition-colors">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Guardar Alterações
               </button>
             </>
@@ -207,7 +208,7 @@ export default function SupplierProfilePage() {
                     rows={2}
                     value={form.address ?? ''}
                     onChange={(e) => set({ address: e.target.value })}
-                    placeholder="Sede da empresa..."
+                    placeholder="Sede da empresa…"
                     className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white resize-none"
                   />
                 ) : (
@@ -253,9 +254,12 @@ export default function SupplierProfilePage() {
                       <tr 
                         key={t.id} 
                         onClick={() => router.push(`/financial/cash-flow/${t.id}`)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/financial/cash-flow/${t.id}`); }}
+                        tabIndex={0}
+                        role="link"
                         className="hover:bg-slate-50 transition-colors cursor-pointer"
                       >
-                        <td className="py-2.5 text-slate-500 font-mono">{t.date}</td>
+                        <td className="py-2.5 text-slate-500 tabular-nums">{formatDate(t.date)}</td>
                         <td className="py-2.5 font-semibold text-slate-800">{t.description}</td>
                         <td className="py-2.5 text-slate-600">{t.category_name}</td>
                         <td className="py-2.5 text-right font-bold text-slate-900">-{formatMoney(t.amount)}</td>

@@ -65,7 +65,7 @@ export const ItemPicker: React.FC<Props> = ({
       {selected ? (
         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-800 font-mono text-[10px]">
           {selected.code}
-          <button
+          <button aria-label="Desligar do artigo (a linha fica como está)"
             onClick={onClear}
             title="Desligar do artigo (a linha fica como está)"
             className="text-indigo-400 hover:text-indigo-700"
@@ -125,7 +125,7 @@ export const ItemPicker: React.FC<Props> = ({
                         {item.price_includes_vat ? ' · preço c/ IVA' : ''}
                       </span>
                     </span>
-                    <span className="font-mono text-[11px] text-slate-600 shrink-0">
+                    <span className="tabular-nums text-[11px] text-slate-600 shrink-0">
                       {formatMoney(item.price_1 || 0)}
                     </span>
                   </button>

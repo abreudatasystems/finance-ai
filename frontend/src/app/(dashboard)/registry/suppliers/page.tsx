@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { fetchSuppliers } from '@/services/data';
 import { Supplier } from '@/types';
 import { Building2, Mail, Plus, Tag, Calendar, Trash2 } from 'lucide-react';
+import { formatDate } from '@/services/format';
 import { CreateSupplierModal } from '@/components/shared/CreateSupplierModal';
 import { deleteSupplier } from '@/services/data';
 import { useRouter } from 'next/navigation';
@@ -25,7 +26,7 @@ export default function SuppliersPage() {
   }, []);
 
   useEffect(() => {
-    setPageHeader('Gestão de Fornecedores', 'Cadastro inteligente com categorias padrão associadas automaticamente a faturas recebidas');
+    setPageHeader('Fornecedores', 'Quem lhe fatura, com a categoria habitual de cada um');
   }, [setPageHeader]);
 
   const handleSupplierCreated = (newSup: Supplier) => {
@@ -47,7 +48,7 @@ export default function SuppliersPage() {
       <div className="flex justify-end pb-3">
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"
+          className="px-4 py-2 bg-neutral-950 hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"
         >
           <Plus className="w-4 h-4 text-emerald-400" />
           <span>Novo Fornecedor</span>
@@ -74,6 +75,9 @@ export default function SuppliersPage() {
                 <tr 
                   key={s.id} 
                   onClick={() => router.push(`/registry/suppliers/${s.id}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/registry/suppliers/${s.id}`); }}
+                  tabIndex={0}
+                  role="link"
                   className="hover:bg-neutral-50/60 transition-colors cursor-pointer"
                 >
                   <td className="py-3.5 px-4 font-bold text-neutral-900">
@@ -99,17 +103,17 @@ export default function SuppliersPage() {
                       <span>{s.email || 'Sem email'}</span>
                     </div>
                   </td>
-                  <td className="py-3.5 px-4 font-mono text-neutral-600">
+                  <td className="py-3.5 px-4 tabular-nums text-neutral-600">
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-                      <span>{s.last_transaction_date}</span>
+                      <span>{formatDate(s.last_transaction_date) || '—'}</span>
                     </div>
                   </td>
                   <td className="py-3.5 px-4 text-right font-bold text-neutral-900">
                     {formatMoney(s.total_spent)}
                   </td>
                   <td className="py-3.5 px-4 text-right">
-                    <button
+                    <button aria-label="Eliminar Fornecedor"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(s.id);

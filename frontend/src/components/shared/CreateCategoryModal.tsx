@@ -83,7 +83,7 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
             type="submit"
             form={FORM_ID}
             disabled={submitting}
-            className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+            className="flex-1 py-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
           >
             {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Criar Categoria
@@ -143,18 +143,18 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="ex: Licenças de Software, Viagens..."
+            placeholder="ex: Licenças de Software, Viagens…"
             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
           />
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Descrição</label>
-          <textarea
+          <textarea aria-label="Descrição"
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Descreva o propósito desta categoria..."
+            placeholder="Descreva o propósito desta categoria…"
             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 resize-none"
           />
         </div>
@@ -164,7 +164,7 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
             <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
             Palavras-Chave IA (separadas por vírgula)
           </label>
-          <input
+          <input aria-label="Palavras-Chave IA (separadas por vírgula)"
             type="text"
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}

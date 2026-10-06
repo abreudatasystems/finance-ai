@@ -15,6 +15,7 @@ import {
   Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, Mail, BadgeCheck, History,
   FolderTree
 } from 'lucide-react';
+import { formatDateTime } from '@/services/format';
 
 type Tab = 'company' | 'categories' | 'ai' | 'profile' | 'users' | 'audit';
 
@@ -43,7 +44,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { currentCompany, currency, setCurrency, currentUser, userRole, setPageHeader } = useApp();
+  const { currentCompany, currency, setCurrency, currentUser, userRole, setPageHeader, refreshCompanies } = useApp();
 
   const [activeTab, setActiveTab] = useState<Tab>('company');
   const [aiRules, setAiRules] = useState<AIRule[]>([]);
@@ -53,6 +54,9 @@ export default function SettingsPage() {
   const [vatRegime, setVatRegime] = useState('normal');
   const [vatPeriodicity, setVatPeriodicity] = useState('quarterly');
   const [legalForm, setLegalForm] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [companyNif, setCompanyNif] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const comp = currentCompany as unknown as Record<string, string> | null;
@@ -60,6 +64,8 @@ export default function SettingsPage() {
     setVatRegime(comp.vat_regime || 'normal');
     setVatPeriodicity(comp.vat_periodicity || 'quarterly');
     setLegalForm(comp.legal_form || '');
+    setCompanyName(comp.name || '');
+    setCompanyNif(comp.nif || '');
   }, [currentCompany]);
 
   useEffect(() => {
@@ -78,18 +84,31 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    setPageHeader('Configurações da Plataforma', 'Gestão da empresa, preferências do motor de inteligência artificial e utilizadores');
+    setPageHeader('Configurações', 'Empresa, categorias, equipa e preferências da IA');
   }, [setPageHeader]);
 
   const patch = (p: Partial<StoredSettings>) => setSettings((s) => ({ ...s, ...p }));
 
   const handleSave = async () => {
+    setSaveError(null);
     if (currentCompany?.id) {
-      await updateCompany(currentCompany.id, {
+      if (!companyName.trim()) {
+        setSaveError('O nome da empresa não pode ficar vazio.');
+        return;
+      }
+      const updated = await updateCompany(currentCompany.id, {
+        name: companyName.trim(),
+        nif: companyNif.trim() || undefined,
         vat_regime: vatRegime,
         vat_periodicity: vatPeriodicity,
         legal_form: legalForm || undefined,
       });
+      if (!updated) {
+        setSaveError('Não foi possível guardar. Só proprietários e administradores podem alterar a empresa.');
+        return;
+      }
+      // The company name also lives in the top bar and the company switcher.
+      await refreshCompanies();
     }
     try {
       window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -105,8 +124,8 @@ export default function SettingsPage() {
     router.push('/login');
   };
 
-  const displayName = currentUser?.name || 'João Silva';
-  const displayEmail = currentUser?.email || 'joao@techstart.pt';
+  const displayName = currentUser?.name || '';
+  const displayEmail = currentUser?.email || '';
   const initials = displayName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 
   return (
@@ -115,18 +134,21 @@ export default function SettingsPage() {
       <div className="flex justify-end pb-4">
         <button
           onClick={handleSave}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 active:scale-95 shrink-0"
+          className="px-4 py-2.5 bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 active:scale-95 shrink-0"
         >
           {savedSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
           <span>{savedSuccess ? 'Guardado com sucesso!' : 'Guardar Alterações'}</span>
         </button>
       </div>
+      {saveError && (
+        <p role="alert" className="-mt-3 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">{saveError}</p>
+      )}
 
       <div className="flex flex-col md:flex-row gap-6 items-start">
         {/* Settings Sidebar */}
         <div className="w-full md:w-[250px] shrink-0 bg-white rounded-3xl border border-slate-200/80 py-3 px-2 shadow-xs space-y-4 sticky top-4">
           <div className="h-5 flex items-center px-4">
-            <h3 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap overflow-hidden">Menu de Configuração</h3>
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap overflow-hidden">Menu de Configuração</h3>
           </div>
           <div className="space-y-0.5">
             {TABS.map((t) => (
@@ -155,14 +177,15 @@ export default function SettingsPage() {
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4 max-w-2xl text-xs">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-indigo-600" />
-            <h3 className="font-bold text-sm text-slate-900">Dados da Empresa (Multi-tenant)</h3>
+            <h3 className="font-bold text-sm text-slate-900">Dados da Empresa</h3>
           </div>
 
           <div className="space-y-1.5">
             <label className="font-semibold text-slate-600">Nome da Empresa</label>
-            <input
+            <input aria-label="Nome da Empresa"
               type="text"
-              defaultValue={currentCompany?.name || 'TechStart Lda'}
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
             />
           </div>
@@ -170,16 +193,17 @@ export default function SettingsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="font-semibold text-slate-600">NIF</label>
-              <input
+              <input aria-label="NIF"
                 type="text"
-                defaultValue={currentCompany?.nif || 'PT516789012'}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"
+                value={companyNif}
+                onChange={(e) => setCompanyNif(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none tabular-nums"
               />
             </div>
 
             <div className="space-y-1.5">
               <label className="font-semibold text-slate-600">Moeda por Omissão</label>
-              <select
+              <select aria-label="Moeda por Omissão"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value as typeof currency)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-bold"
@@ -200,7 +224,7 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <label className="font-semibold text-slate-600">Forma jurídica</label>
-                <select
+                <select aria-label="Forma jurídica"
                   value={legalForm}
                   onChange={(e) => setLegalForm(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
@@ -216,7 +240,7 @@ export default function SettingsPage() {
 
               <div className="space-y-1.5">
                 <label className="font-semibold text-slate-600">Regime de IVA</label>
-                <select
+                <select aria-label="Regime de IVA"
                   value={vatRegime}
                   onChange={(e) => setVatRegime(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
@@ -228,7 +252,7 @@ export default function SettingsPage() {
 
               <div className="space-y-1.5">
                 <label className="font-semibold text-slate-600">Periodicidade</label>
-                <select
+                <select aria-label="Periodicidade"
                   value={vatPeriodicity}
                   onChange={(e) => setVatPeriodicity(e.target.value)}
                   disabled={vatRegime === 'isencao_art53'}
@@ -249,7 +273,7 @@ export default function SettingsPage() {
           <div className="flex items-start gap-2 p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 text-[11px] text-indigo-800">
             <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-indigo-600" />
             <span>
-              Todos os dados desta empresa estão isolados por <span className="font-mono font-bold">company_id</span>,
+              Todos os dados desta empresa estão isolados por <span className="tabular-nums font-bold">company_id</span>,
               garantido no servidor a partir da sua sessão autenticada.
             </span>
           </div>
@@ -285,7 +309,7 @@ export default function SettingsPage() {
 
             <div className="space-y-1.5">
               <label className="font-semibold text-slate-600">Nível de Aprovação Exigido</label>
-              <select
+              <select aria-label="Nível de Aprovação Exigido"
                 value={settings.approvalLevel}
                 onChange={(e) => patch({ approvalLevel: e.target.value })}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
@@ -337,8 +361,8 @@ export default function SettingsPage() {
                       <tr key={r.id} className="hover:bg-slate-50 font-medium">
                         <td className="p-3 font-bold text-slate-900">{r.supplier_name}</td>
                         <td className="p-3 text-indigo-700 font-semibold">{r.category_name}</td>
-                        <td className="p-3 font-mono text-emerald-600 font-bold">{r.confidence}%</td>
-                        <td className="p-3 font-mono text-slate-600">{r.uses_count} vezes</td>
+                        <td className="p-3 tabular-nums text-emerald-600 font-bold">{r.confidence}%</td>
+                        <td className="p-3 tabular-nums text-slate-600">{r.uses_count} vezes</td>
                       </tr>
                     ))}
                   </tbody>
@@ -373,10 +397,11 @@ export default function SettingsPage() {
 
             <div className="space-y-1.5">
               <label className="font-semibold text-slate-600">Nome Completo</label>
-              <input
+              <input aria-label="Nome Completo"
                 type="text"
-                defaultValue={displayName}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                value={displayName}
+                readOnly
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 focus:outline-none"
               />
             </div>
 
@@ -384,10 +409,11 @@ export default function SettingsPage() {
               <label className="font-semibold text-slate-600 flex items-center gap-1">
                 <Mail className="w-3.5 h-3.5 text-slate-400" /> Email
               </label>
-              <input
+              <input aria-label="Email"
                 type="email"
-                defaultValue={displayEmail}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                value={displayEmail}
+                readOnly
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 focus:outline-none"
               />
             </div>
           </div>
@@ -446,12 +472,12 @@ export default function SettingsPage() {
                           {item.action}
                         </span>
                       </div>
-                      <span className="text-[11px] text-slate-400 font-mono">{item.timestamp}</span>
+                      <span className="text-[11px] text-slate-400 tabular-nums">{formatDateTime(item.timestamp)}</span>
                     </div>
 
                     <p className="text-slate-700 font-medium">{item.description}</p>
                     
-                    <div className="pt-1 text-[10px] text-slate-400 font-mono">
+                    <div className="pt-1 text-[10px] text-slate-400 tabular-nums">
                       Módulo: {item.module} {item.entity_id && `• Entity ID: ${item.entity_id}`}
                     </div>
                   </div>

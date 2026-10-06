@@ -114,7 +114,7 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
 
         {/* Zoom & Rotation Controls */}
         <div className="flex items-center gap-1">
-          <button
+          <button aria-label="Diminuir Zoom"
             onClick={handleZoomOut}
             className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
             title="Diminuir Zoom"
@@ -123,19 +123,19 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
           </button>
           <span
             onClick={handleResetZoom}
-            className="text-[11px] font-mono text-slate-300 px-1 cursor-pointer hover:text-indigo-400 select-none"
+            className="text-[11px] tabular-nums text-slate-300 px-1 cursor-pointer hover:text-indigo-400 select-none"
             title="Resetar Zoom (100%)"
           >
             {zoomLevel}%
           </span>
-          <button
+          <button aria-label="Aumentar Zoom"
             onClick={handleZoomIn}
             className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
             title="Aumentar Zoom"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
-          <button
+          <button aria-label="Girar 90°"
             onClick={handleRotate}
             className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer ml-1"
             title="Girar 90°"

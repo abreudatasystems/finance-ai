@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface SideDrawerProps {
@@ -26,6 +26,18 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
   children,
   widthClass = 'max-w-md',
 }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard focus moves into the panel, and back to whatever opened it.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const first = panelRef.current?.querySelector<HTMLElement>(
+      'input:not([type="hidden"]):not([disabled]), select, textarea, button:not([aria-label="Fechar"])',
+    );
+    (first ?? panelRef.current)?.focus({ preventScroll: true });
+    return () => opener?.focus?.({ preventScroll: true });
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -40,7 +52,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end select-none p-3 sm:p-4 md:p-5">
+    <div className="fixed inset-0 z-50 flex justify-end p-3 sm:p-4 md:p-5">
       {/* Backdrop */}
       <div
         onClick={onClose}
@@ -50,13 +62,15 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
 
       {/* Panel */}
       <div
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`fai-drawer relative h-full w-full ${widthClass} bg-white shadow-2xl rounded-2xl md:rounded-3xl overflow-hidden flex flex-col`}
+        className={`fai-drawer relative h-full w-full ${widthClass} bg-white shadow-2xl rounded-2xl md:rounded-3xl overflow-hidden flex flex-col outline-none`}
       >
         {/* Header */}
-        <div className="px-5 py-4 text-white flex items-center justify-between bg-slate-900">
+        <div className="px-5 py-4 text-white flex items-center justify-between bg-neutral-950">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="min-w-0">
               <h2 className="font-bold text-sm truncate">{title}</h2>
@@ -73,7 +87,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-5">{children}</div>
 
         {/* Sticky footer */}
         {footer && (

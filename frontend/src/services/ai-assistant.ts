@@ -46,23 +46,15 @@ export type AIActionCard =
 export type AIActionStatus = 'pending' | 'confirmed' | 'cancelled';
 
 
+// The greeting carries no figures: anything it showed before the first
+// question would have to come from the company's own data, and invented
+// highlights ("EDP pendente há 5 dias", "8 meses de runway") read as real.
 export const INITIAL_AI_MESSAGES: AIMessage[] = [
   {
     id: 'msg-1',
     sender: 'ai',
-    text: 'Olá João. Sou o seu **Finance AI Copilot**. Estou a monitorizar a saúde financeira da **TechStart Lda** em tempo real.',
+    text: 'Olá. Sou o seu **Finance AI Copilot**. Pergunte-me pelo saldo, pelo que está por receber ou por pagar, ou peça-me para lançar um movimento.',
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    actionCard: {
-      type: 'show_alerts',
-      title: 'Destaques e Alertas Automáticos',
-      data: {
-        highlights: [
-          '[Atrasado] Fatura EDP Comercial pendente há 5 dias (€180,00)',
-          '[Aviso] Fornecedor Google Ireland aumentou preço (+43%)',
-          '[Saudável] Saldo de caixa com 8 meses de runway (€45.230,00)'
-        ]
-      }
-    }
   }
 ];
 

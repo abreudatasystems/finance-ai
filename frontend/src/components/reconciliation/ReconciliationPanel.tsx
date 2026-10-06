@@ -22,6 +22,7 @@ import { BankEntry, MatchSuggestion, ReconciliationOverview } from './types';
 import {
   EntryFilter, fetchEntries, fetchOverview, fetchSuggestions, matchEntry, unmatchEntry, ignoreEntry,
 } from './api';
+import { formatDate } from '@/services/format';
 
 const FILTERS: { id: EntryFilter; label: string }[] = [
   { id: 'unmatched', label: 'Por conciliar' },
@@ -114,7 +115,7 @@ export const ReconciliationPanel: React.FC = () => {
             <span className="font-bold text-sm text-slate-900 flex items-center gap-2">
               <Scale className="w-4 h-4 text-indigo-600" /> Conciliação
             </span>
-            <span className="font-mono text-slate-500">
+            <span className="tabular-nums text-slate-500">
               {overview.conciliados}/{overview.movimentos} movimentos · {overview.percentagem}%
             </span>
           </div>
@@ -123,17 +124,17 @@ export const ReconciliationPanel: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
-              <p className="text-[9px] uppercase font-bold text-slate-400">Por conciliar</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400">Por conciliar</p>
               <p className="font-bold text-slate-900">{overview.por_conciliar} · {formatMoney(overview.valor_por_conciliar)}</p>
             </div>
             <div>
-              <p className="text-[9px] uppercase font-bold text-slate-400">Pagamentos sem extrato</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400">Pagamentos sem extrato</p>
               <p className="font-bold text-slate-900">
                 {overview.pagamentos_sem_extrato} · {formatMoney(overview.valor_pagamentos_sem_extrato)}
               </p>
             </div>
             <div>
-              <p className="text-[9px] uppercase font-bold text-slate-400">Ignorados</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400">Ignorados</p>
               <p className="font-bold text-slate-900">{overview.ignorados}</p>
             </div>
           </div>
@@ -155,7 +156,7 @@ export const ReconciliationPanel: React.FC = () => {
               </button>
             ))}
           </div>
-          <button onClick={reload} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" title="Atualizar">
+          <button aria-label="Atualizar" onClick={reload} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" title="Atualizar">
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -193,18 +194,18 @@ export const ReconciliationPanel: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-slate-800 truncate">{entry.description}</p>
                       <p className="text-[10px] text-slate-500">
-                        {entry.date}
+                        {formatDate(entry.date)}
                         {entry.transaction && <> · ligado a <b>{entry.transaction.description}</b></>}
                         {entry.status === 'matched' && entry.payment_source === 'bank' && ' · pagamento criado pelo extrato'}
                       </p>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <p className={`font-bold font-mono ${isOut ? 'text-rose-700' : 'text-emerald-700'}`}>
+                      <p className={`font-bold tabular-nums ${isOut ? 'text-rose-700' : 'text-emerald-700'}`}>
                         {isOut ? '−' : '+'}{formatMoney(Math.abs(entry.amount))}
                       </p>
                       {entry.balance != null && (
-                        <p className="text-[9px] text-slate-400 font-mono">saldo {formatMoney(entry.balance)}</p>
+                        <p className="text-[10px] text-slate-400 tabular-nums">saldo {formatMoney(entry.balance)}</p>
                       )}
                     </div>
 
@@ -227,11 +228,11 @@ export const ReconciliationPanel: React.FC = () => {
                         <>
                           <button
                             onClick={() => openCandidates(entry)}
-                            className="px-2 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] flex items-center gap-1"
+                            className="px-2 py-1.5 rounded-lg bg-neutral-950 hover:bg-neutral-800 text-white font-bold text-[10px] flex items-center gap-1"
                           >
                             <Link2 className="w-3 h-3" /> {openEntry === entry.id ? 'Fechar' : 'Conciliar'}
                           </button>
-                          <button
+                          <button aria-label="Ignorar (comissões, transferências internas)"
                             onClick={() => doIgnore(entry, true)} disabled={busy === entry.id}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-50"
                             title="Ignorar (comissões, transferências internas)"
@@ -267,13 +268,13 @@ export const ReconciliationPanel: React.FC = () => {
                                   {s.entity_name} · {s.description}
                                 </p>
                                 <p className="text-[10px] text-slate-500">
-                                  {s.date}{s.due_date ? ` · vence ${s.due_date}` : ''} · {s.category_name}
+                                  {formatDate(s.date)}{s.due_date ? ` · vence ${formatDate(s.due_date)}` : ''} · {s.category_name}
                                   {' · em aberto '}<b>{formatMoney(s.outstanding)}</b>
                                 </p>
                                 <p className="text-[10px] text-emerald-700 mt-0.5">{s.porque}</p>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-[10px] font-bold text-slate-400 font-mono">{s.score}%</span>
+                                <span className="text-[10px] font-bold text-slate-400 tabular-nums">{s.score}%</span>
                                 <button
                                   onClick={() => doMatch(entry, s.transaction_id)} disabled={busy === entry.id}
                                   className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center gap-1 disabled:opacity-50"

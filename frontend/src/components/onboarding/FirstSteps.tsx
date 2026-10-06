@@ -68,7 +68,7 @@ const OpeningBalanceField: React.FC<{ onDone: () => void }> = ({ onDone }) => {
       <button
         onClick={save}
         disabled={saving || !account || !value}
-        className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40"
+        className="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-neutral-950 text-white hover:bg-neutral-800 disabled:opacity-40"
       >
         {saving ? 'A guardar…' : 'Guardar'}
       </button>
@@ -143,7 +143,7 @@ export const FirstSteps: React.FC = () => {
                   {step.titulo}
                 </span>
                 {!step.feito && step.essencial && (
-                  <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[9px] font-bold uppercase">
+                  <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold uppercase">
                     Essencial
                   </span>
                 )}

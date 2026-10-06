@@ -131,7 +131,7 @@ export default function InvitePage() {
               {signedIn ? (
                 <button
                   onClick={acceptAsSignedIn} disabled={busy}
-                  className="w-full px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="w-full px-3 py-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   Aceitar convite
@@ -143,7 +143,7 @@ export default function InvitePage() {
                   </p>
                   <Link
                     href="/login"
-                    className="w-full px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center justify-center gap-1.5"
+                    className="w-full px-3 py-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold flex items-center justify-center gap-1.5"
                   >
                     <LogIn className="w-4 h-4" /> Iniciar sessão
                   </Link>
@@ -171,7 +171,7 @@ export default function InvitePage() {
                   </label>
                   <button
                     type="submit" disabled={busy}
-                    className="w-full px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    className="w-full px-3 py-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
                   >
                     {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                     Criar conta e entrar

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { INITIAL_AI_MESSAGES, AIMessage, processUserMessage } from '@/services/ai-assistant';
 import {Sparkles, Send, Bot, User, CheckCircle2, PanelRightClose, ArrowRight} from 'lucide-react';
+import { formatDate } from '@/services/format';
 
 /**
  * Ids das mensagens.
@@ -138,7 +139,7 @@ export const AIDrawer: React.FC = () => {
           </div>
         </div>
 
-        <button
+        <button aria-label="Recolher Painel IA"
           onClick={closeAiDrawer}
           className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1 text-xs"
           title="Recolher Painel IA"
@@ -213,7 +214,7 @@ export const AIDrawer: React.FC = () => {
                         <div><span className="font-semibold">Fornecedor:</span> {msg.actionCard.data.supplier}</div>
                         <div><span className="font-semibold">Descrição:</span> {msg.actionCard.data.description}</div>
                         <div><span className="font-semibold">Valor:</span> {formatMoney(msg.actionCard.data.amount)}</div>
-                        <div><span className="font-semibold">Vencimento:</span> {msg.actionCard.data.due_date}</div>
+                        <div><span className="font-semibold">Vencimento:</span> {formatDate(msg.actionCard.data.due_date)}</div>
                       </div>
 
                       {msg.actionCard.status === 'confirmed' ? (
@@ -247,7 +248,7 @@ export const AIDrawer: React.FC = () => {
               <Bot className="w-4 h-4" />
             </div>
             <div className="bg-white p-3 rounded-2xl border border-slate-200 text-xs text-slate-400 animate-pulse flex items-center gap-1">
-              <span>Finance Copilot a analisar contexto...</span>
+              <span>Finance Copilot a analisar contexto…</span>
             </div>
           </div>
         )}
@@ -283,13 +284,13 @@ export const AIDrawer: React.FC = () => {
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Pergunte ou solicite uma ação..."
+            placeholder="Pergunte ou solicite uma ação…"
             className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs bg-slate-50"
           />
-          <button
+          <button aria-label="Enviar"
             type="submit"
             disabled={!inputText.trim()}
-            className="p-2.5 rounded-xl bg-black hover:bg-neutral-800 disabled:opacity-40 text-white transition-colors border border-neutral-800 cursor-pointer"
+            className="p-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 disabled:opacity-40 text-white transition-colors border border-neutral-800 cursor-pointer"
           >
             <Send className="w-4 h-4 text-emerald-400" />
           </button>
