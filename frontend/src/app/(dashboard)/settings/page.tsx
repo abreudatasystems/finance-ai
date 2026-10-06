@@ -177,7 +177,7 @@ export default function SettingsPage() {
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4 max-w-2xl text-xs">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-indigo-600" />
-            <h3 className="font-bold text-sm text-slate-900">Dados da Empresa (Multi-tenant)</h3>
+            <h3 className="font-bold text-sm text-slate-900">Dados da Empresa</h3>
           </div>
 
           <div className="space-y-1.5">

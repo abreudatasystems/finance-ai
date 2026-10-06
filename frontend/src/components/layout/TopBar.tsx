@@ -57,7 +57,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
   }, [pathname, currentCompany?.id]);
 
   return (
-    <header className={`h-16 bg-white/80 backdrop-blur-md fixed top-0 left-0 z-50 flex items-center justify-between px-5 select-none transition-all duration-300 ${
+    <header className={`h-16 bg-white/80 backdrop-blur-md fixed top-0 left-0 z-50 flex items-center justify-between gap-2 px-3 sm:px-5 select-none transition-all duration-300 ${
       isAiDrawerOpen ? 'right-[420px] md:right-[360px] lg:right-[420px]' : 'right-0'
     }`}>
       
@@ -84,13 +84,15 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         <div className="hidden sm:block h-5 w-px bg-neutral-200" />
 
         {/* Company Dropdown */}
-        <div className="relative">
+        <div className="relative min-w-0">
           <button
             onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl border border-neutral-200/80 hover:border-neutral-300 bg-neutral-50/80 hover:bg-neutral-100/80 text-[10px] sm:text-xs font-semibold text-neutral-800 transition-colors cursor-pointer"
+            aria-expanded={isCompanyDropdownOpen}
+            aria-haspopup="menu"
+            className="max-w-full flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl border border-neutral-200/80 hover:border-neutral-300 bg-neutral-50/80 hover:bg-neutral-100/80 text-[10px] sm:text-xs font-semibold text-neutral-800 transition-colors cursor-pointer"
           >
             <Building2 className="w-3.5 h-3.5 text-neutral-700 hidden sm:block" />
-            <span className="truncate max-w-[100px] sm:max-w-none">{currentCompany?.name || 'Empresa'}</span>
+            <span className="truncate max-w-[88px] sm:max-w-[220px]">{currentCompany?.name || 'Empresa'}</span>
             <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-neutral-400" />
           </button>
 
@@ -147,7 +149,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
       </div>
 
       {/* Right Section: Actions & Utilities */}
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         
         {/* Quick Search Ctrl+K */}
         <button
