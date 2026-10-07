@@ -24,7 +24,7 @@ def get_health_score(
 
 @router.get("/summary")
 def get_dashboard_summary(
-    months: int = 6,
+    months: int = Query(6, ge=1, le=60, description="Meses para trás (1 a 60)."),
     year: Optional[int] = Query(None, description="Ano fiscal completo; ignora `months`."),
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),

@@ -7,6 +7,9 @@ import { fetchTransaction, updateTransaction } from '@/services/data';
 import { Transaction } from '@/types';
 import { SettlementPanel } from '@/components/financial/SettlementPanel';
 import { InvoiceLinesEditor } from '@/components/lines/InvoiceLinesEditor';
+import { DocumentViewer } from '@/components/approvals/DocumentViewer';
+import Link from 'next/link';
+import { toast } from 'sonner';
 import {ArrowLeft, Pencil, Save, X, Loader2, FileText, Sparkles, RefreshCcw, ShieldCheck, Wallet, Building2, Tag, Upload, ExternalLink, Check, AlertTriangle, Landmark, Bot, User} from 'lucide-react';
 
 /* ---------- helpers ---------- */
@@ -126,7 +129,9 @@ export default function TransactionDetailPage() {
       category_name: form.category_name,
       cost_center_name: form.cost_center_name,
       amount: Number(form.amount),
-      vat_rate: form.vat_rate ? Number(form.vat_rate) : undefined,
+      // `!= null` e não truthy: a taxa 0 (isento) também é uma escolha, e
+      // ficava por enviar — o IVA mantinha-se o da taxa antiga.
+      vat_rate: form.vat_rate != null && String(form.vat_rate) !== '' ? Number(form.vat_rate) : undefined,
       currency: form.currency,
       due_date: form.due_date,
       payment_date: form.payment_date,
@@ -138,17 +143,16 @@ export default function TransactionDetailPage() {
       tags: form.tags,
     };
 
-    const updated = await updateTransaction(trx.id, patch);
-    // Fall back to an optimistic local merge (with recomputed IVA) in demo/offline mode.
-    const derived = deriveAmounts(Number(form.amount ?? 0), form.vat_rate ? Number(form.vat_rate) : undefined);
-    const merged: Transaction = updated ?? {
-      ...trx, ...patch,
-      net_amount: derived.net, vat_amount: derived.vat, gross_amount: derived.gross,
-      outstanding_amount: round2(derived.gross - Number(form.paid_amount ?? 0)),
-    } as Transaction;
+    const { data: updated, error } = await updateTransaction(trx.id, patch);
+    if (!updated) {
+      // Fica em edição, com o que foi escrito, para se poder corrigir.
+      setSaving(false);
+      toast.error(error || 'Não foi possível guardar o lançamento.');
+      return;
+    }
 
-    setTrx(merged);
-    setForm(merged);
+    setTrx(updated);
+    setForm(updated);
     setSaving(false);
     setEditMode(false);
     setSavedToast(true);
@@ -179,7 +183,6 @@ export default function TransactionDetailPage() {
   const isIncome = trx.type === 'income';
   const payStatus = PAY_STATUS[(v.payment_status as string) || 'pending'] || PAY_STATUS.pending;
   const docUrl = trx.document_url;
-  const isImage = docUrl ? /\.(png|jpe?g|webp|gif)$/i.test(docUrl) : false;
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300 pb-6">
@@ -415,28 +418,19 @@ export default function TransactionDetailPage() {
           <SectionCard title="Fatura Original" icon={<FileText className="w-4 h-4" />}>
             <div className="space-y-3">
               {docUrl ? (
-                <>
-                  <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 h-[420px]">
-                    {isImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={docUrl} alt={trx.document_name || 'Fatura'} className="w-full h-full object-contain" />
-                    ) : (
-                      <iframe src={docUrl} title="Fatura original" className="w-full h-full" />
-                    )}
-                  </div>
-                  <a href={docUrl} target="_blank" rel="noopener noreferrer"
-                    className="w-full py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 flex items-center justify-center gap-1.5">
-                    <ExternalLink className="w-3.5 h-3.5" /> Abrir em nova aba
-                  </a>
-                </>
+                // Pedido autenticado: um <iframe src> relativo ia ao servidor do
+                // Next (404) e, mesmo no endereço certo, sem token (401).
+                <div className="h-[420px]">
+                  <DocumentViewer fileUrl={docUrl} fileName={trx.document_name} />
+                </div>
               ) : (
                 <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center space-y-2">
                   <Upload className="w-8 h-8 text-slate-300 mx-auto" />
                   <p className="text-xs font-semibold text-slate-600">Nenhuma fatura anexada</p>
-                  <p className="text-[11px] text-slate-400">Arraste o PDF/imagem original aqui para guardar e validar.</p>
-                  <button className="mt-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-700">
-                    Anexar documento
-                  </button>
+                  <p className="text-[11px] text-slate-400">
+                    As faturas entram pela{' '}
+                    <Link href="/documents/inbox" className="text-indigo-600 font-semibold hover:underline">Automação (OCR)</Link>.
+                  </p>
                 </div>
               )}
             </div>

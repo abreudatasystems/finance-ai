@@ -347,7 +347,7 @@ def test_a_late_delivery_raises_an_alert(tenant):
 
     assert alert["severity"] == "danger"
     assert alert["amount"] == 37.50
-    assert alert["action"] == "/fiscal/retentions"
+    assert alert["action"] == "/reports"
 
 
 def test_no_retentions_means_no_alert(tenant):
@@ -395,8 +395,7 @@ def test_an_unparseable_period_is_refused(tenant):
 def test_the_ledger_carries_the_retention_and_the_payable(tenant):
     _book(tenant, code="irs_b_25", when="2026-09-10", description="Avença")
 
-    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?start=2026-09-01"
-                     "&end=2026-09-30").text
+    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?period=2026-09").text
     header, *rows = [line for line in csv.splitlines() if line.strip()]
 
     assert "Retenção" in header and "Valor a pagar" in header
@@ -410,8 +409,7 @@ def test_the_ledger_carries_the_retention_and_the_payable(tenant):
 def test_a_document_without_retention_exports_zero_and_the_full_amount(tenant):
     _book(tenant, amount=123.00, when="2026-09-10", description="Sem retenção")
 
-    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?start=2026-09-01"
-                     "&end=2026-09-30").text
+    csv = tenant.get("/api/v1/reports/accounting/ledger.csv?period=2026-09").text
     row = next(r for r in csv.splitlines() if "Sem retenção" in r)
     assert "0,00" in row
     assert "123,00" in row

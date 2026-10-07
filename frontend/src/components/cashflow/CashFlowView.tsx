@@ -8,6 +8,7 @@ import { fetchTransactions } from '@/services/data';
 import { settleMany } from '@/components/cashflow/api';
 import { ForecastPanel } from '@/components/cashflow/ForecastPanel';
 import { Transaction } from '@/types';
+import { formatDate, documentStatusLabel } from '@/lib/format';
 import {Search, CheckCircle2, X, RefreshCcw, Bot, User} from 'lucide-react';
 
 export interface CashFlowViewProps {
@@ -286,7 +287,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
               <p className="text-[9px] uppercase font-bold text-slate-500">Total em aberto</p>
               <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(buckets.aberto.total)}</p>
               <p className="text-[10px] text-slate-400">
-                <Link href="/financial/collections" className="hover:text-indigo-600">
+                <Link href="/financial/receivables" className="hover:text-indigo-600">
                   ver antiguidade →
                 </Link>
               </p>
@@ -339,7 +340,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
             {settling ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
             Marcar como liquidado hoje
           </button>
-          <button onClick={() => setSelected(new Set())} className="px-2 py-1.5 rounded-lg hover:bg-white/10">
+          <button onClick={() => setSelected(new Set())} aria-label="Limpar selecção" title="Limpar selecção" className="px-2 py-1.5 rounded-lg hover:bg-white/10">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -370,7 +371,12 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                 <tr
                   key={trx.id}
                   onClick={() => router.push(`/financial/cash-flow/${trx.id}`)}
-                  className="hover:bg-indigo-50/40 transition-colors cursor-pointer font-medium"
+                  // Abre também com o teclado (Enter), não só com o rato.
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.target === e.currentTarget) router.push(`/financial/cash-flow/${trx.id}`);
+                  }}
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 hover:bg-indigo-50/40 transition-colors cursor-pointer font-medium"
                 >
                   <td className="p-3.5" onClick={(e) => e.stopPropagation()}>
                     {Number(trx.outstanding_amount ?? 0) > 0 ? (
@@ -384,7 +390,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                       <span className="text-slate-200">—</span>
                     )}
                   </td>
-                  <td className="p-3.5 text-slate-500 font-mono text-[11px]">{trx.date}</td>
+                  <td className="p-3.5 text-slate-500 font-mono text-[11px] whitespace-nowrap">{formatDate(trx.date)}</td>
                   <td className="p-3.5 font-bold text-slate-900">{trx.description}</td>
                   <td className="p-3.5 text-slate-700 font-medium hidden md:table-cell">{trx.entity_name}</td>
                   <td className="p-3.5 text-slate-600 hidden lg:table-cell">{trx.category_name}</td>
@@ -416,7 +422,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                       trx.status === 'approved' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                       'bg-amber-50 text-amber-700 border border-amber-200'
                     }`}>
-                      {trx.status}
+                      {documentStatusLabel(trx.status)}
                     </span>
                   </td>
                   <td className="p-3.5 hidden sm:table-cell">

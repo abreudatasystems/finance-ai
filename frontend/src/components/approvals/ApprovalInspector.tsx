@@ -35,7 +35,10 @@ export const ApprovalInspector: React.FC<Props> = ({ detail, onDone, onClose, fo
   const item = detail.approval;
 
   const [amount, setAmount] = useState(String(item.amount ?? ''));
-  const [vatRate, setVatRate] = useState(String(item.vat_rate ?? 23));
+  // Sem taxa lida, o campo fica vazio. Pôr 23% por omissão marcava o item
+  // como "corrigido" sem ninguém mexer e lançava IVA num documento que o
+  // pode não ter.
+  const [vatRate, setVatRate] = useState(item.vat_rate == null ? '' : String(item.vat_rate));
   const [categoryId, setCategoryId] = useState(item.suggested_category_id || '');
   const [categoryName, setCategoryName] = useState(item.suggested_category || '');
   const [dueDate, setDueDate] = useState(item.due_date || item.date || '');
@@ -80,7 +83,7 @@ export const ApprovalInspector: React.FC<Props> = ({ detail, onDone, onClose, fo
     setError(null);
     const res = await decide(item.id, changed ? 'edited' : 'approved', {
       amount: preview.gross,
-      vat_rate: preview.rate,
+      vat_rate: vatRate.trim() === '' ? undefined : preview.rate,
       category_id: categoryId || undefined,
       category_name: categoryName || undefined,
       due_date: dueDate || undefined,

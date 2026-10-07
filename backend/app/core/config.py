@@ -47,10 +47,6 @@ class Settings(BaseSettings):
     #: Where the invitation links point — the app's public address.
     APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://localhost:3000")
 
-    # Dify AI Integration
-    DIFY_API_KEY: str = os.getenv("DIFY_API_KEY", "")
-    DIFY_API_URL: str = os.getenv("DIFY_API_URL", "https://api.dify.ai/v1")
-
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

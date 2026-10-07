@@ -9,9 +9,9 @@
  * never a blank frame with no way out.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FileText, ExternalLink, ZoomIn, ZoomOut, AlertCircle } from 'lucide-react';
-import { API_BASE } from '@/services/api';
+import { API_BASE, apiFetch } from '@/services/api';
 
 interface Props {
   fileUrl?: string | null;
@@ -19,17 +19,54 @@ interface Props {
   fileType?: string | null;
 }
 
-/** Storage returns app-relative paths; make them absolute against the API. */
-const resolve = (url?: string | null) => {
-  if (!url) return null;
-  if (/^https?:\/\//i.test(url)) return url;
-  const base = API_BASE.replace(/\/api\/v1$/, '');
-  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+/** O caminho do ficheiro relativo à API (`/documents/{id}/file`), ou null
+ *  quando o URL aponta para fora dela e se pode abrir directamente. */
+const apiPath = (url: string): string | null => {
+  const prefix = new URL(API_BASE).pathname.replace(/\/$/, '');   // "/api/v1"
+  let path = url;
+  if (/^https?:\/\//i.test(url)) {
+    if (!url.startsWith(API_BASE)) return null;
+    path = url.slice(API_BASE.length);
+    return path.startsWith('/') ? path : `/${path}`;
+  }
+  if (!path.startsWith('/')) path = `/${path}`;
+  return path.startsWith(`${prefix}/`) ? path.slice(prefix.length) : path;
 };
 
 export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType }) => {
   const [zoom, setZoom] = useState(100);
-  const src = resolve(fileUrl);
+  /* O ficheiro vem por fetch autenticado e mostra-se a partir de um blob,
+     como no InvoiceDocumentViewer. Um <iframe>/<img src> não leva o token,
+     e o endpoint dos ficheiros exige-o: o original nunca aparecia (401). */
+  const [src, setSrc] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    if (!fileUrl) return;
+    const path = apiPath(fileUrl);
+    if (path === null) {
+      // URL externo (já público): abre-se como está.
+      queueMicrotask(() => setSrc(fileUrl));
+      return;
+    }
+    let alive = true;
+    let created: string | null = null;
+    (async () => {
+      try {
+        const res = await apiFetch(path);
+        if (!res.ok) { if (alive) setLoadError(true); return; }
+        const url = URL.createObjectURL(await res.blob());
+        created = url;
+        if (alive) { setLoadError(false); setSrc(url); } else URL.revokeObjectURL(url);
+      } catch {
+        if (alive) setLoadError(true);
+      }
+    })();
+    return () => {
+      alive = false;
+      if (created) URL.revokeObjectURL(created);
+    };
+  }, [fileUrl]);
   const isPdf = (fileType || '').includes('pdf') || (fileName || '').toLowerCase().endsWith('.pdf');
   const isImage = (fileType || '').startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(fileName || '');
 
@@ -43,16 +80,16 @@ export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType })
         <div className="flex items-center gap-1 shrink-0">
           {isImage && (
             <>
-              <button onClick={() => setZoom((z) => Math.max(50, z - 25))} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Reduzir">
+              <button onClick={() => setZoom((z) => Math.max(50, z - 25))} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Reduzir" aria-label="Reduzir">
                 <ZoomOut className="w-3.5 h-3.5" />
               </button>
               <span className="text-[10px] font-mono text-slate-400 w-9 text-center">{zoom}%</span>
-              <button onClick={() => setZoom((z) => Math.min(300, z + 25))} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Ampliar">
+              <button onClick={() => setZoom((z) => Math.min(300, z + 25))} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Ampliar" aria-label="Ampliar">
                 <ZoomIn className="w-3.5 h-3.5" />
               </button>
             </>
           )}
-          {src && (
+          {fileUrl && src && (
             <a href={src} target="_blank" rel="noreferrer" className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Abrir em separador novo">
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
@@ -61,11 +98,13 @@ export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType })
       </div>
 
       <div className="flex-1 overflow-auto min-h-[320px]">
-        {!src ? (
+        {!fileUrl || !src ? (
           <div className="h-full flex flex-col items-center justify-center gap-2 p-6 text-center text-slate-400">
             <AlertCircle className="w-5 h-5" />
             <p className="text-[11px]">
-              O ficheiro original não está guardado para este documento.
+              {!fileUrl
+                ? 'O ficheiro original não está guardado para este documento.'
+                : loadError ? 'Não foi possível abrir o ficheiro original.' : 'A carregar o original…'}
               <br />Os valores abaixo continuam a poder ser revistos e corrigidos.
             </p>
           </div>

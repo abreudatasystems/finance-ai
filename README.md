@@ -148,6 +148,15 @@ export DATABASE_URL=postgresql://user:pass@host/finance
 export BACKEND_CORS_ORIGINS=https://app.exemplo.pt
 ```
 
+Os webhooks (`/webhooks/email`, `/webhooks/whatsapp`) ficam **fechados** até
+haver um segredo: sem `WEBHOOK_SECRET` respondem 503. Quem os chama envia o
+segredo no cabeçalho `X-Webhook-Secret` e o `company_id` de uma empresa que
+exista. O documento entra como "recebido", sem valores — são lidos depois.
+
+```bash
+export WEBHOOK_SECRET=$(python -c "import secrets;print(secrets.token_urlsafe(32))")
+```
+
 ### Email (opcional)
 
 Invitations are emailed when SMTP is configured; without it the invitation is

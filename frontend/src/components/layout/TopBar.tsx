@@ -51,6 +51,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         {/* Hamburger Menu (Mobile Only) */}
         <button
           onClick={toggleMobileMenu}
+          aria-label="Abrir menu"
           className="md:hidden p-1.5 rounded-lg text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"
         >
           <Menu className="w-6 h-6" />
@@ -72,6 +73,9 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         <div className="relative">
           <button
             onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+            aria-haspopup="menu"
+            aria-expanded={isCompanyDropdownOpen}
+            aria-label={`Empresa activa: ${currentCompany?.name || 'Empresa'}. Mudar de empresa`}
             className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl border border-neutral-200/80 hover:border-neutral-300 bg-neutral-50/80 hover:bg-neutral-100/80 text-[10px] sm:text-xs font-semibold text-neutral-800 transition-colors cursor-pointer"
           >
             <Building2 className="w-3.5 h-3.5 text-neutral-700 hidden sm:block" />
@@ -137,6 +141,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         {/* Quick Search Ctrl+K */}
         <button
           onClick={onOpenSearch}
+          aria-label="Pesquisar ou atalhos (Ctrl+K)"
           className="flex items-center gap-2 px-2 sm:px-3.5 py-2 rounded-xl border border-neutral-200/80 bg-neutral-50/80 hover:bg-neutral-100/80 text-neutral-400 text-xs transition-colors cursor-pointer"
         >
           <Search className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-neutral-400" />
@@ -150,6 +155,9 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         <div className="relative">
           <button
             onClick={() => setIsCreateDropdownOpen(!isCreateDropdownOpen)}
+            aria-label="Criar novo"
+            aria-haspopup="menu"
+            aria-expanded={isCreateDropdownOpen}
             className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs shadow-xs border border-neutral-900 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4 text-emerald-400" />
@@ -250,16 +258,23 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         </button>
 
         {/* Notification Bell */}
-        <button className="relative p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer" title="Notificações">
+        {/* Era um botão sem acção, com um ponto vermelho a piscar sempre —
+            houvesse ou não alertas. Agora leva à página dos alertas reais. */}
+        <Link
+          href="/alerts"
+          className="relative p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer"
+          title="Alertas"
+          aria-label="Ver alertas"
+        >
           <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white animate-ping" />
-        </button>
+        </Link>
 
         {/* Settings Button */}
         <Link
           href="/settings"
           className="hidden sm:flex p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer items-center justify-center"
           title="Configurações da Plataforma"
+          aria-label="Configurações"
         >
           <Settings className="w-4 h-4" />
         </Link>

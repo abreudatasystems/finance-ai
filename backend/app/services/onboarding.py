@@ -133,7 +133,7 @@ def status(db: Session, company_id: str) -> dict:
             "Renda, salários, avenças. Uma previsão que ignora a renda do mês "
             "que vem não é uma previsão.",
             recurrences > 0,
-            "/financial/recurrences", "Criar recorrência",
+            "/financial/cash-flow", "Criar recorrência",
         ),
         _step(
             "entidades", "Registe clientes e fornecedores",

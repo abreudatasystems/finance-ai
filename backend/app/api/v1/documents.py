@@ -1,5 +1,7 @@
 import json
 import os
+from typing import Optional
+from urllib.parse import quote
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -29,6 +31,19 @@ from app.services.open_source_ocr import (
 )
 
 router = APIRouter()
+
+
+def _inline_disposition(file_name: Optional[str]) -> str:
+    """Content-Disposition que aguenta "fatura–agosto €.pdf".
+
+    Os cabeçalhos HTTP são latin-1: um nome com "€" ou "–" rebentava o
+    download com um 500. Vai uma versão ASCII para clientes antigos e o nome
+    verdadeiro em filename* (RFC 5987).
+    """
+    name = os.path.basename(file_name or "documento")
+    name = "".join(ch for ch in name if ch not in '"\r\n') or "documento"
+    ascii_name = name.encode("ascii", "replace").decode("ascii").replace("?", "_")
+    return f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"
 
 
 def _stamp() -> int:
@@ -135,11 +150,10 @@ def get_document_file(
         raise HTTPException(status_code=404, detail="Ficheiro não encontrado no armazenamento")
 
     suffix = os.path.splitext((document.file_name or "").lower())[1]
-    name = os.path.basename(document.file_name or "documento")
     return Response(
         content=data,
         media_type=MEDIA_TYPES.get(suffix, "application/octet-stream"),
-        headers={"Content-Disposition": f'inline; filename="{name}"'},
+        headers={"Content-Disposition": _inline_disposition(document.file_name)},
     )
 
 

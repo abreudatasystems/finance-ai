@@ -10,7 +10,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Zap, Loader2, ShieldCheck, Check, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import { InvitationPreview } from '@/types';
@@ -19,7 +19,6 @@ import { isAuthenticated, setToken, setActiveCompany } from '@/services/api';
 
 export default function InvitePage() {
   const params = useParams<{ token: string }>();
-  const router = useRouter();
   const token = String(params?.token || '');
 
   const [preview, setPreview] = useState<InvitationPreview | null>(null);
@@ -47,7 +46,9 @@ export default function InvitePage() {
   const finish = (companyId: string) => {
     setActiveCompany(companyId);   // land straight in the company that invited them
     setDone(true);
-    setTimeout(() => router.push('/dashboard'), 1200);
+    // Recarga completa: o contexto da app carrega-se de novo com o utilizador novo.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa intencional
+    setTimeout(() => window.location.assign('/dashboard'), 1200);
   };
 
   const acceptAsSignedIn = async () => {

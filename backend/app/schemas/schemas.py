@@ -7,9 +7,6 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-class TokenData(BaseModel):
-    user_id: Optional[str] = None
-
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -19,24 +16,6 @@ class UserCreate(BaseModel):
     company_name: str
     email: str
     password: str
-
-class UserOut(BaseModel):
-    id: str
-    name: str
-    email: str
-    avatar: Optional[str] = None
-    role: str = "owner"
-
-# Company
-class CompanyOut(BaseModel):
-    id: str
-    name: str
-    nif: str
-    currency: str
-    fiscal_year_start: str
-
-    class Config:
-        from_attributes = True
 
 
 # Category
@@ -234,20 +213,6 @@ class TransactionOut(BaseModel):
 
     class Config:
         from_attributes = True
-
-# Document Extraction Dify Schema
-class DifyExtractionPayload(BaseModel):
-    texto_documento: str
-    empresa: str
-    categorias_disponiveis: List[str]
-    fornecedores_existentes: List[str]
-
-class DifyExtractionResult(BaseModel):
-    fornecedor: str
-    data: str
-    valor: float
-    iva: float
-    categoria: str
     tipo: str
     descricao: str
     confianca: int

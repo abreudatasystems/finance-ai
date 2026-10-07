@@ -84,8 +84,25 @@ function authHeaders(extra: HeadersInit = {}): HeadersInit {
 
 /** Authenticated fetch against the API. `path` is relative to API_BASE. */
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const hadToken = !!getToken();
   const headers = authHeaders(options.headers as HeadersInit);
-  return fetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  // Sessão expirada (ou terminada noutra máquina ao mudar a palavra-passe):
+  // sem isto o painel mostrava tudo a 0 € como se a empresa estivesse vazia.
+  if (res.status === 401 && hadToken) redirectToLogin();
+  return res;
+}
+
+const PUBLIC_PATHS = ['/login', '/register', '/invite'];
+
+/** Limpa a sessão e leva ao login, a não ser que já se esteja numa página pública. */
+export function redirectToLogin(): void {
+  if (typeof window === 'undefined') return;
+  const here = window.location.pathname;
+  if (PUBLIC_PATHS.some((p) => here === p || here.startsWith(`${p}/`))) return;
+  clearToken();
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa intencional
+  window.location.assign('/login');
 }
 
 /** Convenience JSON GET. Returns null on any non-2xx or network error. */
@@ -104,7 +121,17 @@ export async function apiError(res: Response): Promise<string | null> {
   if (res.ok) return null;
   try {
     const data = await res.json();
-    return typeof data.detail === 'string' ? data.detail : 'Ocorreu um erro.';
+    if (typeof data.detail === 'string') return data.detail;
+    // Um 422 traz uma lista de campos inválidos; "Ocorreu um erro." não diz
+    // à pessoa o que corrigir.
+    if (Array.isArray(data.detail) && data.detail.length > 0) {
+      const parts = data.detail.map((d: { loc?: (string | number)[]; msg?: string }) => {
+        const field = d.loc?.filter((x) => x !== 'body').join('.');
+        return field ? `${field}: ${d.msg ?? 'valor inválido'}` : (d.msg ?? 'valor inválido');
+      });
+      return `Dados inválidos — ${parts.join('; ')}`;
+    }
+    return 'Ocorreu um erro.';
   } catch {
     return 'Ocorreu um erro.';
   }
@@ -265,7 +292,12 @@ export async function changePassword(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
     });
-    if (res.ok) return { ok: true };
+    if (res.ok) {
+      // A mudança termina as outras sessões; esta continua com o token novo.
+      const data = await res.json().catch(() => ({}));
+      if (data.access_token) setToken(data.access_token);
+      return { ok: true };
+    }
     const detail = await res.json().catch(() => ({}));
     return { ok: false, error: detail.detail || 'Não foi possível alterar a palavra-passe.' };
   } catch {

@@ -54,6 +54,7 @@ interface UploadResult {
   bank_name?: string;
   total_entries?: number;
   matched_entries?: number;
+  suggested_entries?: number;
   statement_id?: string;
 }
 
@@ -66,17 +67,22 @@ export default function BankReconciliationPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    // Simulate sync
-    await new Promise(r => setTimeout(r, 1500));
-    setIsSyncing(false);
-  };
+  // Muda a cada importação ou actualização: o painel de conciliação monta-se
+  // de novo e lê os movimentos novos, em vez de só aparecerem com F5.
+  const [panelVersion, setPanelVersion] = useState(0);
 
   const loadStatements = async () => {
     const data = await fetchBankStatements<Statement>();
     setStatements(data);
+  };
+
+  // "Sincronizar Banco" esperava 1,5 s e não fazia nada — não há ligação
+  // directa ao banco. Agora volta a ler o que está importado.
+  const handleSync = async () => {
+    setIsSyncing(true);
+    await loadStatements();
+    setPanelVersion(v => v + 1);
+    setIsSyncing(false);
   };
 
    
@@ -104,6 +110,7 @@ export default function BankReconciliationPage() {
         const result = await res.json();
         setUploadResult(result);
         await loadStatements();
+        setPanelVersion(v => v + 1);
       } else {
         const error = await res.json().catch(() => ({}));
         setUploadResult({ error: error.detail || 'Erro ao processar ficheiro.' });
@@ -159,14 +166,14 @@ export default function BankReconciliationPage() {
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-900/20 flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
           >
             <RefreshCcw className={`w-4 h-4 text-white ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>Sincronizar Banco</span>
+            <span>Atualizar</span>
           </button>
         </div>
       </div>
 
       {/* The working surface: match a bank line and the obligation behind it
           gets settled. See src/components/reconciliation. */}
-      <ReconciliationPanel />
+      <ReconciliationPanel key={panelVersion} />
 
       {/* Upload Zone */}
       <div
@@ -222,7 +229,7 @@ export default function BankReconciliationPage() {
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4" />
               <span>
-                <strong>{uploadResult.bank_name}</strong> — {uploadResult.total_entries} movimentos processados, {uploadResult.matched_entries} conciliados automaticamente.
+                <strong>{uploadResult.bank_name}</strong> — {uploadResult.total_entries} movimentos importados, {uploadResult.suggested_entries ?? 0} com correspondência sugerida para rever.
               </span>
             </div>
           )}
@@ -238,6 +245,9 @@ export default function BankReconciliationPage() {
               <div
                 key={stmt.id}
                 onClick={() => loadEntries(stmt)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadEntries(stmt); } }}
                 className={`flex items-center justify-between p-3 hover:bg-slate-50 cursor-pointer rounded-xl transition-colors ${
                   selectedStatement?.id === stmt.id ? 'bg-indigo-50 border border-indigo-200' : ''
                 }`}

@@ -29,6 +29,22 @@ class EntityIn(BaseModel):
     default_category_id: Optional[str] = None
     default_category_name: Optional[str] = None
     notes: Optional[str] = None
+    sub_account: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_role: Optional[str] = None
+    mobile: Optional[str] = None
+    website: Optional[str] = None
+    contact_type: Optional[str] = None
+    is_taxable: Optional[bool] = None
+    vat_cash_regime: Optional[bool] = None
+    is_vat_exempt: Optional[bool] = None
+    address_name: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    discharge_address: Optional[str] = None
+    document_observations: Optional[str] = None
+    internal_observations: Optional[str] = None
 
 
 class EntityPatch(BaseModel):
@@ -43,6 +59,22 @@ class EntityPatch(BaseModel):
     default_category_name: Optional[str] = None
     notes: Optional[str] = None
     active: Optional[bool] = None
+    sub_account: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_role: Optional[str] = None
+    mobile: Optional[str] = None
+    website: Optional[str] = None
+    contact_type: Optional[str] = None
+    is_taxable: Optional[bool] = None
+    vat_cash_regime: Optional[bool] = None
+    is_vat_exempt: Optional[bool] = None
+    address_name: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    discharge_address: Optional[str] = None
+    document_observations: Optional[str] = None
+    internal_observations: Optional[str] = None
 
 
 class MergeRequest(BaseModel):

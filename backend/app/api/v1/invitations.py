@@ -243,7 +243,7 @@ def register_from_invitation(
 
     team_service.accept_invitation(db, invitation, user)
     return {
-        "access_token": create_access_token(subject=user.id),
+        "access_token": create_access_token(subject=user.id, password_hash=user.hashed_password),
         "token_type": "bearer",
         "company_id": invitation.company_id,
     }

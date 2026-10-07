@@ -145,7 +145,10 @@ def build_schedule(gross: Decimal, count: int, first_due: str,
     the schedule can never drift by a cent from the invoice total.
     """
     base = (gross / Decimal(count)).quantize(CENTS, rounding=ROUND_HALF_UP)
-    start = date.fromisoformat(first_due)
+    try:
+        start = date.fromisoformat(str(first_due)[:10])
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Data inválida: '{first_due}'. Use AAAA-MM-DD.")
     rows = []
     running = Decimal("0.00")
     for n in range(1, count + 1):

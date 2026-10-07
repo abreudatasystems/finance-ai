@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { EntityAccount } from '@/components/entities/EntityAccount';
+import { toast } from 'sonner';
 import { fetchSuppliers, updateSupplier, fetchTransactions } from '@/services/data';
 import { Supplier, Transaction } from '@/types';
 import {
@@ -77,8 +78,14 @@ export default function SupplierProfilePage() {
   const save = async () => {
     if (!supplier) return;
     setSaving(true);
-    const updated = await updateSupplier(supplier.id, form);
-    const merged = updated ?? { ...supplier, ...form } as Supplier;
+    const { data: updated, error } = await updateSupplier(supplier.id, form);
+    if (!updated) {
+      // Fica em modo de edição, com o que foi escrito, para se poder corrigir.
+      setSaving(false);
+      toast.error(error || 'Não foi possível guardar as alterações.');
+      return;
+    }
+    const merged = { ...supplier, ...updated };
     setSupplier(merged);
     setForm(merged);
     setSaving(false);

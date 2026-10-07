@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
+import { decide } from '@/components/approvals/api';
+import { ApprovalDecision } from '@/components/approvals/types';
 import {
-  fetchDocuments, uploadInvoiceDocument, actionApproval, fetchApprovals,
+  fetchDocuments, uploadInvoiceDocument, fetchApprovals,
   fetchReadingCapabilities, ReadingCapabilities,
 } from '@/services/data';
 import { AIDocument, AIApprovalItem } from '@/types';
@@ -55,37 +58,23 @@ export default function DocumentInspectorPage() {
 
     setIsUploading(true);
     try {
-      const uploadedDoc = (await uploadInvoiceDocument(file, 'upload')) as unknown as AIDocument;
+      // A API devolve { document, approval_id, … } — o documento vem dentro.
+      // Tratado como se fosse o próprio documento, a lista ganhava uma linha
+      // sem nome nem valores e o visualizador pedia /documents/undefined/file.
+      const result = (await uploadInvoiceDocument(file, 'upload')) as { document?: AIDocument };
+      const uploadedDoc = result.document;
+      if (!uploadedDoc) throw new Error('A resposta do servidor não trouxe o documento.');
       setDocuments(prev => [uploadedDoc, ...prev]);
       setSelectedDoc(uploadedDoc);
+      // O upload cria uma aprovação; sem recarregar, "Aprovar" não a encontrava.
+      setApprovals(await fetchApprovals());
       setSuccessToast(`Documento ${file.name} processado e extraído com sucesso!`);
       setTimeout(() => setSuccessToast(null), 4000);
     } catch (err) {
-      console.error('Upload error:', err);
-      // Fallback preview
-      const fallbackDoc: AIDocument = {
-        id: `DOC-${Date.now()}`,
-        company_id: 'COMP001',
-        file_name: file.name,
-        file_size: `${(file.size / 1024).toFixed(1)} KB`,
-        file_type: file.type || 'application/pdf',
-        channel: 'upload',
-        status: 'extracted',
-        upload_date: new Date().toISOString(),
-        extracted_supplier: 'Fornecedor Extraído OCR',
-        extracted_nif: 'PT509876543',
-        extracted_amount: 580.00,
-        extracted_net: 471.54,
-        extracted_vat: 108.46,
-        extracted_vat_rate: 23,
-        extracted_date: new Date().toISOString().slice(0, 10),
-        extracted_due_date: new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10),
-        suggested_category: 'Serviços Especializados',
-        ai_confidence: 97,
-        is_recurring: false
-      };
-      setDocuments(prev => [fallbackDoc, ...prev]);
-      setSelectedDoc(fallbackDoc);
+      // Antes, uma falha mostrava um documento inventado ("Fornecedor
+      // Extraído OCR", 580 €, 97% de confiança) como se tivesse sido lido.
+      // Num sistema financeiro, um valor inventado é pior do que um erro.
+      toast.error(err instanceof Error ? err.message : 'Não foi possível processar o documento.');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -97,17 +86,34 @@ export default function DocumentInspectorPage() {
     setIsApproving(true);
 
     try {
-      // Find matching approval item
       const matchingApp = approvals.find(a => a.document_id === selectedDoc.id || a.document_name === selectedDoc.file_name);
-      if (matchingApp) {
-        await actionApproval(matchingApp.id, 'approved');
+      if (!matchingApp) {
+        toast.error('Este documento não tem uma aprovação pendente. Veja a fila em Aprovações.');
+        return;
       }
+      // As correcções feitas nos campos seguem com a decisão; antes eram
+      // ignoradas e lançava-se o que o OCR tinha lido.
+      const original = documents.find(d => d.id === selectedDoc.id);
+      const corrections: ApprovalDecision = {};
+      if (selectedDoc.extracted_amount !== original?.extracted_amount) corrections.amount = selectedDoc.extracted_amount;
+      if (selectedDoc.extracted_net !== original?.extracted_net) corrections.net_amount = selectedDoc.extracted_net;
+      if (selectedDoc.extracted_vat_rate !== original?.extracted_vat_rate) corrections.vat_rate = selectedDoc.extracted_vat_rate;
+      if (selectedDoc.extracted_vat !== original?.extracted_vat) corrections.vat_amount = selectedDoc.extracted_vat;
+      if (selectedDoc.suggested_category !== original?.suggested_category) corrections.category_name = selectedDoc.suggested_category;
+      if (selectedDoc.extracted_due_date !== original?.extracted_due_date) corrections.due_date = selectedDoc.extracted_due_date;
+      const edited = Object.keys(corrections).length > 0;
+
+      // Só se diz "aprovada" depois de a API o confirmar.
+      const { error } = await decide(matchingApp.id, edited ? 'edited' : 'approved', corrections);
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      setDocuments(prev => prev.map(d => (d.id === selectedDoc.id ? selectedDoc : d)));
       setApprovedDocs(prev => [...prev, selectedDoc.id]);
+      setApprovals(prev => prev.filter(a => a.id !== matchingApp.id));
       setSuccessToast(`Fatura ${selectedDoc.file_name} aprovada e lançada no fluxo financeiro!`);
       setTimeout(() => setSuccessToast(null), 4000);
-    } catch (err) {
-      console.error('Error approving document:', err);
-      setApprovedDocs(prev => [...prev, selectedDoc.id]);
     } finally {
       setIsApproving(false);
     }
@@ -210,7 +216,11 @@ export default function DocumentInspectorPage() {
               return (
                 <div
                   key={doc.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isSelected}
                   onClick={() => setSelectedDoc(doc)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDoc(doc); } }}
                   className={`p-3 rounded-xl cursor-pointer transition-all mb-1 ${
                     isSelected ? 'bg-indigo-50 border border-indigo-200 shadow-2xs' : 'hover:bg-slate-50/80 border border-transparent'
                   }`}
@@ -231,14 +241,14 @@ export default function DocumentInspectorPage() {
 
                   <div className="mt-2 flex items-center justify-between text-[10px]">
                     <span className="font-semibold text-indigo-700 bg-indigo-100/60 px-1.5 py-0.5 rounded">
-                      {doc.ai_confidence}% OCR
+                      {doc.ai_confidence != null ? `${doc.ai_confidence}% OCR` : 'Por ler'}
                     </span>
                     {isApp ? (
                       <span className="text-emerald-700 font-bold flex items-center gap-0.5">
                         <Check className="w-3 h-3" /> Aprovado
                       </span>
                     ) : (
-                      <span className="text-slate-400 font-medium">{doc.extracted_date || '2026-08'}</span>
+                      <span className="text-slate-400 font-medium">{doc.extracted_date || '—'}</span>
                     )}
                   </div>
                 </div>
@@ -252,14 +262,24 @@ export default function DocumentInspectorPage() {
           <div className="flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xs">
             <InvoiceDocumentViewer
               document={selectedDoc}
-              rawOcrText={selectedDoc ? `[Open-Source OCR v2.0 Extraction Report]\n----------------------------------------\nDocument: ${selectedDoc.file_name}\nSupplier: ${selectedDoc.extracted_supplier || 'N/A'}\nNIF: ${selectedDoc.extracted_nif || 'N/A'}\nInvoice Date: ${selectedDoc.extracted_date || '2026-08-28'}\nDue Date: ${selectedDoc.extracted_due_date || '2026-09-15'}\nGross Total: €${selectedDoc.extracted_amount || 0}\nVAT (23%): €${selectedDoc.extracted_vat || 0}\nNet Base: €${selectedDoc.extracted_net || ((selectedDoc.extracted_amount || 0) * 0.813).toFixed(2)}\nCategory Match: ${selectedDoc.suggested_category || 'Serviços'}\nStatus: Validated against Portuguese Tax Authority (AT) rules.` : ''}
+              rawOcrText={selectedDoc ? [
+                `Documento: ${selectedDoc.file_name}`,
+                `Fornecedor: ${selectedDoc.extracted_supplier || '—'}`,
+                `NIF: ${selectedDoc.extracted_nif || '—'}`,
+                `Data: ${selectedDoc.extracted_date || '—'}`,
+                `Vencimento: ${selectedDoc.extracted_due_date || '—'}`,
+                `Total: ${selectedDoc.extracted_amount != null ? formatMoney(selectedDoc.extracted_amount) : '—'}`,
+                `IVA${selectedDoc.extracted_vat_rate != null ? ` (${selectedDoc.extracted_vat_rate}%)` : ''}: ${selectedDoc.extracted_vat != null ? formatMoney(selectedDoc.extracted_vat) : '—'}`,
+                `Base: ${selectedDoc.extracted_net != null ? formatMoney(selectedDoc.extracted_net) : '—'}`,
+                `Categoria sugerida: ${selectedDoc.suggested_category || '—'}`,
+              ].join('\n') : ''}
               extractedFields={{
                 supplier: selectedDoc?.extracted_supplier,
                 nif: selectedDoc?.extracted_nif,
-                invoiceNumber: selectedDoc?.document_number || 'FT 2026/00452',
+                invoiceNumber: selectedDoc?.document_number,
                 date: selectedDoc?.extracted_date,
                 dueDate: selectedDoc?.extracted_due_date,
-                vatRate: selectedDoc?.extracted_vat_rate || 23,
+                vatRate: selectedDoc?.extracted_vat_rate,
                 vatAmount: selectedDoc?.extracted_vat,
                 grossAmount: selectedDoc?.extracted_amount,
                 category: selectedDoc?.suggested_category
@@ -285,7 +305,7 @@ export default function DocumentInspectorPage() {
               </div>
 
               <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                {selectedDoc?.ai_confidence || 98}% Precisão
+                {selectedDoc?.ai_confidence != null ? `${selectedDoc.ai_confidence}% Precisão` : 'Sem leitura'}
               </span>
             </div>
 
@@ -299,9 +319,6 @@ export default function DocumentInspectorPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
                         <Building2 className="w-3 h-3 text-indigo-500" /> Fornecedor
-                      </span>
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                        NIF Verificado (PT)
                       </span>
                     </div>
                     <input 
@@ -322,7 +339,6 @@ export default function DocumentInspectorPage() {
                           className="font-bold text-slate-800 bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 outline-none transition-colors w-full" 
                         />
                       </div>
-                      <span className="text-[10px] text-slate-400">Validação: OK</span>
                     </div>
                   </div>
 
@@ -375,7 +391,8 @@ export default function DocumentInspectorPage() {
                           <input 
                             type="number" 
                             className="w-6 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 text-center outline-none" 
-                            value={selectedDoc.extracted_vat_rate || 23} 
+                            value={selectedDoc.extracted_vat_rate ?? ''} 
+                            aria-label="Taxa de IVA (%)" 
                             onChange={(e) => setSelectedDoc({...selectedDoc, extracted_vat_rate: parseInt(e.target.value) || 0})}
                           />
                           %)
@@ -420,7 +437,6 @@ export default function DocumentInspectorPage() {
                         placeholder="Ex: Serviços Especializados"
                         className="bg-transparent border border-transparent hover:border-slate-300 focus:border-indigo-500 focus:bg-white rounded px-1 -mx-1 w-full outline-none transition-colors" 
                       />
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 ml-2" />
                     </div>
                   </div>
 

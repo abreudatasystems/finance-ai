@@ -17,7 +17,7 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, decode_access_payload, password_fingerprint
 from app.models.models import User, UserMembership
 
 from fastapi.security import OAuth2PasswordBearer
@@ -53,11 +53,15 @@ ROLE_LABELS = {
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    user_id = decode_access_token(token)
+    payload = decode_access_payload(token)
+    user_id = payload.get("sub") if payload else None
     if not user_id:
         raise CREDENTIALS_EXCEPTION
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
+        raise CREDENTIALS_EXCEPTION
+    # Token emitido antes de a palavra-passe mudar: já não vale.
+    if "pwd" in payload and payload["pwd"] != password_fingerprint(user.hashed_password):
         raise CREDENTIALS_EXCEPTION
     if user.active is False:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta desativada")

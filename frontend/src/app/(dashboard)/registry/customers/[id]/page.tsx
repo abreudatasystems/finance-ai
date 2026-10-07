@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { EntityAccount } from '@/components/entities/EntityAccount';
+import { toast } from 'sonner';
 import { fetchCustomers, updateCustomer, fetchTransactions } from '@/services/data';
 import { Customer, Transaction } from '@/types';
 import {
@@ -77,8 +78,14 @@ export default function CustomerProfilePage() {
   const save = async () => {
     if (!customer) return;
     setSaving(true);
-    const updated = await updateCustomer(customer.id, form);
-    const merged = updated ?? { ...customer, ...form } as Customer;
+    const { data: updated, error } = await updateCustomer(customer.id, form);
+    if (!updated) {
+      // Fica em modo de edição, com o que foi escrito, para se poder corrigir.
+      setSaving(false);
+      toast.error(error || 'Não foi possível guardar as alterações.');
+      return;
+    }
+    const merged = { ...customer, ...updated };
     setCustomer(merged);
     setForm(merged);
     setSaving(false);

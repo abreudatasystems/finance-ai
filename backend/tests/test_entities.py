@@ -107,3 +107,35 @@ def test_entities_are_invisible_to_another_company(tenant, other_tenant):
         "name": "Silva Lda", "nif": "501234567", "is_supplier": True}).json()
     assert other_tenant.get(f"/api/v1/entities/{entity['id']}").status_code == 404
     assert other_tenant.get("/api/v1/entities/").json() == []
+
+
+def test_editing_a_customer_record_is_saved(tenant):
+    """A ficha do cliente gravava "guardado" sem que nada chegasse à base de dados."""
+    customer = tenant.post("/api/v1/customers/", {"name": "Lopes Lda", "nif": "501234567"}).json()
+    res = tenant.patch(f"/api/v1/customers/{customer['id']}",
+                       {"email": "geral@lopes.pt", "phone": "912000000"})
+    assert res.status_code == 200
+    saved = next(c for c in tenant.get("/api/v1/customers/").json() if c["id"] == customer["id"])
+    assert saved["email"] == "geral@lopes.pt"
+    assert saved["phone"] == "912000000"
+
+
+def test_editing_a_supplier_record_is_saved_and_keeps_its_role(tenant):
+    supplier = tenant.post("/api/v1/suppliers/", {"name": "EDP", "nif": "503504564"}).json()
+    # O formulário devolve o objecto inteiro; os papéis não mudam por aqui.
+    res = tenant.patch(f"/api/v1/suppliers/{supplier['id']}",
+                       {**supplier, "address": "Av. 24 de Julho, Lisboa", "is_supplier": False})
+    assert res.status_code == 200
+    assert res.json()["address"] == "Av. 24 de Julho, Lisboa"
+    assert any(s["id"] == supplier["id"] for s in tenant.get("/api/v1/suppliers/").json())
+
+
+def test_an_empty_name_is_refused_on_edit(tenant):
+    customer = tenant.post("/api/v1/customers/", {"name": "Lopes Lda"}).json()
+    assert tenant.patch(f"/api/v1/customers/{customer['id']}", {"name": "  "}).status_code == 400
+
+
+def test_another_company_cannot_edit_the_record(tenant, other_tenant):
+    customer = tenant.post("/api/v1/customers/", {"name": "Lopes Lda"}).json()
+    assert other_tenant.patch(f"/api/v1/customers/{customer['id']}", {"name": "X"}).status_code == 404
+    assert other_tenant.patch(f"/api/v1/suppliers/{customer['id']}", {"name": "X"}).status_code == 404

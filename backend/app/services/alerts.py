@@ -169,14 +169,14 @@ def vat_deadline(db: Session, company_id: str, today: date) -> Optional[dict]:
             "iva_em_atraso", "danger",
             f"IVA de {position['period']['label']} fora de prazo",
             f"{due} € deviam ter sido entregues até {deadline.isoformat()}.",
-            amount=due, action="/fiscal/vat", action_label="Ver apuramento",
+            amount=due, action="/reports", action_label="Ver apuramento",
         )
     return _alert(
         "iva_a_pagar", "warning",
         f"IVA de {position['period']['label']} a pagar em {days_left} dia(s)",
         f"{due} € a entregar até {deadline.isoformat()}. Declaração até "
         f"{position['prazos']['declaracao_ate']}.",
-        amount=due, action="/fiscal/vat", action_label="Ver apuramento",
+        amount=due, action="/reports", action_label="Ver apuramento",
     )
 
 
@@ -202,7 +202,7 @@ def retention_deadline(db: Session, company_id: str, today: date) -> Optional[di
             f"Retenções na fonte fora de prazo ({len(late)} mês/meses)",
             f"{total:,.2f} € de {periods} deviam ter sido entregues ao Estado.",
             amount=round(total, 2),
-            action="/fiscal/retentions", action_label="Ver retenções",
+            action="/reports", action_label="Ver relatórios",
         )
 
     soonest = pending[0]
@@ -214,7 +214,7 @@ def retention_deadline(db: Session, company_id: str, today: date) -> Optional[di
         f"Retenções de {soonest['periodo']} a entregar em {days_left} dia(s)",
         f"{soonest['valor']:,.2f} € a entregar ao Estado até {soonest['ate']}.",
         amount=soonest["valor"],
-        action="/fiscal/retentions", action_label="Ver retenções",
+        action="/reports", action_label="Ver relatórios",
     )
 
 
@@ -289,7 +289,7 @@ def recurrences_behind(db: Session, company_id: str, today: date) -> Optional[di
         f"{len(pending)} recorrência(s) com períodos por lançar",
         f"{total} € em lançamentos que já venceram e ainda não foram gerados.",
         count=sum(p["periodos"] for p in pending), amount=total,
-        action="/financial/recurrences", action_label="Gerar em falta",
+        action="/financial/cash-flow", action_label="Ver fluxo de caixa",
         items=pending,
     )
 

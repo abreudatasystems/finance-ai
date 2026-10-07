@@ -13,7 +13,7 @@
  * weeks that go negative are marked in the table with a word as well as a tone.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
   TrendingDown, Loader2, AlertCircle, Check, ChevronDown, RefreshCw, Wallet,
   FileText, Repeat, Landmark, CalendarClock,
@@ -134,13 +134,25 @@ export const ForecastPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<number | null>(null);
 
+  // Só a resposta mais recente escreve: trocar depressa o horizonte deixava
+  // a projecção antiga por baixo do número de semanas novo.
+  const requestSeq = useRef(0);
+
   const load = useCallback(async () => {
+    const mine = ++requestSeq.current;
     setLoading(true);
-    setData(await fetchForecast(weeks));
+    const result = await fetchForecast(weeks);
+    if (mine !== requestSeq.current) return;
+    setData(result);
     setLoading(false);
   }, [weeks]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    // Ao desmontar, qualquer resposta ainda a caminho deixa de contar.
+    const seq = requestSeq;
+    return () => { seq.current++; };
+  }, [load]);
 
   if (loading) {
     return (
@@ -174,7 +186,7 @@ export const ForecastPanel: React.FC = () => {
                 {h.label}
               </button>
             ))}
-            <button onClick={load} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+            <button onClick={load} aria-label="Actualizar projecção" title="Actualizar projecção" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>

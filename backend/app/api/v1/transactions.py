@@ -7,7 +7,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from app.db.session import get_db
 from app.api.deps import get_current_company_id, get_current_user, require_write
-from app.models.models import Transaction, User
+from app.models.models import Category, CostCenter, Entity, Transaction, User
 from app.schemas.schemas import TransactionCreate, TransactionUpdate, TransactionOut
 from app.services import cash_forecast as forecast_service, retentions as retention_service
 from app.api.v1.settlements import (
@@ -24,6 +24,9 @@ VALID_STATUSES = {
     "draft", "pending_ai", "pending_approval", "approved",
     "paid", "received", "cancelled",
 }
+
+
+_REQUIRED_ON_PATCH = ("description", "entity_name", "category_id", "category_name", "amount", "date")
 
 
 def _valid_date(value: Optional[str]) -> Optional[str]:
@@ -176,6 +179,24 @@ def get_transaction(
     return _scoped(db, company_id, trx_id)
 
 
+def _check_references(db: Session, company_id: str, data: dict) -> None:
+    """A categoria, a entidade e o projecto têm de ser desta empresa.
+
+    Sem isto, um lançamento podia apontar para a categoria de outra empresa —
+    uma referência que ninguém nesta empresa consegue ver nem corrigir.
+    """
+    for field, model, label in (
+        ("category_id", Category, "Categoria"),
+        ("entity_id", Entity, "Entidade"),
+        ("cost_center_id", CostCenter, "Projecto"),
+    ):
+        value = data.get(field)
+        if value and not db.query(model.id).filter(
+            model.id == value, model.company_id == company_id
+        ).first():
+            raise HTTPException(status_code=400, detail=f"{label} desconhecida nesta empresa.")
+
+
 @router.post("/", response_model=TransactionOut, status_code=201)
 def create_transaction(
     item: TransactionCreate,
@@ -192,6 +213,7 @@ def create_transaction(
     # from August entered in September is an August document, and that is what
     # decides its VAT period.
     booking_date = _valid_date(item.date) or today
+    _check_references(db, company_id, item.model_dump())
 
     # A zero default vat_amount must not shadow an explicit vat_rate.
     explicit_vat = _d(item.vat_amount) if item.vat_amount else None
@@ -201,7 +223,7 @@ def create_transaction(
         id=trx_id,
         company_id=company_id,
         date=booking_date,
-        due_date=item.due_date or booking_date,
+        due_date=_valid_date(item.due_date) or booking_date,
         type=item.type,
         description=item.description,
         entity_name=item.entity_name,
@@ -287,6 +309,18 @@ def update_transaction(
     if "date" in data:
         data["date"] = _valid_date(data["date"]) or trx.date
 
+    # Campos obrigatórios não se apagam: um null aqui chegava à base de dados
+    # e voltava como erro 500 em vez de uma mensagem.
+    for field in _REQUIRED_ON_PATCH:
+        if field in data and data[field] in (None, ""):
+            raise HTTPException(status_code=400, detail=f"O campo '{field}' não pode ficar vazio.")
+
+    # Uma data mal escrita ("31/08/2026") era gravada tal e qual e rebentava
+    # mais tarde, ao calcular as prestações.
+    for field in ("due_date", "payment_date", "document_date"):
+        if data.get(field):
+            data[field] = _valid_date(data[field])
+
     if "status" in data:
         if data["status"] not in VALID_STATUSES:
             raise HTTPException(
@@ -298,6 +332,8 @@ def update_transaction(
             trx.payment_status = "cancelled"
         elif trx.payment_status == "cancelled":
             trx.payment_status = "paid" if _d(trx.paid_amount) >= _d(trx.gross_amount) else "pending"
+
+    _check_references(db, company_id, data)
 
     if "tags" in data:
         tags = data.pop("tags")

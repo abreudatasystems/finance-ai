@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { fetchAIRules, fetchAuditLogs, updateCompany } from '@/services/data';
-import { clearToken } from '@/services/api';
+import { fetchAIRules, fetchAuditLogs } from '@/services/data';
+import { clearToken, apiPatchOrError } from '@/services/api';
+import { toast } from 'sonner';
 import { AIRule, AuditLogItem } from '@/types';
 import Link from 'next/link';
 import { ChartOfAccounts } from '@/components/settings/ChartOfAccounts';
@@ -43,7 +44,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { currentCompany, currency, setCurrency, currentUser, userRole, setPageHeader } = useApp();
+  const { currentCompany, currency, setCurrency, currentUser, userRole, setPageHeader, refreshCompanies } = useApp();
 
   const [activeTab, setActiveTab] = useState<Tab>('company');
   const [aiRules, setAiRules] = useState<AIRule[]>([]);
@@ -53,6 +54,9 @@ export default function SettingsPage() {
   const [vatRegime, setVatRegime] = useState('normal');
   const [vatPeriodicity, setVatPeriodicity] = useState('quarterly');
   const [legalForm, setLegalForm] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [companyNif, setCompanyNif] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const comp = currentCompany as unknown as Record<string, string> | null;
@@ -60,6 +64,8 @@ export default function SettingsPage() {
     setVatRegime(comp.vat_regime || 'normal');
     setVatPeriodicity(comp.vat_periodicity || 'quarterly');
     setLegalForm(comp.legal_form || '');
+    setCompanyName(comp.name || '');
+    setCompanyNif(comp.nif || '');
   }, [currentCompany]);
 
   useEffect(() => {
@@ -84,17 +90,33 @@ export default function SettingsPage() {
   const patch = (p: Partial<StoredSettings>) => setSettings((s) => ({ ...s, ...p }));
 
   const handleSave = async () => {
-    if (currentCompany?.id) {
-      await updateCompany(currentCompany.id, {
-        vat_regime: vatRegime,
-        vat_periodicity: vatPeriodicity,
-        legal_form: legalForm || undefined,
-      });
-    }
+    // As preferências da IA ficam neste navegador; os dados da empresa vão
+    // para o servidor. Só se diz "guardado" quando o servidor o confirma —
+    // antes, uma falha mostrava sucesso e nome/NIF nunca eram enviados.
     try {
       window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch {
       /* ignore */
+    }
+    if (currentCompany?.id) {
+      if (!companyName.trim()) {
+        toast.error('O nome da empresa não pode ficar vazio.');
+        return;
+      }
+      setSaving(true);
+      const { error } = await apiPatchOrError(`/companies/${currentCompany.id}`, {
+        name: companyName.trim(),
+        nif: companyNif.trim() || undefined,
+        vat_regime: vatRegime,
+        vat_periodicity: vatPeriodicity,
+        legal_form: legalForm || undefined,
+      });
+      setSaving(false);
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      await refreshCompanies();
     }
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
@@ -105,9 +127,10 @@ export default function SettingsPage() {
     router.push('/login');
   };
 
-  const displayName = currentUser?.name || 'João Silva';
-  const displayEmail = currentUser?.email || 'joao@techstart.pt';
-  const initials = displayName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
+  // Sem nome inventado enquanto o utilizador carrega.
+  const displayName = currentUser?.name || '';
+  const displayEmail = currentUser?.email || '';
+  const initials = displayName.split(' ').filter(Boolean).map((n) => n[0]).slice(0, 2).join('').toUpperCase() || '—';
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300">
@@ -115,10 +138,11 @@ export default function SettingsPage() {
       <div className="flex justify-end pb-4">
         <button
           onClick={handleSave}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 active:scale-95 shrink-0"
+          disabled={saving}
+          className="disabled:opacity-60 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 active:scale-95 shrink-0"
         >
           {savedSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-          <span>{savedSuccess ? 'Guardado com sucesso!' : 'Guardar Alterações'}</span>
+          <span>{saving ? 'A guardar…' : savedSuccess ? 'Guardado com sucesso!' : 'Guardar Alterações'}</span>
         </button>
       </div>
 
@@ -159,20 +183,24 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-600">Nome da Empresa</label>
+            <label htmlFor="company-name" className="font-semibold text-slate-600">Nome da Empresa</label>
             <input
+              id="company-name"
               type="text"
-              defaultValue={currentCompany?.name || 'TechStart Lda'}
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="font-semibold text-slate-600">NIF</label>
+              <label htmlFor="company-nif" className="font-semibold text-slate-600">NIF</label>
               <input
+                id="company-nif"
                 type="text"
-                defaultValue={currentCompany?.nif || 'PT516789012'}
+                value={companyNif}
+                onChange={(e) => setCompanyNif(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"
               />
             </div>
@@ -241,7 +269,7 @@ export default function SettingsPage() {
             </div>
 
             <p className="text-[10px] text-slate-400">
-              Define como o <Link href="/fiscal/vat" className="text-indigo-600 font-semibold hover:underline">apuramento do IVA</Link> é
+              Define como o <Link href="/reports" className="text-indigo-600 font-semibold hover:underline">apuramento do IVA</Link> é
               calculado e os prazos de entrega. Na isenção do art.º 53.º não se liquida nem deduz IVA.
             </p>
           </div>
@@ -311,6 +339,7 @@ export default function SettingsPage() {
               />
               <p className="text-[10px] text-slate-400">
                 Faturas com confiança abaixo deste valor exigem revisão manual em Aprovações.
+                {' '}Estas preferências ficam guardadas apenas neste navegador.
               </p>
             </div>
           </div>
@@ -375,8 +404,10 @@ export default function SettingsPage() {
               <label className="font-semibold text-slate-600">Nome Completo</label>
               <input
                 type="text"
-                defaultValue={displayName}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                value={displayName}
+                readOnly
+                aria-label="Nome completo"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 focus:outline-none"
               />
             </div>
 
@@ -386,10 +417,15 @@ export default function SettingsPage() {
               </label>
               <input
                 type="email"
-                defaultValue={displayEmail}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                value={displayEmail}
+                readOnly
+                aria-label="Email"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 focus:outline-none"
               />
-            </div>
+              {/* Os campos são só de leitura: não há forma de os gravar, e um
+                campo editável que não grava faz crer que gravou. */}
+            <p className="text-[10px] text-slate-400">Para mudar o nome ou o email da conta, contacte o administrador.</p>
+          </div>
           </div>
 
           {/* Session / danger zone */}

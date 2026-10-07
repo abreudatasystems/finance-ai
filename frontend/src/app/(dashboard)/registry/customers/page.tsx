@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from 'sonner';
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { fetchCustomers } from '@/services/data';
@@ -35,9 +36,16 @@ export default function CustomersPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Tem a certeza que deseja eliminar este cliente?')) return;
     setDeletingId(id);
-    await deleteCustomer(id);
-    setCustomers(prev => prev.filter(c => c.id !== id));
+    const outcome = await deleteCustomer(id);
     setDeletingId(null);
+    if (!outcome.ok) {
+      toast.error(outcome.error || 'Não foi possível eliminar.');
+      return;
+    }
+    // Arquivado ou eliminado, deixa de constar desta lista; a mensagem do
+    // servidor diz qual dos dois aconteceu.
+    setCustomers(prev => prev.filter(c => c.id !== id));
+    toast.success(outcome.message || 'Cliente eliminado.');
   };
 
   return (
@@ -74,6 +82,10 @@ export default function CustomersPage() {
                 <tr 
                   key={c.id} 
                   onClick={() => router.push(`/registry/customers/${c.id}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) router.push(`/registry/customers/${c.id}`); }}
+                  tabIndex={0}
+                  role="link"
+                  aria-label={`Abrir ficha de ${c.name}`}
                   className="hover:bg-neutral-50/60 transition-colors cursor-pointer"
                 >
                   <td className="py-3.5 px-4 font-bold text-neutral-900">
@@ -116,7 +128,7 @@ export default function CustomersPage() {
                       }}
                       disabled={deletingId === c.id}
                       className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                      title="Eliminar Cliente"
+                      title="Eliminar Cliente" aria-label="Eliminar Cliente"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

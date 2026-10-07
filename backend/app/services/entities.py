@@ -93,6 +93,16 @@ def balances(movements: Iterable[Transaction]) -> dict:
     }
 
 
+#: A ficha completa. Os formulários enviavam estes campos e as colunas
+#: existiam, mas nada os gravava — perdiam-se sem aviso.
+DETAIL_FIELDS = (
+    "sub_account", "contact_name", "contact_role", "mobile", "website", "contact_type",
+    "is_taxable", "vat_cash_regime", "is_vat_exempt",
+    "address_name", "postal_code", "city", "country", "discharge_address",
+    "document_observations", "internal_observations",
+)
+
+
 def serialize(entity: Entity, stats: Optional[dict] = None) -> dict:
     data = {
         "id": entity.id,
@@ -110,6 +120,7 @@ def serialize(entity: Entity, stats: Optional[dict] = None) -> dict:
         "notes": entity.notes,
         "active": entity.active is not False,
         "created_at": entity.created_at.isoformat() if entity.created_at else None,
+        **{field: getattr(entity, field) for field in DETAIL_FIELDS},
     }
     if stats:
         data.update(stats)
@@ -217,6 +228,7 @@ def create(db: Session, company_id: str, data: dict) -> Entity:
         default_category_name=data.get("default_category_name"),
         notes=data.get("notes"),
         active=True,
+        **{field: data[field] for field in DETAIL_FIELDS if data.get(field) is not None},
     )
     db.add(entity)
     db.commit()

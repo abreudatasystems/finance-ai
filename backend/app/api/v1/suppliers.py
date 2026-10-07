@@ -14,7 +14,7 @@ from app.db.session import get_db
 from app.models.models import User
 from app.schemas.schemas import SupplierCreate
 from app.services import entities as service
-from app.api.v1.entities import query_entities
+from app.api.v1.entities import EntityPatch, query_entities
 
 router = APIRouter()
 
@@ -38,6 +38,7 @@ def _as_supplier(row: dict) -> dict:
         # New, and useful: the same company may also be a customer.
         "is_customer": row["is_customer"],
         "papel": row["papel"],
+        **{field: row.get(field) for field in service.DETAIL_FIELDS},
     }
 
 
@@ -59,6 +60,24 @@ def create_supplier(
 ):
     entity = service.create(db, company_id, {**item.model_dump(), "is_supplier": True})
     return _as_supplier(service.serialize(entity, {"compras": {}, "vendas": {}}))
+
+
+@router.patch("/{supplier_id}")
+def update_supplier(
+    supplier_id: str,
+    patch: EntityPatch,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
+):
+    """Edita a ficha do fornecedor.
+
+    Os papéis (cliente/fornecedor) não mudam por aqui: a ficha de um fornecedor
+    não deve, por um campo esquecido no formulário, deixar de o ser.
+    """
+    data = patch.model_dump(exclude_unset=True, exclude={"is_supplier", "is_customer"})
+    entity = service.update(db, company_id, supplier_id, data)
+    return _as_supplier(service.with_balances(db, company_id, [entity])[0])
 
 
 @router.delete("/{supplier_id}")

@@ -42,11 +42,9 @@ export async function fetchCompanies(): Promise<Company[]> {
 export async function fetchCurrentUser(): Promise<User | null> {
   const u = await apiGet<User>('/auth/me');
   if (!u) return null;
-  return {
-    ...u,
-    avatar: u.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-    memberships: u.memberships || [],
-  };
+  // Sem foto de banco de imagens por omissão: a cara de um desconhecido no
+  // lugar da do utilizador é pior do que nenhuma.
+  return { ...u, memberships: u.memberships || [] };
 }
 
 export async function fetchUsers(): Promise<User[]> {
@@ -60,8 +58,8 @@ export async function fetchHealthScore(): Promise<FinancialHealthScore> {
   return data || ({} as FinancialHealthScore);
 }
 
-export async function fetchTransactions(companyId: string = 'COMP001'): Promise<Transaction[]> {
-  const data = await apiGet<Transaction[]>(`/transactions?company_id=${companyId}`);
+export async function fetchTransactions(): Promise<Transaction[]> {
+  const data = await apiGet<Transaction[]>('/transactions/');
   return data || [];
 }
 
@@ -70,39 +68,41 @@ export async function fetchTransaction(id: string): Promise<Transaction | null> 
   return data || null;
 }
 
-export async function updateTransaction(id: string, patch: Partial<Transaction>): Promise<Transaction | null> {
-  // Returns the updated transaction from the API, or null in demo/offline mode
-  // (the caller keeps the optimistic local copy in that case).
-  return apiPatch<Transaction>(`/transactions/${id}`, patch);
+/** Grava o lançamento e devolve o erro da API em vez de o engolir: a cópia
+ *  "optimista" que aqui se fazia mostrava "Guardado" sem nada ter sido gravado. */
+export async function updateTransaction(
+  id: string, patch: Partial<Transaction>,
+): Promise<{ data?: Transaction; error?: string }> {
+  return apiPatchOrError<Transaction>(`/transactions/${id}`, patch);
 }
 
-export async function fetchDocuments(companyId: string = 'COMP001'): Promise<AIDocument[]> {
-  const data = await apiGet<AIDocument[]>(`/documents?company_id=${companyId}`);
+export async function fetchDocuments(): Promise<AIDocument[]> {
+  const data = await apiGet<AIDocument[]>('/documents/');
   return data || [];
 }
 
-export async function fetchApprovals(companyId: string = 'COMP001'): Promise<AIApprovalItem[]> {
-  const data = await apiGet<AIApprovalItem[]>(`/approvals?company_id=${companyId}`);
+export async function fetchApprovals(): Promise<AIApprovalItem[]> {
+  const data = await apiGet<AIApprovalItem[]>('/approvals/');
   return data || [];
 }
 
-export async function fetchCategories(companyId: string = 'COMP001'): Promise<Category[]> {
-  const data = await apiGet<Category[]>(`/categories?company_id=${companyId}`);
+export async function fetchCategories(): Promise<Category[]> {
+  const data = await apiGet<Category[]>('/categories/');
   return data || [];
 }
 
-export async function fetchSuppliers(companyId: string = 'COMP001'): Promise<Supplier[]> {
-  const data = await apiGet<Supplier[]>(`/suppliers?company_id=${companyId}`);
+export async function fetchSuppliers(): Promise<Supplier[]> {
+  const data = await apiGet<Supplier[]>('/suppliers/');
   return data || [];
 }
 
-export async function fetchCustomers(companyId: string = 'COMP001'): Promise<Customer[]> {
-  const data = await apiGet<Customer[]>(`/customers?company_id=${companyId}`);
+export async function fetchCustomers(): Promise<Customer[]> {
+  const data = await apiGet<Customer[]>('/customers/');
   return data || [];
 }
 
-export async function fetchCostCenters(companyId: string = 'COMP001'): Promise<CostCenter[]> {
-  const data = await apiGet<CostCenter[]>(`/cost-centers?company_id=${companyId}`);
+export async function fetchCostCenters(): Promise<CostCenter[]> {
+  const data = await apiGet<CostCenter[]>('/projects/');
   return data || [];
 }
 
@@ -112,23 +112,37 @@ export async function fetchItems(kind?: string): Promise<Item[]> {
   return data || [];
 }
 
-export async function deleteItem(id: string): Promise<boolean> {
-  const res = await apiDelete<Record<string, unknown>>(`/items/${id}`);
-  return !!res;
+/** O resultado de eliminar um registo. O backend nem sempre elimina: com
+ *  movimentos, arquiva; com os dois papéis, só tira um. A mensagem dele diz
+ *  qual — e antes perdia-se, e a linha desaparecia mesmo quando falhava. */
+export interface DeleteOutcome {
+  ok: boolean;
+  message?: string;
+  error?: string;
 }
 
-export async function fetchFinancialEvents(companyId: string = 'COMP001'): Promise<FinancialEvent[]> {
-  const data = await apiGet<FinancialEvent[]>(`/events?company_id=${companyId}`);
+async function deleteOutcome(path: string): Promise<DeleteOutcome> {
+  const { data, error } = await apiDeleteOrError<{ message?: string }>(path);
+  if (error) return { ok: false, error };
+  return { ok: true, message: data?.message };
+}
+
+export async function deleteItem(id: string): Promise<DeleteOutcome> {
+  return deleteOutcome(`/items/${id}`);
+}
+
+export async function fetchFinancialEvents(): Promise<FinancialEvent[]> {
+  const data = await apiGet<FinancialEvent[]>('/events/');
   return data || [];
 }
 
-export async function fetchAIRules(companyId: string = 'COMP001'): Promise<AIRule[]> {
-  const data = await apiGet<AIRule[]>(`/settings/rules?company_id=${companyId}`);
+export async function fetchAIRules(): Promise<AIRule[]> {
+  const data = await apiGet<AIRule[]>('/settings/rules');
   return data || [];
 }
 
-export async function fetchAuditLogs(companyId: string = 'COMP001'): Promise<AuditLogItem[]> {
-  const data = await apiGet<AuditLogItem[]>(`/audit?company_id=${companyId}`);
+export async function fetchAuditLogs(): Promise<AuditLogItem[]> {
+  const data = await apiGet<AuditLogItem[]>('/audit/');
   return data || [];
 }
 
@@ -217,22 +231,28 @@ export async function uploadInvoiceDocument(file: File, channel: string = 'uploa
 }
 
 // ── Registry Deletions ──
-export async function deleteSupplier(id: string): Promise<boolean> {
-  const res = await apiDelete<Record<string, unknown>>(`/suppliers/${id}`);
-  return !!res;
+export async function deleteSupplier(id: string): Promise<DeleteOutcome> {
+  return deleteOutcome(`/suppliers/${id}`);
 }
 
-export async function deleteCustomer(id: string): Promise<boolean> {
-  const res = await apiDelete<Record<string, unknown>>(`/customers/${id}`);
-  return !!res;
+export async function deleteCustomer(id: string): Promise<DeleteOutcome> {
+  return deleteOutcome(`/customers/${id}`);
 }
 
-export async function updateCustomer(id: string, patch: Partial<Customer>): Promise<Customer | null> {
-  return apiPatch<Customer>(`/customers/${id}`, patch);
+/** Grava a ficha. Devolve o erro da API em vez de o engolir: um "guardado"
+ *  que não chegou à base de dados é pior do que uma mensagem de erro. */
+export async function updateCustomer(
+  id: string, patch: Partial<Customer>,
+): Promise<{ data?: Customer; error?: string }> {
+  return apiPatchOrError<Customer>(`/customers/${id}`, patch);
 }
 
-export async function updateSupplier(id: string, patch: Partial<Supplier>): Promise<Supplier | null> {
-  return apiPatch<Supplier>(`/suppliers/${id}`, patch);
+/** Grava a ficha. Devolve o erro da API em vez de o engolir: um "guardado"
+ *  que não chegou à base de dados é pior do que uma mensagem de erro. */
+export async function updateSupplier(
+  id: string, patch: Partial<Supplier>,
+): Promise<{ data?: Supplier; error?: string }> {
+  return apiPatchOrError<Supplier>(`/suppliers/${id}`, patch);
 }
 
 export async function fetchInstallments(trxId: string): Promise<Installment[]> {

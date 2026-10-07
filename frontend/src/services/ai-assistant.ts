@@ -33,7 +33,9 @@ export type AIActionCard =
   | {
       type: 'create_transaction';
       title: string;
-      data: { supplier: string; description: string; amount: number; due_date: string };
+      /** `transaction_id` existe quando o cartão confirma o pagamento de um
+       *  documento já lançado; sem ele, o cartão propõe um lançamento novo. */
+      data: { supplier: string; description: string; amount: number; due_date: string; transaction_id?: string };
       status?: AIActionStatus;
     }
   | {
@@ -46,24 +48,22 @@ export type AIActionCard =
 export type AIActionStatus = 'pending' | 'confirmed' | 'cancelled';
 
 
+/** A saudação inicial.
+ *
+ *  Não traz números: os destaques que aqui estavam ("Fatura EDP pendente há
+ *  5 dias", "8 meses de runway") eram fixos e apareciam a qualquer empresa —
+ *  um valor financeiro inventado é pior do que nenhum. Os alertas verdadeiros
+ *  estão em /alerts e o assistente responde com os dados da empresa activa.
+ *
+ *  Também não tem hora: calculada no servidor e de novo no navegador, a hora
+ *  diferia (outro minuto, outro fuso) e o React refazia a página inteira. */
 export const INITIAL_AI_MESSAGES: AIMessage[] = [
   {
     id: 'msg-1',
     sender: 'ai',
-    text: 'Olá João. Sou o seu **Finance AI Copilot**. Estou a monitorizar a saúde financeira da **TechStart Lda** em tempo real.',
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    actionCard: {
-      type: 'show_alerts',
-      title: 'Destaques e Alertas Automáticos',
-      data: {
-        highlights: [
-          '[Atrasado] Fatura EDP Comercial pendente há 5 dias (€180,00)',
-          '[Aviso] Fornecedor Google Ireland aumentou preço (+43%)',
-          '[Saudável] Saldo de caixa com 8 meses de runway (€45.230,00)'
-        ]
-      }
-    }
-  }
+    text: 'Olá. Sou o **Finance AI Copilot**. Pergunte-me pelo saldo, pelo que está por pagar ou por receber, ou peça-me para registar um lançamento.',
+    timestamp: '',
+  },
 ];
 
 export async function processUserMessage(prompt: string, currency: Currency = 'EUR', pagePath: string = '/dashboard'): Promise<AIMessage> {
@@ -76,11 +76,10 @@ export async function processUserMessage(prompt: string, currency: Currency = 'E
       body: JSON.stringify({
         message: prompt,
         prompt: prompt,
-        company_id: 'COMP001',
         currency,
         context: {
           page: pagePath,
-          period: '2026-08'
+          period: new Date().toISOString().slice(0, 7),
         }
       })
     });
@@ -97,31 +96,15 @@ export async function processUserMessage(prompt: string, currency: Currency = 'E
       };
     }
   } catch {
-    // API fallback
+    /* sem ligação — cai na mensagem abaixo */
   }
 
-  // Fallback engine
-  const p = prompt.toLowerCase();
-  if (p.includes('fluxo') || p.includes('caixa')) {
-    return {
-      id: `msg-ai-${Date.now()}`,
-      sender: 'ai',
-      text: 'Com base no histórico dos últimos 30 dias, o seu **Fluxo de Caixa Operacional** apresenta um saldo líquido positivo de **+€4.500,00**.',
-      timestamp,
-      actions: [
-        { label: 'Ver Movimentos', action: 'open_transactions' },
-        { label: 'Exportar Relatório', action: 'create_report' }
-      ]
-    };
-  }
-
+  // Sem resposta da API não há análise: dizer o contrário, com números
+  // inventados ("+€4.500,00"), seria pior do que admitir a falha.
   return {
     id: `msg-ai-${Date.now()}`,
     sender: 'ai',
-    text: `Analisei a sua solicitação sobre "${prompt}". Todos os registos foram sincronizados com a base de dados relacional.`,
+    text: 'Não consegui contactar o servidor para analisar o pedido. Verifique a ligação e tente de novo.',
     timestamp,
-    actions: [
-      { label: 'Ver Detalhes', action: 'open_transactions' }
-    ]
   };
 }

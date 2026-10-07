@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import {Check, Upload, Loader2, ChevronDown, ChevronUp} from 'lucide-react';
+import {Check, Loader2, ChevronDown, ChevronUp} from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { apiPost } from '@/services/api';
+import { apiPostOrError } from '@/services/api';
 import { fetchCategories } from '@/services/data';
 import { Category } from '@/types';
 import { SideDrawer } from './SideDrawer';
@@ -17,10 +17,12 @@ interface CreateTransactionModalProps {
 const FORM_ID = 'create-transaction-form';
 
 export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ initialType, onClose }) => {
-  const { currencySymbol } = useApp();
+  const { currencySymbol, formatMoney } = useApp();
 
-  const [type, setType] = useState<'expense' | 'income' | 'document'>(
-    initialType === 'income' ? 'income' : initialType === 'document' ? 'document' : 'expense'
+  // O modo "documento" (que simulava um processamento de IA sem fazer nada)
+  // saiu: as faturas entram pela Automação (OCR), em /documents/inbox.
+  const [type, setType] = useState<'expense' | 'income'>(
+    initialType === 'income' ? 'income' : 'expense'
   );
   const [description, setDescription] = useState('');
   const [entityName, setEntityName] = useState('');
@@ -119,40 +121,46 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
     // Uma categoria e uma contraparte são o que torna o documento legível na
     // DRE, no IVA e nas cobranças. Sem elas o lançamento entra e não se
     // consegue explicar depois, por isso pergunta-se agora.
-    if (type !== 'document') {
-      if (!selectedCategory && !categoryName.trim()) {
-        setFormError('Escolha a categoria do lançamento.');
-        return;
-      }
-      if (!entityName.trim()) {
-        setFormError('Indique o fornecedor ou o cliente.');
-        return;
-      }
+    if (!selectedCategory && !categoryName.trim()) {
+      setFormError('Escolha a categoria do lançamento.');
+      return;
+    }
+    if (!entityName.trim()) {
+      setFormError('Indique o fornecedor ou o cliente.');
+      return;
+    }
+    if (!(parseFloat(amount) > 0)) {
+      setFormError('Indique um valor maior que zero.');
+      return;
     }
     setFormError(null);
     setSubmitting(true);
 
-    if (type !== 'document') {
-      await apiPost('/transactions/', {
-        type,
-        date: docDate,
-        description: description.trim(),
-        entity_name: entityName.trim(),
-        category_id: selectedCategory,
-        category_name: categoryOptions.find((o) => o.id === selectedCategory)?.label || '',
-        amount: parseFloat(amount) || 0,
-        vat_rate: vatRate,
+    const { error } = await apiPostOrError('/transactions/', {
+      type,
+      date: docDate,
+      description: description.trim(),
+      entity_name: entityName.trim(),
+      category_id: selectedCategory,
+      category_name: categoryOptions.find((o) => o.id === selectedCategory)?.label || '',
+      amount: parseFloat(amount) || 0,
+      vat_rate: vatRate,
 
-        installment_count: installmentCount > 1 ? installmentCount : undefined,
-        is_recurring: isRecurring,
-        due_date: dueDate,
-        is_paid: paymentStatus === 'paid',
-        notes: notes.trim() || undefined,
-        tags: tags ? tags.split(',').map((t) => t.trim()) : undefined,
-      });
-    }
+      installment_count: installmentCount > 1 ? installmentCount : undefined,
+      is_recurring: isRecurring,
+      due_date: dueDate,
+      is_paid: paymentStatus === 'paid',
+      notes: notes.trim() || undefined,
+      tags: tags ? tags.split(',').map((t) => t.trim()) : undefined,
+    });
 
     setSubmitting(false);
+    // "Criado com sucesso" só depois de a API o confirmar; antes aparecia
+    // mesmo com o pedido recusado (sem permissão, dados inválidos, sem rede).
+    if (error) {
+      setFormError(error);
+      return;
+    }
     setIsSuccess(true);
     setTimeout(() => onClose(), 1100);
   };
@@ -161,11 +169,9 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
     ? 'Concluído'
     : type === 'income'
     ? 'Nova Receita / Cobrança'
-    : type === 'document'
-    ? 'Upload Documento IA'
     : 'Nova Despesa / Obrigação';
 
-  const showFooter = !isSuccess && type !== 'document';
+  const showFooter = !isSuccess;
 
   return (
     <SideDrawer
@@ -202,21 +208,6 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
           </div>
           <h4 className="text-sm font-bold text-slate-800">Lançamento Criado com Sucesso!</h4>
           <p className="text-xs text-slate-500">O valor foi sincronizado com o teu Fluxo de Caixa.</p>
-        </div>
-      ) : type === 'document' ? (
-        <div className="space-y-4 text-center">
-          <div className="border-2 border-dashed border-indigo-200 hover:border-indigo-500 bg-indigo-50/50 rounded-2xl p-8 transition-colors cursor-pointer group">
-            <Upload className="w-10 h-10 text-indigo-500 group-hover:scale-110 transition-transform mx-auto mb-2" />
-            <div className="text-xs font-semibold text-slate-800">Arraste a sua fatura ou recibo em PDF/PNG</div>
-            <div className="text-[11px] text-slate-400 mt-1">A IA vai extrair automaticamente o Fornecedor, NIF, Valor e IVA</div>
-          </div>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-70"
-          >
-            Simular Processamento IA
-          </button>
         </div>
       ) : (
         <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
@@ -357,15 +348,15 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 rounded-xl text-center border border-slate-200/80">
               <div>
                 <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Líquido</div>
-                <div className="text-xs font-bold text-slate-800">{currencySymbol}{breakdown.net.toFixed(2)}</div>
+                <div className="text-xs font-bold text-slate-800">{formatMoney(breakdown.net)}</div>
               </div>
               <div>
                 <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">IVA</div>
-                <div className="text-xs font-bold text-slate-800">{currencySymbol}{breakdown.vat.toFixed(2)}</div>
+                <div className="text-xs font-bold text-slate-800">{formatMoney(breakdown.vat)}</div>
               </div>
               <div>
                 <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Total</div>
-                <div className="text-xs font-black text-indigo-700">{currencySymbol}{breakdown.gross.toFixed(2)}</div>
+                <div className="text-xs font-black text-indigo-700">{formatMoney(breakdown.gross)}</div>
               </div>
             </div>
             <p className="text-[10px] text-slate-400">O valor introduzido é o total com IVA; o líquido é calculado a partir da taxa.</p>
@@ -421,7 +412,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                     <span className="text-slate-500 font-mono">
                       {p.number}/{installmentCount} · {p.due_date}
                     </span>
-                    <span className="font-bold text-slate-800">{currencySymbol}{p.amount.toFixed(2)}</span>
+                    <span className="font-bold text-slate-800">{formatMoney(p.amount)}</span>
                   </div>
                 ))}
                 {installmentCount > 6 && (

@@ -167,6 +167,12 @@ def change_role(db: Session, company_id: str, actor: User, target_user_id: str, 
 
 def remove_member(db: Session, company_id: str, actor: User, target_user_id: str) -> None:
     target = _membership(db, target_user_id, company_id)
+    # A mesma regra de change_role: um administrador não podia despromover um
+    # proprietário, mas podia removê-lo da empresa — o que é pior.
+    if target.role == ROLE_OWNER and actor.id != target_user_id:
+        actor_membership = _membership(db, actor.id, company_id)
+        if actor_membership.role != ROLE_OWNER:
+            raise HTTPException(status_code=403, detail="Apenas um proprietário pode remover outro proprietário")
     _guard_last_owner(db, company_id, target)
 
     target_user = db.query(User).filter(User.id == target_user_id).first()

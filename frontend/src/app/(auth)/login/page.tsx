@@ -2,12 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { login } from '@/services/api';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('joao@techstart.pt');
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +19,10 @@ export default function LoginPage() {
     setLoading(false);
     // On success, or when the backend is unreachable (demo mode), enter the app.
     if (result.ok || result.error === 'network') {
-      router.push('/dashboard');
+      // Recarga completa: o contexto da app (empresas, utilizador, papel) é
+      // carregado uma vez; com router.push ficava vazio ou com o da sessão anterior.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa intencional
+      window.location.assign('/dashboard');
     } else {
       setError(result.error || 'Não foi possível iniciar sessão');
     }

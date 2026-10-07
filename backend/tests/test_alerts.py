@@ -105,7 +105,7 @@ def test_a_recurrence_with_periods_not_generated_is_flagged(tenant):
     })
     alert = next(a for a in _alerts(tenant)["alertas"] if a["kind"] == "recorrencias_em_falta")
     assert alert["count"] == 3, "julho, agosto e setembro por gerar"
-    assert alert["action"] == "/financial/recurrences"
+    assert alert["action"] == "/financial/cash-flow"
 
 
 def test_generating_them_clears_the_alert(tenant):
@@ -126,7 +126,7 @@ def test_the_vat_deadline_warns_before_it_passes(tenant):
     payload = _alerts(tenant, today="2026-08-20")
     alert = next(a for a in payload["alertas"] if a["kind"] == "iva_a_pagar")
     assert alert["amount"] == 230.0
-    assert alert["action"] == "/fiscal/vat"
+    assert alert["action"] == "/reports"
 
 
 def test_the_vat_deadline_becomes_critical_once_it_passes(tenant):

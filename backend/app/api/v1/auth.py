@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -69,7 +70,8 @@ def _first_company(db: Session, user_id: str) -> Optional[str]:
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     # Guessing a password should cost time. The wait is stated, because a
     # lockout with no end is indistinguishable from a broken product.
-    locked = login_guard.seconds_locked(request.email)
+    email = request.email.strip().lower()
+    locked = login_guard.seconds_locked(email)
     if locked:
         minutes = max(1, round(locked / 60))
         raise HTTPException(
@@ -80,9 +82,9 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             ),
         )
 
-    user = db.query(User).filter(User.email == request.email).first()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
     if not user or not verify_password(request.password, user.hashed_password):
-        remaining = login_guard.register_failure(request.email)
+        remaining = login_guard.register_failure(email)
         if user:
             _audit(db, _first_company(db, user.id), user.name, "login_falhado",
                    "Tentativa de início de sessão com palavra-passe errada")
@@ -91,17 +93,18 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
             detail += f". Restam {remaining} tentativa(s) antes de bloquear temporariamente."
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
 
-    login_guard.register_success(request.email)
+    login_guard.register_success(email)
     user.last_login_at = datetime.now(timezone.utc)
     db.commit()
 
-    token = create_access_token(subject=user.id)
+    token = create_access_token(subject=user.id, password_hash=user.hashed_password)
     return {"access_token": token, "token_type": "bearer"}
 
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register(request: UserCreate, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == request.email).first()
+    email = request.email.strip().lower()
+    existing = db.query(User).filter(func.lower(User.email) == email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email já registado")
 
@@ -118,7 +121,7 @@ def register(request: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
         id=user_id,
         name=request.name,
-        email=request.email,
+        email=email,
         hashed_password=get_password_hash(request.password),
         account_type="full",       # registered on their own: may open companies
     )
@@ -132,7 +135,7 @@ def register(request: UserCreate, db: Session = Depends(get_db)):
     # Give the new company a working chart of accounts straight away.
     apply_template(db, comp_id)
 
-    token = create_access_token(subject=user_id)
+    token = create_access_token(subject=user_id, password_hash=new_user.hashed_password)
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -185,4 +188,11 @@ def change_password(
 
     _audit(db, _first_company(db, current_user.id), current_user.name,
            "alterar", "Alterou a palavra-passe")
-    return {"status": "success", "message": "Palavra-passe alterada."}
+    # As outras sessões caem com a palavra-passe antiga; esta continua, com
+    # um token novo.
+    return {
+        "status": "success",
+        "message": "Palavra-passe alterada. As outras sessões foram terminadas.",
+        "access_token": create_access_token(subject=current_user.id,
+                                            password_hash=current_user.hashed_password),
+    }

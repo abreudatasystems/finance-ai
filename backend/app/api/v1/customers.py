@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.models.models import User
 from app.schemas.schemas import CustomerCreate
 from app.services import entities as service
-from app.api.v1.entities import query_entities
+from app.api.v1.entities import EntityPatch, query_entities
 
 router = APIRouter()
 
@@ -29,6 +29,7 @@ def _as_customer(row: dict) -> dict:
         "last_transaction_date": row.get("ultimo_movimento"),
         "is_supplier": row["is_supplier"],
         "papel": row["papel"],
+        **{field: row.get(field) for field in service.DETAIL_FIELDS},
     }
 
 
@@ -50,6 +51,24 @@ def create_customer(
 ):
     entity = service.create(db, company_id, {**item.model_dump(), "is_customer": True})
     return _as_customer(service.serialize(entity, {"compras": {}, "vendas": {}}))
+
+
+@router.patch("/{customer_id}")
+def update_customer(
+    customer_id: str,
+    patch: EntityPatch,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
+):
+    """Edita a ficha do cliente.
+
+    Os papéis (cliente/fornecedor) não mudam por aqui: a ficha de um cliente
+    não deve, por um campo esquecido no formulário, deixar de o ser.
+    """
+    data = patch.model_dump(exclude_unset=True, exclude={"is_supplier", "is_customer"})
+    entity = service.update(db, company_id, customer_id, data)
+    return _as_customer(service.with_balances(db, company_id, [entity])[0])
 
 
 @router.delete("/{customer_id}")

@@ -14,6 +14,7 @@ from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.models.models import BankStatement, BankStatementEntry, Transaction, User
 from app.services.bank_parser import parse_csv, parse_ofx, detect_bank_name
 from app.services import reconciliation as recon
+from app.core.uploads import MAX_BYTES
 
 router = APIRouter()
 
@@ -25,12 +26,9 @@ def _auto_match_entries(entries: list, company_id: str, db: Session) -> int:
     linked to it (see app/services/reconciliation.py) — marking it matched here
     would claim money was accounted for when nothing had been settled.
     """
-    from app.models.models import BankStatementEntry as Entry
-
     suggested = 0
-    for entry in entries:
-        db_entry = db.query(Entry).filter(Entry.id == entry.id).first()
-        if not db_entry or db_entry.status == "matched":
+    for db_entry in entries:
+        if db_entry.status == "matched":
             continue
 
         proposals = recon.suggestions(db, company_id, db_entry, limit=1)
@@ -42,7 +40,7 @@ def _auto_match_entries(entries: list, company_id: str, db: Session) -> int:
             suggested += 1
 
     db.commit()
-    return matched
+    return suggested
 
 
 @router.post("/upload")
@@ -50,9 +48,16 @@ async def upload_bank_statement(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
+    _writer: User = Depends(require_write),
 ):
     """Upload a CSV or OFX bank statement and auto-match entries."""
-    content = await file.read()
+    # Lê no máximo o limite + 1 byte: um ficheiro enorme não chega à memória.
+    content = await file.read(MAX_BYTES + 1)
+    if len(content) > MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"O ficheiro excede o limite de {MAX_BYTES // (1024 * 1024)} MB.",
+        )
     file_name = file.filename or "extrato.csv"
     lower_name = file_name.lower()
 
@@ -111,7 +116,7 @@ async def upload_bank_statement(
     db.commit()
 
     # Propose counterparts. Nothing is reconciled until a payment is linked.
-    suggested_count = _auto_match_entries(parsed_entries, company_id, db)
+    suggested_count = _auto_match_entries(db_entries, company_id, db)
     statement.matched_entries = 0
     statement.status = "completed"
     db.commit()
@@ -131,7 +136,6 @@ async def upload_bank_statement(
 def list_statements(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
-    _writer: User = Depends(require_write),
 ):
     """List all uploaded bank statements."""
     stmts = (

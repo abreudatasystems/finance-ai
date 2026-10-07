@@ -18,7 +18,7 @@
  * paired with a label and an arrow, never carrying meaning on its own.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FileText, Loader2, CalendarRange, TrendingUp, TrendingDown, Minus, Info,
   ChevronDown, Landmark, AlertCircle,
@@ -110,13 +110,25 @@ export const IncomeStatementView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  // Só a resposta mais recente escreve: trocar depressa de período deixava a
+  // demonstração do período anterior por baixo do rótulo novo.
+  const requestSeq = useRef(0);
+
   const load = useCallback(async () => {
+    const mine = ++requestSeq.current;
     setLoading(true);
-    setData(await fetchIncomeStatement(period));
+    const result = await fetchIncomeStatement(period);
+    if (mine !== requestSeq.current) return;
+    setData(result);
     setLoading(false);
   }, [period]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    // Ao desmontar, qualquer resposta ainda a caminho deixa de contar.
+    const seq = requestSeq;
+    return () => { seq.current++; };
+  }, [load]);
 
   const subtotal = (key: string): StatementSubtotal | undefined =>
     data?.subtotais.find((s) => s.key === key);

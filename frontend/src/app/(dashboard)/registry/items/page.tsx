@@ -1,5 +1,6 @@
 'use client';
 
+import { toast } from 'sonner';
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { fetchItems, deleteItem } from '@/services/data';
@@ -37,9 +38,16 @@ export default function ItemsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Tem a certeza que deseja eliminar este item?')) return;
     setDeletingId(id);
-    await deleteItem(id);
-    setItems(prev => prev.filter(c => c.id !== id));
+    const outcome = await deleteItem(id);
     setDeletingId(null);
+    if (!outcome.ok) {
+      toast.error(outcome.error || 'Não foi possível eliminar.');
+      return;
+    }
+    // Arquivado ou eliminado, deixa de constar desta lista; a mensagem do
+    // servidor diz qual dos dois aconteceu.
+    setItems(prev => prev.filter(c => c.id !== id));
+    toast.success(outcome.message || 'Item eliminado.');
   };
 
   return (
@@ -125,7 +133,7 @@ export default function ItemsPage() {
                       }}
                       disabled={deletingId === p.id}
                       className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer inline-flex"
-                      title="Eliminar Item"
+                      title="Eliminar Item" aria-label="Eliminar Item"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

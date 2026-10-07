@@ -12,7 +12,7 @@
  * explanation is not something anyone should act on.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Link2, Unlink, EyeOff, Eye, Loader2, Check, AlertCircle, ArrowRight,
   ArrowDownLeft, ArrowUpRight, RefreshCw, Scale,
@@ -45,22 +45,37 @@ export const ReconciliationPanel: React.FC = () => {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Cada pedido leva um número; só o mais recente escreve no ecrã. Sem isto,
+  // trocar depressa de filtro deixava a resposta antiga por baixo do rótulo novo.
+  const requestSeq = useRef(0);
+  const suggestionSeq = useRef(0);
+
   const reload = useCallback(async () => {
+    const mine = ++requestSeq.current;
     setLoading(true);
     const [e, o] = await Promise.all([fetchEntries(filter), fetchOverview()]);
+    if (mine !== requestSeq.current) return;
     setEntries(e);
     setOverview(o);
     setLoading(false);
   }, [filter]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+    // Ao desmontar, qualquer resposta ainda a caminho deixa de contar.
+    const seq = requestSeq;
+    return () => { seq.current++; };
+  }, [reload]);
 
   const openCandidates = async (entry: BankEntry) => {
     if (openEntry === entry.id) { setOpenEntry(null); setSuggestions([]); return; }
     setOpenEntry(entry.id);
     setSuggestions([]);
     setLoadingSuggestions(true);
-    setSuggestions(await fetchSuggestions(entry.id));
+    const mine = ++suggestionSeq.current;
+    const found = await fetchSuggestions(entry.id);
+    if (mine !== suggestionSeq.current) return;
+    setSuggestions(found);
     setLoadingSuggestions(false);
   };
 

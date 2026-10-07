@@ -2,12 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { register } from '@/services/api';
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [name, setName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
@@ -26,7 +24,10 @@ export default function RegisterPage() {
     const result = await register(name, companyName, email, password);
     setLoading(false);
     if (result.ok || result.error === 'network') {
-      router.push('/dashboard');
+      // Recarga completa: o contexto da app (empresas, utilizador, papel) é
+      // carregado uma vez; com router.push ficava vazio ou com o da sessão anterior.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa intencional
+      window.location.assign('/dashboard');
     } else {
       setError(result.error || 'Não foi possível criar a conta');
     }

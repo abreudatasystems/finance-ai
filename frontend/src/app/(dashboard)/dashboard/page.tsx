@@ -7,6 +7,7 @@ import { AlertsPanel } from '@/components/alerts/AlertsPanel';
 import { FirstSteps } from '@/components/onboarding/FirstSteps';
 import { fetchHealthScore, fetchTransactions, fetchFinancialEvents, fetchDashboardSummary, fetchExpensesByCategory } from '@/services/data';
 import { FinancialHealthScore, Transaction } from '@/types';
+import { formatDate, documentStatusLabel } from '@/lib/format';
 import {TrendingUp, TrendingDown, Clock, Activity, DollarSign, PieChart as PieIcon, Bot, User} from 'lucide-react';
 import {
   AreaChart,
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [chartData, setChartData] = useState<ChartDataItem[]>([]);
   const [pieData, setPieData] = useState<PieDataItem[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     setPageHeader('Financial Command Center', 'Painel de Controlo Executivo (CEO View)');
@@ -49,6 +51,14 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadData() {
       const hs = await fetchHealthScore();
+      // fetchHealthScore devolve {} quando o pedido falha. Sem este aviso, o
+      // painel mostrava 0 € em tudo — o que parece uma empresa sem dinheiro,
+      // não um servidor em baixo.
+      if (!hs || hs.current_balance === undefined) {
+        setLoadFailed(true);
+        return;
+      }
+      setLoadFailed(false);
       setHealthScore(hs);
       const trxs = await fetchTransactions();
       setTransactions(trxs);
@@ -89,6 +99,12 @@ export default function DashboardPage() {
         <AlertsPanel limit={2} />
       </div>
 
+      {loadFailed && (
+        <div role="alert" className="shrink-0 p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold">
+          Não foi possível carregar os indicadores. Os valores abaixo não estão actualizados — verifique a ligação e recarregue a página.
+        </div>
+      )}
+
       {/* CEO TOP KPI CARDS ROW */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {/* Card 1: Saldo Disponível */}
@@ -117,7 +133,11 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-lg font-bold text-slate-900 tracking-tight">
-            {healthScore?.runway_months || 0} Meses
+            {/* 99 é o valor-sentinela do servidor para "sem gastos": não há
+                fim de caixa para calcular, e "99 meses" seria uma previsão falsa. */}
+            {healthScore == null ? '—'
+              : (healthScore.runway_months ?? 0) >= 99 ? 'Sem gastos'
+              : `${healthScore.runway_months} Meses`}
           </div>
           <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-500 font-medium truncate">
             {burnRate ? <span>Burn: {formatMoney(burnRate)}/m</span> : <span>Cobertura Segura</span>}
@@ -303,7 +323,7 @@ export default function DashboardPage() {
             <tbody className="divide-y divide-slate-100">
               {transactions.slice(0, 3).map((trx) => (
                 <tr key={trx.id} className="hover:bg-slate-50/80 transition-colors font-medium">
-                  <td className="p-3 text-slate-500">{trx.date}</td>
+                  <td className="p-3 text-slate-500 whitespace-nowrap">{formatDate(trx.date)}</td>
                   <td className="p-3 font-semibold text-slate-800">{trx.description}</td>
                   <td className="p-3 text-slate-600 hidden sm:table-cell">{trx.entity_name}</td>
                   <td className="p-3 text-slate-600 hidden md:table-cell">{trx.category_name}</td>
@@ -316,7 +336,7 @@ export default function DashboardPage() {
                       trx.status === 'approved' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                       'bg-amber-50 text-amber-700 border border-amber-200'
                     }`}>
-                      {trx.status}
+                      {documentStatusLabel(trx.status)}
                     </span>
                   </td>
                   <td className="p-3 text-right font-mono text-[11px] text-slate-500 hidden lg:table-cell">

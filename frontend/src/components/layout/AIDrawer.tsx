@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { INITIAL_AI_MESSAGES, AIMessage, processUserMessage } from '@/services/ai-assistant';
+import { INITIAL_AI_MESSAGES, AIMessage, AIActionItem, processUserMessage } from '@/services/ai-assistant';
+import { apiPostOrError } from '@/services/api';
 import {Sparkles, Send, Bot, User, CheckCircle2, PanelRightClose, ArrowRight} from 'lucide-react';
 
 /**
@@ -59,54 +60,69 @@ export const AIDrawer: React.FC = () => {
     }
   };
 
-  const handleActionClick = (actionLabel: string, actionName: string) => {
-    if (actionName === 'create_category') {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: nextMessageId('ai'),
-          sender: 'ai',
-          text: '**Categoria "Inteligência Artificial" criada com sucesso!** Foram associadas as palavras-chave `openai`, `chatgpt`, `claude`, `anthropic`, `api`.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-    } else if (actionName === 'confirm_payment') {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: nextMessageId('ai'),
-          sender: 'ai',
-          text: '**Pagamento de €4.500,00 para Microsoft Ireland registado!** O valor foi liquidado nas Contas a Pagar.',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-    } else {
-      handleSend(actionLabel);
-    }
-  };
-
-  const handleConfirmActionCard = (msgId: string) => {
-    setMessages(prev =>
-      prev.map(m => {
-        if (m.id === msgId && m.actionCard) {
-          return {
-            ...m,
-            actionCard: { ...m.actionCard, status: 'confirmed' }
-          };
-        }
-        return m;
-      })
-    );
-
+  const say = (text: string) => {
     setMessages(prev => [
       ...prev,
       {
         id: nextMessageId('ai'),
         sender: 'ai',
-        text: '**Lançamento criado com sucesso!** O valor foi registado na API e refletido no Fluxo de Caixa.',
+        text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ]);
+  };
+
+  /** Regista o pagamento de um documento através da API.
+   *
+   *  Antes, os botões respondiam com um texto fixo ("Pagamento de €4.500,00
+   *  para Microsoft Ireland registado!") sem chamar nada. Só se diz que foi
+   *  registado depois de a API o confirmar. */
+  const registerPayment = async (transactionId: string, amount?: number): Promise<boolean> => {
+    const { error } = await apiPostOrError(`/transactions/${encodeURIComponent(transactionId)}/payments`, {
+      ...(typeof amount === 'number' ? { amount } : {}),
+    });
+    if (error) {
+      say(`**Não foi possível registar o pagamento.** ${error}`);
+      return false;
+    }
+    say(`**Pagamento registado${typeof amount === 'number' ? ` (${formatMoney(amount)})` : ''}.** O documento foi liquidado e já aparece no Fluxo de Caixa.`);
+    return true;
+  };
+
+  const handleActionClick = async (act: AIActionItem) => {
+    const payload = (act.payload ?? {}) as { transaction_id?: string; amount?: number };
+    if (act.action === 'confirm_payment') {
+      if (payload.transaction_id) {
+        await registerPayment(payload.transaction_id, payload.amount);
+      } else {
+        say('Não sei a que documento se refere este pagamento. Registe-o a partir do Fluxo de Caixa.');
+      }
+    } else if (act.action === 'create_category') {
+      // O assistente não envia o nome nem as palavras-chave da categoria,
+      // por isso não a cria às cegas: indica onde se faz.
+      say('Para criar a categoria, abra **Configurações → Plano de contas** e acrescente-a ao grupo certo.');
+    } else {
+      handleSend(act.label);
+    }
+  };
+
+  const handleConfirmActionCard = async (msg: AIMessage) => {
+    const card = msg.actionCard;
+    if (!card || card.type !== 'create_transaction') return;
+    const { transaction_id, amount } = card.data;
+    if (!transaction_id) {
+      // Um cartão sem documento é uma proposta de lançamento novo; criá-lo
+      // exige categoria e entidade, que o cartão não traz.
+      say('Para criar este lançamento, use **Fluxo de Caixa → Novo lançamento**, com os valores acima.');
+      return;
+    }
+    const ok = await registerPayment(transaction_id, amount);
+    if (!ok) return;
+    setMessages(prev =>
+      prev.map(m => (m.id === msg.id && m.actionCard
+        ? { ...m, actionCard: { ...m.actionCard, status: 'confirmed' } }
+        : m)),
+    );
   };
 
   const quickActions = [
@@ -142,6 +158,7 @@ export const AIDrawer: React.FC = () => {
           onClick={closeAiDrawer}
           className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1 text-xs"
           title="Recolher Painel IA"
+          aria-label="Recolher painel IA"
         >
           <PanelRightClose className="w-5 h-5" />
         </button>
@@ -177,7 +194,7 @@ export const AIDrawer: React.FC = () => {
                   {msg.actions.map((act, idx) => (
                     <button
                       key={idx}
-                      onClick={() => handleActionClick(act.label, act.action)}
+                      onClick={() => handleActionClick(act)}
                       className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-[11px] rounded-lg shadow-2xs transition-all flex items-center gap-1 active:scale-95"
                     >
                       <span>{act.label}</span>
@@ -224,7 +241,7 @@ export const AIDrawer: React.FC = () => {
                       ) : (
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handleConfirmActionCard(msg.id)}
+                            onClick={() => handleConfirmActionCard(msg)}
                             className="flex-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors shadow-xs"
                           >
                             <CheckCircle2 className="w-4 h-4" /> Confirmar Pagamento
@@ -234,7 +251,7 @@ export const AIDrawer: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="text-[10px] text-slate-400 text-right">{msg.timestamp}</div>
+                  {msg.timestamp && <div className="text-[10px] text-slate-400 text-right">{msg.timestamp}</div>}
                 </div>
               )}
             </div>
@@ -284,11 +301,13 @@ export const AIDrawer: React.FC = () => {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Pergunte ou solicite uma ação..."
+            aria-label="Mensagem para o assistente"
             className="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs bg-slate-50"
           />
           <button
             type="submit"
             disabled={!inputText.trim()}
+            aria-label="Enviar mensagem"
             className="p-2.5 rounded-xl bg-black hover:bg-neutral-800 disabled:opacity-40 text-white transition-colors border border-neutral-800 cursor-pointer"
           >
             <Send className="w-4 h-4 text-emerald-400" />

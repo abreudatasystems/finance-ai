@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { AIDrawer } from './AIDrawer';
@@ -9,19 +9,31 @@ import { CreateTransactionModal } from '@/components/shared/CreateTransactionMod
 import { CreateCategoryModal } from '@/components/shared/CreateCategoryModal';
 import { CreateSupplierModal } from '@/components/shared/CreateSupplierModal';
 import { CreateCustomerModal } from '@/components/shared/CreateCustomerModal';
+import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { isAuthenticated, redirectToLogin } from '@/services/api';
 
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [createModalType, setCreateModalType] = useState<string | null>(null);
   const { isAiDrawerOpen, isSidebarCollapsed } = useApp();
+  const router = useRouter();
+
+  // Sem sessão não há empresa: em vez de um painel a 0 €, vai-se ao login.
+  useEffect(() => {
+    if (!isAuthenticated()) redirectToLogin();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans antialiased">
       {/* Full-width TopBar - Spans 100% across the top ABOVE the left sidebar */}
       <TopBar
         onOpenSearch={() => setIsSearchOpen(true)}
-        onOpenCreateModal={(type) => setCreateModalType(type || 'transaction')}
+        onOpenCreateModal={(type) => {
+          // Um documento entra pela Automação (OCR); não há formulário para ele.
+          if (type === 'document') router.push('/documents/inbox');
+          else setCreateModalType(type || 'transaction');
+        }}
         isAiDrawerOpen={isAiDrawerOpen}
       />
 
