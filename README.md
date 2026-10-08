@@ -1,214 +1,161 @@
-# 🏛️ Finance AI — Financial Operating System for PMEs
+# Finance AI — gestão financeira para PME portuguesas
 
-![Finance AI Banner](https://img.shields.io/badge/Platform-Enterprise%20SaaS-black?style=for-the-badge)
-![Next.js 15](https://img.shields.io/badge/Frontend-Next.js%2015-black?style=for-the-badge&logo=next.js)
-![Python FastAPI](https://img.shields.io/badge/Backend-FastAPI%20Python-emerald?style=for-the-badge&logo=fastapi)
-![Docker](https://img.shields.io/badge/Deploy-Docker%20Compose-blue?style=for-the-badge&logo=docker)
+Aplicação multi-empresa para a tesouraria de uma PME: fluxo de caixa, contas a
+pagar e a receber, faturas com leitura automática (OCR), IVA e retenções na
+fonte, reconciliação bancária, orçamentos, projetos, demonstração de
+resultados e exportação SAF-T.
 
-> **Your AI Finance Team for Business** — Autonomous financial management platform featuring real-time cash flow analysis, OCR invoice parsing, multi-tenant database isolation, and side-by-side AI Copilot.
-
----
-
-## ✨ Features
-
-- **📊 Financial Command Center (Dashboard)**: Real-time calculation of Financial Health Score, Runway, Burn Rate, and Liquidity metrics.
-- **🤖 Transversal AI Copilot**: Side-by-side AI assistant capable of creating transactions, categorizing invoices, and executing financial intent via natural language.
-- **📄 Finance Inbox & OCR Engine**: Automated document processing (PDF/Images) with PyPDF, PaddleOCR, and Qwen2.5-VL vision capabilities.
-- **💼 Complete Financial Management**: Cash Flow, Payables, Receivables, Categories, Suppliers, Customers, Audit Trail, and CSV Reports.
-- **🔐 Multi-Tenant Architecture**: Complete tenant isolation by `company_id` with relational PostgreSQL/SQLAlchemy ORM models.
-- **🖤 Monochromatic Black & Emerald Aesthetic**: High-contrast, enterprise-grade user interface using Tailwind CSS and Lucide Vector SVGs.
+- **Frontend**: Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, Recharts
+- **Backend**: Python 3.11, FastAPI, SQLAlchemy 2, Pydantic v2, Alembic
+- **Base de dados**: PostgreSQL em produção; SQLite para desenvolver
+- **Documentos**: Tesseract (OCR local, português) + pdfplumber; ficheiros no Cloudflare R2 ou em disco
+- **Produção**: Docker Compose com Caddy (HTTPS automático)
 
 ---
 
-## 🚀 Quick Start
+## Desenvolvimento
 
-### Prerequisites
-- Node.js 18+ & npm
-- Python 3.11+
+Pré-requisitos: Python 3.11+, Node.js 20+.
 
-### 1. Start Backend API
+### Backend
+
 ```bash
 cd backend
 python -m venv venv
-# Activate virtual environment
 # Windows: venv\Scripts\activate | Linux/macOS: source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 python -m uvicorn app.main:app --port 8000 --reload
 ```
-API docs available at: `http://127.0.0.1:8000/docs`
 
-The schema is managed by **Alembic**, not `create_all`. Startup brings the
-database up to date on its own (a database created before migrations existed is
-stamped at the baseline first). To take control yourself — which is what you
-want when more than one process boots at the same time — set `AUTO_MIGRATE=0`
-and run the upgrade explicitly:
+Documentação da API: `http://127.0.0.1:8000/docs` · Estado: `http://127.0.0.1:8000/health`
 
-```bash
-export AUTO_MIGRATE=0
-alembic upgrade head                       # apply pending migrations
-alembic revision --autogenerate -m "..."   # after changing a model
-alembic downgrade -1                       # step back one revision
-```
+### Frontend
 
-### Documentos: OCR e armazenamento
-
-A leitura de faturas usa motores locais — nenhum documento sai para um
-terceiro. Um PDF com camada de texto lê-se directamente; uma **fotografia de
-um recibo** ou um **PDF digitalizado** passam pelo Tesseract, com o dicionário
-português. `GET /documents/capabilities` diz o que a instalação consegue ler e
-o que lhe falta.
-
-```bash
-# Linux/macOS
-sudo apt-get install tesseract-ocr tesseract-ocr-por
-# Windows: https://github.com/UB-Mannheim/tesseract/wiki (escolha o idioma "Portuguese")
-```
-
-Sem o motor a aplicação continua a funcionar: lê PDFs com texto e diz na
-página do OCR que não lê imagens, em vez de aceitar o ficheiro e devolver 0%.
-
-Os ficheiros originais vão para **Cloudflare R2**, com a chave
-`companies/{empresa}/documents/{sha256}.{ext}` — o prefixo separa as empresas e
-o hash separa conteúdos com o mesmo nome. Sem credenciais ficam no disco, com a
-mesma disposição, o que chega para desenvolver e para os testes:
-
-```bash
-R2_ACCOUNT_ID=...            # Cloudflare → R2 → Overview
-R2_ACCESS_KEY_ID=...         # R2 → Manage API tokens (Object Read & Write)
-R2_SECRET_ACCESS_KEY=...
-R2_BUCKET=finance-ai-documents
-R2_JURISDICTION=eu           # mantém os objectos na UE; omitir usa a região do bucket
-```
-
-O ficheiro só é servido pelo id do documento e depois de verificar que ele
-pertence à empresa activa: `GET /documents/{id}/file`.
-
-### O que corre sozinho
-
-Recurring bookings are generated by a background sweep every few hours, for
-every company — a monthly rent should not wait for someone to remember it.
-Generation is idempotent, and `uq_occurrence_recurrence_period` makes that a
-database guarantee rather than a convention, so parallel workers cannot book
-the same month twice.
-
-```bash
-SCHEDULER_ENABLED=0        # off; drive it with POST /recurrences/run instead
-SCHEDULER_INTERVAL_HOURS=6 # default
-```
-
-Prefer an external cron on a large install: the endpoint does exactly what the
-sweep does. The in-process scheduler exists so a small install works with
-nothing to set up.
-
-### Dados de demonstração
-
-An empty product cannot be judged. `scripts/seed_demo.py` fills the database
-with one plausible Portuguese SME — a small Porto studio, nine months of
-invoices with catalogue lines, rent withheld at 25% at source, subcontracted
-work charged to projects, part of it deliberately still unpaid:
-
-```bash
-cd backend
-python -m scripts.seed_demo            # create
-python -m scripts.seed_demo --reset    # wipe that company's data and recreate
-```
-
-Every document, line and payment goes in **through the same endpoints the app
-uses**, so the totals, the VAT, the withholding and the settlement state are
-computed by the product rather than written by the script. The figures it
-prints at the end are read back from the same endpoints the pages read — if
-they add up, the product adds up. Sign in with `demo@finance-ai.pt` /
-`Tesouraria!Atlantico26`.
-
-### Testes
-
-The suite covers the rules that are expensive to get wrong — VAT arithmetic,
-tenant isolation, approval-is-not-payment, reconciliation, recurrence
-idempotency and the migrations themselves:
-
-```bash
-cd backend
-python -m pytest -q
-```
-
-CI runs it on every push and pull request, together with the frontend
-typecheck and build (`.github/workflows/ci.yml`).
-
-### Produção
-
-Set `ENVIRONMENT=production` and the app refuses to start on a configuration
-that would lose sessions or leave the API open — no `SECRET_KEY`, CORS still
-pointing at localhost, or SQLite as the database. Failing at boot is cheaper
-than failing with customers on it.
-
-```bash
-export ENVIRONMENT=production
-export SECRET_KEY=$(python -c "import secrets;print(secrets.token_urlsafe(48))")
-export DATABASE_URL=postgresql://user:pass@host/finance
-export BACKEND_CORS_ORIGINS=https://app.exemplo.pt
-```
-
-Os webhooks (`/webhooks/email`, `/webhooks/whatsapp`) ficam **fechados** até
-haver um segredo: sem `WEBHOOK_SECRET` respondem 503. Quem os chama envia o
-segredo no cabeçalho `X-Webhook-Secret` e o `company_id` de uma empresa que
-exista. O documento entra como "recebido", sem valores — são lidos depois.
-
-```bash
-export WEBHOOK_SECRET=$(python -c "import secrets;print(secrets.token_urlsafe(32))")
-```
-
-### Email (opcional)
-
-Invitations are emailed when SMTP is configured; without it the invitation is
-still created and the link is handed back to be sent by hand, so nothing
-depends on having a mail server:
-
-```bash
-export SMTP_HOST=smtp.exemplo.pt
-export SMTP_PORT=587
-export SMTP_USER=convites@exemplo.pt
-export SMTP_PASSWORD=...
-export SMTP_FROM="Finance AI <convites@exemplo.pt>"
-export APP_BASE_URL=https://app.exemplo.pt   # where the invitation links point
-```
-
-### Multi-empresa e equipas
-
-A login can own several companies; each is a separate tenant. The active one
-travels in the `X-Company-Id` header and is only accepted after the membership
-is checked, so data from two companies never mixes. People are brought in by
-invitation (`/settings` → Equipa & Permissões) with a role — proprietário,
-administrador, gestor financeiro or consulta. An account created from an
-invitation participates in the companies that invited it and cannot open its
-own.
-
-### 2. Start Frontend App
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open application at: `http://localhost:3000`
 
----
+Abrir `http://localhost:3000`. No Windows, `start.bat` arranca os dois.
 
-## 🐳 Production Deployment (Docker Compose)
+### Dados de demonstração
+
+`scripts/seed_demo.py` cria uma PME plausível — um estúdio no Porto com nove
+meses de faturas, rendas com retenção a 25%, subcontratos imputados a projetos
+e uma parte ainda por pagar. Tudo entra pelos mesmos endpoints que a aplicação
+usa, por isso os totais, o IVA e as retenções são calculados pelo produto.
 
 ```bash
-docker-compose -f docker-compose.prod.yml up --build -d
+cd backend
+python -m scripts.seed_demo            # criar
+python -m scripts.seed_demo --reset    # apagar os dados dessa empresa e recriar
 ```
 
+Entrar com `demo@finance-ai.pt` / `Tesouraria!Atlantico26`.
+
+### Testes
+
+```bash
+cd backend && python -m pytest -q            # backend
+cd frontend && npx eslint src && npx tsc --noEmit && npx next build
+```
+
+A CI (`.github/workflows/ci.yml`) corre tudo isto em cada push e pull request.
+
+### Base de dados e migrações
+
+O esquema é gerido pelo **Alembic**. Em desenvolvimento a API põe a base de
+dados em dia ao arrancar. Para controlar à mão, `AUTO_MIGRATE=0` e:
+
+```bash
+alembic upgrade head                       # aplicar migrações pendentes
+alembic revision --autogenerate -m "..."   # depois de mudar um modelo
+alembic downgrade -1                       # recuar uma revisão
+```
+
+Para desenvolver contra PostgreSQL em vez de SQLite: `docker compose up -d` e
+`DATABASE_URL=postgresql://finance_user:finance_dev@localhost:5432/finance_ai_db`.
+
 ---
 
-## 🛠️ Tech Stack
+## Produção
 
-- **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS v4, Lucide Icons, Recharts
-- **Backend**: Python 3.11, FastAPI, SQLAlchemy, Pydantic v2, Uvicorn
-- **AI & Processing**: Custom Intent Engine, PyPDF, PaddleOCR, Qwen2.5-VL Vision
-- **Storage & DB**: MinIO S3 Object Storage, PostgreSQL / SQLite Relational DB
+```bash
+cp .env.example .env      # preencher DOMAIN, SECRET_KEY, POSTGRES_PASSWORD, ...
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+Antes: o DNS do domínio tem de apontar para o servidor, com as portas 80 e 443
+abertas. O que o `docker-compose.prod.yml` monta:
+
+| Serviço | Função |
+|---|---|
+| `caddy` | Único ponto exposto. Certificado HTTPS automático; `/api/*` → backend, resto → frontend |
+| `migrate` | Põe o esquema em dia uma vez, antes da API arrancar |
+| `backend` | A API (4 trabalhadores, sem agendador, `/health` para o Docker) |
+| `scheduler` | Gera as recorrências (rendas, avenças) num processo só |
+| `frontend` | A aplicação web |
+| `postgres` | Base de dados, sem porta exposta |
+| `backup` | Cópia diária da base de dados e das faturas em disco para `./backups` |
+
+Com `ENVIRONMENT=production` (já definido no compose) a API **recusa arrancar**
+sem `SECRET_KEY`, com CORS a apontar para localhost ou com SQLite.
+
+**Cópias de segurança:** ficam em `./backups` no servidor, durante
+`BACKUP_KEEP_DAYS` dias. Copie essa pasta para fora do servidor com
+regularidade (outro disco, outro serviço). Para repor a base de dados:
+
+```bash
+gunzip -c backups/db_AAAA-MM-DD_HHMM.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U financeuser financedb
+```
+
+### Documentos: OCR e armazenamento
+
+A leitura de faturas usa motores locais — nenhum documento sai para um
+terceiro. Um PDF com camada de texto lê-se directamente; uma fotografia ou um
+PDF digitalizado passam pelo Tesseract com o dicionário português (já
+instalado na imagem Docker). `GET /api/v1/documents/capabilities` diz o que a
+instalação consegue ler.
+
+Fora do Docker: `sudo apt-get install tesseract-ocr tesseract-ocr-por`, ou no
+Windows o instalador em https://github.com/UB-Mannheim/tesseract/wiki (idioma
+"Portuguese").
+
+Os ficheiros originais vão para o **Cloudflare R2** quando as variáveis `R2_*`
+estão definidas, com a chave `companies/{empresa}/documents/{sha256}.{ext}`.
+Sem elas ficam em disco, com a mesma disposição. Só são servidos depois de
+verificar que pertencem à empresa activa: `GET /api/v1/documents/{id}/file`.
+
+### Recorrências
+
+O serviço `scheduler` gera as recorrências vencidas de `SCHEDULER_INTERVAL_HOURS`
+em `SCHEDULER_INTERVAL_HOURS` horas (6 por omissão), para todas as empresas. A
+geração é idempotente — a restrição `uq_occurrence_recurrence_period` impede
+lançar o mesmo mês duas vezes. Em desenvolvimento corre dentro da API;
+`SCHEDULER_ENABLED=0` desliga-o, e `POST /api/v1/recurrences/run` faz o mesmo à mão.
+
+### Webhooks
+
+`/api/v1/webhooks/email` e `/api/v1/webhooks/whatsapp` ficam **fechados** (503)
+até haver `WEBHOOK_SECRET`. Quem os chama envia o segredo no cabeçalho
+`X-Webhook-Secret` e o `company_id` de uma empresa que exista.
+
+### Email dos convites
+
+Com `SMTP_*` definido, os convites seguem por email; sem isso o convite é
+criado e o link é devolvido para enviar à mão.
+
+### Segurança
+
+- Multi-empresa: a empresa activa viaja no cabeçalho `X-Company-Id` e só é
+  aceite depois de verificar que o utilizador pertence a ela.
+- Papéis: proprietário, administrador, gestor financeiro, consulta.
+- Login: bloqueio temporário após 5 falhas por conta e 30 por endereço IP.
+- Palavras-passe: mínimo 10 caracteres, sem as mais comuns.
 
 ---
 
-## 📜 License
+## Licença
 
-Distributed under the MIT License.
+Distribuído sob a licença MIT.

@@ -26,7 +26,7 @@ export default function CustomersPage() {
   }, []);
 
   useEffect(() => {
-    setPageHeader('Gestão de Clientes', 'Cadastro de clientes para emissão e reconciliação automática de recebimentos');
+    setPageHeader('Gestão de Clientes', 'Registo de clientes para emissão e reconciliação automática de recebimentos');
   }, [setPageHeader]);
 
   const handleCustomerCreated = (newCust: Customer) => {

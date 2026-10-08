@@ -37,8 +37,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   };
 
   const quickLinks = [
-    { label: 'Ir para Dashboard', path: '/dashboard', icon: Wallet, group: 'Navegação' },
-    { label: 'Ir para Finance Inbox', path: '/documents/inbox', icon: FileText, group: 'Navegação' },
+    { label: 'Ir para o Painel', path: '/dashboard', icon: Wallet, group: 'Navegação' },
+    { label: 'Ir para Automação (OCR)', path: '/documents/inbox', icon: FileText, group: 'Navegação' },
     { label: 'Ir para Fluxo de Caixa', path: '/financial/cash-flow', icon: Wallet, group: 'Navegação' },
     { label: 'Ir para Aprovações IA', path: '/documents/approvals', icon: Sparkles, group: 'Navegação' },
     { label: 'Ir para Categorias', path: '/settings', icon: FolderTree, group: 'Navegação' },

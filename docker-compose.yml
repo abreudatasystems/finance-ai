@@ -1,30 +1,20 @@
-version: '3.8'
-
+# Desenvolvimento: só a base de dados PostgreSQL, para quem queira trabalhar
+# contra Postgres em vez do SQLite por omissão. A API e o frontend correm
+# fora do Docker (ver README ou start.bat). Ligue a API com:
+#   DATABASE_URL=postgresql://finance_user:finance_dev@localhost:5432/finance_ai_db
 services:
-  # Open-Source Database: PostgreSQL
   postgres:
     image: postgres:16-alpine
-    container_name: finance_ai_postgres
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: finance_user
-      POSTGRES_PASSWORD: finance_password_2026
+      POSTGRES_PASSWORD: finance_dev
       POSTGRES_DB: finance_ai_db
     ports:
-      - "5432:5432"
+      # Só nesta máquina, não na rede.
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # Open-Source LLM & Vision Engine: Ollama (Qwen2.5-VL)
-  ollama:
-    image: ollama/ollama:latest
-    container_name: finance_ai_ollama
-    restart: always
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-
 volumes:
   postgres_data:
-  ollama_data:

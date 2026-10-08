@@ -1,11 +1,12 @@
 from datetime import datetime
+from app.core.clock import utcnow
 from typing import Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.schemas.schemas import AIChatRequest, AIChatResponse, AIChatAction
-from app.models.models import Transaction, Category, Supplier, Customer
+from app.models.models import Transaction, Category, Entity
 
 
 def _to_float(val) -> float:
@@ -25,10 +26,10 @@ async def process_ai_intent_and_action(
 ) -> AIChatResponse:
     prompt = (request.message or request.prompt or "").strip()
     lower = prompt.lower()
-    timestamp = datetime.utcnow().strftime("%H:%M")
+    timestamp = utcnow().strftime("%H:%M")
     page_context = request.context.page if request.context else "dashboard"
     cs = _currency_symbol(request.currency)
-    today = datetime.utcnow().date()
+    today = utcnow().date()
     month_start = today.replace(day=1).isoformat()
 
     # ── Intent: spending query (quanto gastei, despesas, gastos) ──
@@ -81,7 +82,7 @@ async def process_ai_intent_and_action(
 
             title = f"Despesas com '{search_term}'" if search_term else "Despesas do Mês"
             return AIChatResponse(
-                id=f"msg-{int(datetime.utcnow().timestamp())}",
+                id=f"msg-{int(utcnow().timestamp())}",
                 sender="ai",
                 text=f"Analisando **{title}** (mês atual):\n\n" + "\n".join(lines),
                 type="analysis",
@@ -95,7 +96,7 @@ async def process_ai_intent_and_action(
             )
         else:
             return AIChatResponse(
-                id=f"msg-{int(datetime.utcnow().timestamp())}",
+                id=f"msg-{int(utcnow().timestamp())}",
                 sender="ai",
                 text=f"Não encontrei despesas"
                      + (f" relacionadas com **{search_term}**" if search_term else "")
@@ -134,7 +135,7 @@ async def process_ai_intent_and_action(
             trx = pending[0]
             amount = _to_float(trx.outstanding_amount or trx.amount)
             return AIChatResponse(
-                id=f"msg-{int(datetime.utcnow().timestamp())}",
+                id=f"msg-{int(utcnow().timestamp())}",
                 sender="ai",
                 text=f"Encontrei {len(pending)} fatura(s) pendente(s):\n\n"
                      f"• **Fornecedor**: {trx.entity_name}\n"
@@ -166,7 +167,7 @@ async def process_ai_intent_and_action(
             )
         else:
             return AIChatResponse(
-                id=f"msg-{int(datetime.utcnow().timestamp())}",
+                id=f"msg-{int(utcnow().timestamp())}",
                 sender="ai",
                 text="Não encontrei faturas pendentes de pagamento"
                      + (f" para **{entity_filter}**" if entity_filter else "")
@@ -190,10 +191,10 @@ async def process_ai_intent_and_action(
             if words:
                 entity = words[0]
 
-        next_month = (datetime.utcnow().date() + timedelta(days=30)).isoformat()
+        next_month = (utcnow().date() + timedelta(days=30)).isoformat()
 
         return AIChatResponse(
-            id=f"msg-{int(datetime.utcnow().timestamp())}",
+            id=f"msg-{int(utcnow().timestamp())}",
             sender="ai",
             text=f"A preparar a cobrança de {cs}{amount:,.2f} ao cliente {entity or 'N/D'}. Confirme os detalhes.",
             type="action",
@@ -219,7 +220,7 @@ async def process_ai_intent_and_action(
     # ── Intent: forecast / previsão ──
     if any(k in lower for k in ["previsão", "previsao", "a receber", "fluxo de caixa futuro"]):
         from datetime import timedelta
-        thirty_days = (datetime.utcnow().date() + timedelta(days=30)).isoformat()
+        thirty_days = (utcnow().date() + timedelta(days=30)).isoformat()
         upcoming_receivables = db.query(func.coalesce(func.sum(Transaction.outstanding_amount), 0)).filter(
             Transaction.company_id == company_id,
             Transaction.type == "income",
@@ -239,7 +240,7 @@ async def process_ai_intent_and_action(
         net_future = _to_float(upcoming_receivables) - _to_float(upcoming_payables)
 
         return AIChatResponse(
-            id=f"msg-{int(datetime.utcnow().timestamp())}",
+            id=f"msg-{int(utcnow().timestamp())}",
             sender="ai",
             text=f"Para os **próximos 30 dias**, a previsão é:\n\n"
                  f"• **A Receber**: {cs}{_to_float(upcoming_receivables):,.2f}\n"
@@ -256,7 +257,7 @@ async def process_ai_intent_and_action(
     if any(k in lower for k in ["categoria", "criar categoria", "nova categoria"]):
         existing = db.query(Category).filter(Category.company_id == company_id).count()
         return AIChatResponse(
-            id=f"msg-{int(datetime.utcnow().timestamp())}",
+            id=f"msg-{int(utcnow().timestamp())}",
             sender="ai",
             text=f"A empresa tem atualmente **{existing} categorias** configuradas.\n\n"
                  f"Para criar uma nova categoria, indique:\n"
@@ -333,7 +334,7 @@ async def process_ai_intent_and_action(
         ) or 0
 
         return AIChatResponse(
-            id=f"msg-{int(datetime.utcnow().timestamp())}",
+            id=f"msg-{int(utcnow().timestamp())}",
             sender="ai",
             text=f"**Resumo Financeiro** (dados em tempo real):\n\n"
                  f"• **Saldo total**: {cs}{total_balance:,.2f}\n"
@@ -352,14 +353,16 @@ async def process_ai_intent_and_action(
     # ── Intent: suppliers / customers info ──
     if any(k in lower for k in ["fornecedor", "fornecedores", "cliente", "clientes"]):
         if "cliente" in lower:
-            count = db.query(func.count(Customer.id)).filter(Customer.company_id == company_id).scalar() or 0
+            count = db.query(func.count(Entity.id)).filter(
+                Entity.company_id == company_id, Entity.is_customer.is_(True), Entity.active.is_(True)
+            ).scalar() or 0
             total_rev = (
                 db.query(func.coalesce(func.sum(Transaction.amount), 0))
                 .filter(Transaction.company_id == company_id, Transaction.type == "income")
                 .scalar()
             )
             return AIChatResponse(
-                id=f"msg-{int(datetime.utcnow().timestamp())}",
+                id=f"msg-{int(utcnow().timestamp())}",
                 sender="ai",
                 text=f"A empresa tem **{count} clientes** registados com receita total de **{cs}{_to_float(total_rev):,.2f}**.",
                 type="analysis",
@@ -367,14 +370,16 @@ async def process_ai_intent_and_action(
                 actions=[AIChatAction(label="Ver clientes", action="open_customers")],
             )
         else:
-            count = db.query(func.count(Supplier.id)).filter(Supplier.company_id == company_id).scalar() or 0
+            count = db.query(func.count(Entity.id)).filter(
+                Entity.company_id == company_id, Entity.is_supplier.is_(True), Entity.active.is_(True)
+            ).scalar() or 0
             total_spent = (
                 db.query(func.coalesce(func.sum(Transaction.amount), 0))
                 .filter(Transaction.company_id == company_id, Transaction.type == "expense")
                 .scalar()
             )
             return AIChatResponse(
-                id=f"msg-{int(datetime.utcnow().timestamp())}",
+                id=f"msg-{int(utcnow().timestamp())}",
                 sender="ai",
                 text=f"A empresa tem **{count} fornecedores** registados com despesa total de **{cs}{_to_float(total_spent):,.2f}**.",
                 type="analysis",
@@ -390,7 +395,7 @@ async def process_ai_intent_and_action(
     ) or 0
 
     return AIChatResponse(
-        id=f"msg-{int(datetime.utcnow().timestamp())}",
+        id=f"msg-{int(utcnow().timestamp())}",
         sender="ai",
         text=f"Processado pela **Finance AI Engine**: *\"{prompt}\"*.\n\n"
              f"Base de dados com **{trx_count} transações** registadas. "

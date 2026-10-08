@@ -17,7 +17,7 @@ from app.models.models import (
     AIExtraction,
     AuditLog,
     Category,
-    Supplier,
+    Entity,
     User,
 )
 from app.services.storage import document_storage, object_key
@@ -204,11 +204,18 @@ async def upload_document(
     cat_id, cat_name = suggest_category(parsed, categories)
 
     # Match the supplier against the company's own registry when possible.
+    # The registry is Entity; the legacy Supplier table is no longer written,
+    # so suppliers created since the move were never matched against it.
     entity_id = None
     if parsed.nif:
         supplier = (
-            db.query(Supplier)
-            .filter(Supplier.company_id == company_id, Supplier.nif == parsed.nif)
+            db.query(Entity)
+            .filter(
+                Entity.company_id == company_id,
+                Entity.nif == parsed.nif,
+                Entity.is_supplier.is_(True),
+            )
+            .order_by(Entity.active.desc())
             .first()
         )
         if supplier:

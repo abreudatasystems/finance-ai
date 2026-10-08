@@ -3,7 +3,11 @@
 // When a call fails the caller shows an empty state and says so, because a
 // financial figure invented client-side is worse than no figure at all.
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+// Absolute in dev ('http://127.0.0.1:8000/api/v1'); in production it is baked in
+// at build time as the relative '/api/v1' (same origin, behind the reverse
+// proxy). Both work with `fetch(`${API_BASE}${path}`)`; anything that needs a
+// URL object must resolve it against window.location.origin.
+export const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1').replace(/\/+$/, '');
 
 const TOKEN_KEY = 'finance_ai_token';
 const COMPANY_KEY = 'finance_ai_company';

@@ -27,7 +27,7 @@ export const Sidebar: React.FC = () => {
     {
       group: 'VISÃO GERAL',
       items: [
-        { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { label: 'Painel', href: '/dashboard', icon: LayoutDashboard },
         { label: 'Alertas', href: '/alerts', icon: BellRing }
       ]
     },

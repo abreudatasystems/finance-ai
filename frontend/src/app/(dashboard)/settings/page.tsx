@@ -299,7 +299,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200">
               <div>
                 <span className="font-bold text-slate-800 block">Classificação Automática por IA</span>
-                <span className="text-slate-500 text-[11px]">Processar faturas assim que entram na Finance Inbox</span>
+                <span className="text-slate-500 text-[11px]">Processar faturas assim que dão entrada na Automação (OCR)</span>
               </div>
               <button
                 role="switch"

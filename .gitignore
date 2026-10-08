@@ -37,6 +37,8 @@ Thumbs.db
 # Storage & Logs
 *.log
 data/
+# Cópias de segurança do docker-compose.prod.yml: dados de clientes.
+backups/
 
 # pytest
 .pytest_cache/

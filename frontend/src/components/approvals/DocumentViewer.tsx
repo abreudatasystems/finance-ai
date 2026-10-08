@@ -22,16 +22,47 @@ interface Props {
 /** O caminho do ficheiro relativo à API (`/documents/{id}/file`), ou null
  *  quando o URL aponta para fora dela e se pode abrir directamente. */
 const apiPath = (url: string): string | null => {
-  const prefix = new URL(API_BASE).pathname.replace(/\/$/, '');   // "/api/v1"
+  // API_BASE pode ser absoluto (dev: http://127.0.0.1:8000/api/v1) ou relativo
+  // (produção atrás do proxy: /api/v1) — `new URL` precisa de uma origem base.
+  const here = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  const base = new URL(API_BASE, here);
+  const prefix = base.pathname.replace(/\/$/, '');   // "/api/v1"
   let path = url;
   if (/^https?:\/\//i.test(url)) {
-    if (!url.startsWith(API_BASE)) return null;
-    path = url.slice(API_BASE.length);
-    return path.startsWith('/') ? path : `/${path}`;
+    const u = new URL(url);
+    if (u.origin !== base.origin) return null;
+    if (!u.pathname.startsWith(`${prefix}/`)) return null;
+    return u.pathname.slice(prefix.length) + u.search;
   }
   if (!path.startsWith('/')) path = `/${path}`;
   return path.startsWith(`${prefix}/`) ? path.slice(prefix.length) : path;
 };
+
+/** Abre o documento num separador novo. Um <a href> simples não leva o
+ *  token e o endpoint dos ficheiros exige-o (401), por isso vai por fetch
+ *  autenticado. O separador abre-se antes do pedido: aberto depois de um
+ *  await, o navegador trata-o como popup e bloqueia-o. */
+export async function openDocument(fileUrl: string): Promise<boolean> {
+  const path = apiPath(fileUrl);
+  if (path === null) {
+    window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    return true;
+  }
+  const tab = window.open('', '_blank');
+  try {
+    const res = await apiFetch(path);
+    if (!res.ok) throw new Error(String(res.status));
+    const url = URL.createObjectURL(await res.blob());
+    if (tab) tab.location.href = url;
+    else window.open(url, '_blank');
+    // Dá tempo ao separador de carregar antes de libertar a memória.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return true;
+  } catch {
+    tab?.close();
+    return false;
+  }
+}
 
 export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType }) => {
   const [zoom, setZoom] = useState(100);

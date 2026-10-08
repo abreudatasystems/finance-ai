@@ -120,7 +120,7 @@ export default function CategoryGroupsPage() {
         <Layers className="w-4 h-4 shrink-0 mt-0.5 text-indigo-600" />
         <span>
           Cada grupo declara a sua <b>natureza financeira</b> — receita ou despesa. É isso que permite criar grupos
-          próprios (Investimento, Frota…) sem afetar o fluxo de caixa, o dashboard ou o relatório de IVA, que continuam
+          próprios (Investimento, Frota…) sem afetar o fluxo de caixa, o painel ou o relatório de IVA, que continuam
           a somar por natureza. A hierarquia é <b>Grupo → Categoria → Subcategoria</b>.
         </span>
       </div>

@@ -377,7 +377,7 @@ export default function BankReconciliationPage() {
           <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto" />
           <p className="text-sm font-bold text-slate-700">Nenhum extrato importado</p>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Faça o upload do extrato do seu banco para começar a conciliação automática.
+            Carregue o extrato do seu banco para começar a conciliação automática.
             A IA vai comparar os movimentos com as suas transações registadas.
           </p>
         </div>

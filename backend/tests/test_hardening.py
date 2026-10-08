@@ -169,3 +169,42 @@ def test_the_full_record_of_a_customer_is_kept(tenant):
     assert saved["city"] == "Braga"
     assert saved["internal_observations"] == "Paga sempre a 60 dias"
     assert saved["is_vat_exempt"] is True
+
+
+# --- Fornecedor reconhecido pelo NIF ---------------------------------------------
+
+def test_an_uploaded_invoice_is_matched_to_a_supplier_in_the_registry(tenant, monkeypatch):
+    """Procurava na tabela antiga de fornecedores, que já ninguém escreve: um
+    fornecedor criado depois da passagem para entidades nunca era reconhecido."""
+    from decimal import Decimal
+
+    from app.api.v1 import documents
+    from app.db.session import SessionLocal
+    from app.models.models import AIApprovalItem
+    from app.services.invoice_parser import ParsedInvoice
+
+    supplier = tenant.post("/api/v1/entities/", {
+        "name": "Papelaria Central", "nif": "503504564", "is_supplier": True}).json()
+
+    async def fake_read(_bytes, _name):
+        return ParsedInvoice(supplier="Papelaria Central", nif="503504564",
+                             gross_amount=Decimal("123.00"), confidence=0.9), "texto"
+
+    monkeypatch.setattr(documents, "process_document", fake_read)
+    up = tenant.client.post("/api/v1/documents/upload", headers=tenant.headers,
+                            files={"file": ("papelaria.pdf", b"%PDF-1.4 papelaria", "application/pdf")})
+    assert up.status_code == 201, up.text
+
+    db = SessionLocal()
+    try:
+        item = (db.query(AIApprovalItem)
+                .filter(AIApprovalItem.company_id == tenant.company_id).one())
+        assert item.entity_id == supplier["id"]
+    finally:
+        db.close()
+
+
+def test_health_answers_only_when_the_database_does(client):
+    res = client.get("/health")
+    assert res.status_code == 200
+    assert res.json()["database"] == "ok"

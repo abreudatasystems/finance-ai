@@ -13,6 +13,11 @@ makes it cost time, without ever locking a real person out permanently:
 State is in memory, which is right for a single process and honest about its
 limits: with several workers this becomes per-worker, and the moment there is
 a Redis in the deployment this module is where it goes.
+
+The same counter also runs per address (``ip:<addr>``) with a looser limit:
+per account alone, someone trying one common password against many accounts
+is never slowed down. A correct password does not clear the address count —
+otherwise one valid login would reset an attacker's budget.
 """
 
 from __future__ import annotations
@@ -23,6 +28,8 @@ from dataclasses import dataclass, field
 
 #: How many failures before the door closes.
 MAX_ATTEMPTS = 5
+#: The same, per address — looser, since an office shares one address.
+MAX_ATTEMPTS_PER_IP = 30
 #: Failures older than this stop counting.
 WINDOW_SECONDS = 15 * 60
 #: How long the door stays closed once it does.
@@ -53,7 +60,8 @@ def seconds_locked(identifier: str, now: float | None = None) -> int:
         return int(record.locked_until - now) + 1
 
 
-def register_failure(identifier: str, now: float | None = None) -> int:
+def register_failure(identifier: str, now: float | None = None,
+                     max_attempts: int = MAX_ATTEMPTS) -> int:
     """Count one failed attempt; returns how many remain before the lock."""
     now = now or time.time()
     key = _key(identifier)
@@ -61,11 +69,16 @@ def register_failure(identifier: str, now: float | None = None) -> int:
         record = _records.setdefault(key, _Record())
         record.failures = [t for t in record.failures if now - t < WINDOW_SECONDS]
         record.failures.append(now)
-        if len(record.failures) >= MAX_ATTEMPTS:
+        if len(record.failures) >= max_attempts:
             record.locked_until = now + LOCK_SECONDS
             record.failures = []
             return 0
-        return MAX_ATTEMPTS - len(record.failures)
+        return max_attempts - len(record.failures)
+
+
+def ip_key(address: str | None) -> str:
+    """The identifier under which an address's failures are counted."""
+    return f"ip:{address or 'desconhecido'}"
 
 
 def register_success(identifier: str) -> None:

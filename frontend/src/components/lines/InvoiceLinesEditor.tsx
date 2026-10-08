@@ -214,7 +214,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
 
       <p className="flex items-start gap-2 px-3 py-2 rounded-xl bg-indigo-50/60 border border-indigo-100 text-indigo-900 text-[11px]">
         <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-        Uma fatura pode ter 6%, 13% e 23% ao mesmo tempo. Detalhando por linhas, o total do
+        Uma fatura pode ter 6%, 13% e 23% ao mesmo tempo. Ao detalhar por linhas, o total do
         lançamento passa a ser a <b>soma das linhas</b> e o apuramento do IVA lê cada taxa
         separadamente.
       </p>

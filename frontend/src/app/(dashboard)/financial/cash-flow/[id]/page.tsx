@@ -7,7 +7,7 @@ import { fetchTransaction, updateTransaction } from '@/services/data';
 import { Transaction } from '@/types';
 import { SettlementPanel } from '@/components/financial/SettlementPanel';
 import { InvoiceLinesEditor } from '@/components/lines/InvoiceLinesEditor';
-import { DocumentViewer } from '@/components/approvals/DocumentViewer';
+import { DocumentViewer, openDocument } from '@/components/approvals/DocumentViewer';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {ArrowLeft, Pencil, Save, X, Loader2, FileText, Sparkles, RefreshCcw, ShieldCheck, Wallet, Building2, Tag, Upload, ExternalLink, Check, AlertTriangle, Landmark, Bot, User} from 'lucide-react';
@@ -450,9 +450,17 @@ export default function TransactionDetailPage() {
                   </div>
                 </div>
                 {docUrl && (
-                  <a href={docUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 shrink-0">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!(await openDocument(docUrl))) toast.error('Não foi possível abrir o documento.');
+                    }}
+                    title="Abrir documento"
+                    aria-label="Abrir documento"
+                    className="text-indigo-600 hover:text-indigo-800 shrink-0"
+                  >
                     <ExternalLink className="w-4 h-4" />
-                  </a>
+                  </button>
                 )}
               </div>
             ) : (

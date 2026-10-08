@@ -1,11 +1,23 @@
+import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from app.core.config import check_production_config, is_production, settings
 from app.api.v1.api import api_router
 from app.db.migrate import run_migrations
+from app.db.session import engine
 from app.services import scheduler
+
+# Sem isto só os avisos do uvicorn chegavam ao registo: o que o agendador e o
+# OCR escrevem com logging.getLogger perdia-se em silêncio.
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 # Refuse to start in production on a configuration that would lose sessions or
 # leave the API open. Failing here is cheaper than failing with customers on it.
@@ -55,6 +67,19 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+@app.get("/health", include_in_schema=False)
+def health():
+    """Para o Docker e para a monitorização: só diz que está bem se a base de
+    dados responder — uma API de pé sem base de dados não serve ninguém."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception:                                       # noqa: BLE001
+        logging.getLogger("financeai.health").exception("Base de dados sem resposta")
+        return JSONResponse(status_code=503, content={"status": "erro", "database": "sem resposta"})
+    return {"status": "ok", "database": "ok", "version": settings.VERSION}
+
 
 @app.get("/")
 def root():

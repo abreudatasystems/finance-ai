@@ -1,0 +1,13 @@
+# O que não pode entrar na imagem: o ambiente local, a base de dados de
+# desenvolvimento e, sobretudo, as faturas carregadas.
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.db
+*.sqlite3
+uploads/
+tests/
+.env
+.env.*

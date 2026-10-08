@@ -26,7 +26,7 @@ export default function SuppliersPage() {
   }, []);
 
   useEffect(() => {
-    setPageHeader('Gestão de Fornecedores', 'Cadastro inteligente com categorias padrão associadas automaticamente a faturas recebidas');
+    setPageHeader('Gestão de Fornecedores', 'Registo inteligente com categorias padrão associadas automaticamente a faturas recebidas');
   }, [setPageHeader]);
 
   const handleSupplierCreated = (newSup: Supplier) => {

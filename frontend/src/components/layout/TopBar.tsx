@@ -251,10 +251,10 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
               ? 'bg-black text-white border-black shadow-xs' 
               : 'bg-neutral-100 hover:bg-neutral-200/80 text-neutral-900 border-neutral-200/80 shadow-2xs'
           }`}
-          title="Alternar Painel Lateral Finance AI"
+          title="Abrir ou fechar o Assistente"
         >
           <Sparkles className={`w-4 h-4 ${isAiDrawerOpen ? 'text-emerald-400' : 'text-emerald-600 animate-pulse'}`} />
-          <span>Finance Copilot</span>
+          <span>Assistente</span>
         </button>
 
         {/* Notification Bell */}

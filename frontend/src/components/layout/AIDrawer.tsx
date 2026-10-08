@@ -147,7 +147,7 @@ export const AIDrawer: React.FC = () => {
           </div>
           <div>
             <h2 className="font-semibold text-sm flex items-center gap-2">
-              Finance Copilot
+              Assistente
               <span className="text-[10px] bg-neutral-800 text-emerald-300 px-1.5 py-0.5 rounded font-mono uppercase border border-neutral-700">Transversal</span>
             </h2>
             <p className="text-[11px] text-neutral-400">Camada de Inteligência Financeira</p>
@@ -264,7 +264,7 @@ export const AIDrawer: React.FC = () => {
               <Bot className="w-4 h-4" />
             </div>
             <div className="bg-white p-3 rounded-2xl border border-slate-200 text-xs text-slate-400 animate-pulse flex items-center gap-1">
-              <span>Finance Copilot a analisar contexto...</span>
+              <span>Assistente a analisar o contexto...</span>
             </div>
           </div>
         )}
@@ -273,7 +273,7 @@ export const AIDrawer: React.FC = () => {
 
       {/* Quick Action Chips */}
       <div className="p-3 bg-white border-t border-slate-100 space-y-2">
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ações Rápidas Copilot</div>
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ações Rápidas do Assistente</div>
         <div className="flex flex-wrap gap-1.5">
           {quickActions.map((qa, idx) => (
             <button

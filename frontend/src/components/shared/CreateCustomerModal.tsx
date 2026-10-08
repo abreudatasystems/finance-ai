@@ -124,7 +124,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClos
 
   return (
     <SideDrawer
-      title="Cadastrar Novo Cliente"
+      title="Registar Novo Cliente"
       subtitle="Registe uma entidade cliente com detalhe"
       onClose={onClose}
       footer={

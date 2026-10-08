@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 from typing import Optional, List, Any
 from datetime import datetime
 
@@ -211,11 +211,7 @@ class TransactionOut(BaseModel):
             return [t.strip() for t in v.split(",") if t.strip()]
         return v
 
-    class Config:
-        from_attributes = True
-    tipo: str
-    descricao: str
-    confianca: int
+    model_config = ConfigDict(from_attributes=True)
 
 # AI Chat Assistant (Contextual Intent Engine)
 class AIContext(BaseModel):
@@ -299,6 +295,5 @@ class ItemOut(ItemBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 

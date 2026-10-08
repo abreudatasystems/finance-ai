@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -67,11 +67,12 @@ def _first_company(db: Session, user_id: str) -> Optional[str]:
 
 
 @router.post("/login", response_model=Token)
-def login(request: LoginRequest, db: Session = Depends(get_db)):
+def login(request: LoginRequest, http: Request, db: Session = Depends(get_db)):
     # Guessing a password should cost time. The wait is stated, because a
     # lockout with no end is indistinguishable from a broken product.
     email = request.email.strip().lower()
-    locked = login_guard.seconds_locked(email)
+    address = login_guard.ip_key(http.client.host if http.client else None)
+    locked = max(login_guard.seconds_locked(email), login_guard.seconds_locked(address))
     if locked:
         minutes = max(1, round(locked / 60))
         raise HTTPException(
@@ -85,6 +86,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(func.lower(User.email) == email).first()
     if not user or not verify_password(request.password, user.hashed_password):
         remaining = login_guard.register_failure(email)
+        login_guard.register_failure(address, max_attempts=login_guard.MAX_ATTEMPTS_PER_IP)
         if user:
             _audit(db, _first_company(db, user.id), user.name, "login_falhado",
                    "Tentativa de início de sessão com palavra-passe errada")

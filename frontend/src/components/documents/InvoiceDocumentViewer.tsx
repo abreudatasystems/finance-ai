@@ -73,7 +73,7 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
         <FileText className="w-12 h-12 text-slate-300 mb-3" />
         <h4 className="text-sm font-bold text-slate-600">Nenhum documento selecionado</h4>
         <p className="text-xs text-slate-400 max-w-sm mt-1">
-          Selecione uma fatura da lista ao lado ou envie um novo arquivo para inspecionar a extração OCR e o documento visual em tempo real.
+          Selecione uma fatura da lista ao lado ou carregue um novo ficheiro para inspecionar a extração OCR e o documento visual em tempo real.
         </p>
       </div>
     );

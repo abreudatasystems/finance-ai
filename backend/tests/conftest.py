@@ -32,6 +32,15 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def _fresh_login_guard():
+    """Every test client shares one address, so failed logins from one test
+    would count towards the per-address limit in the next."""
+    from app.core import login_guard
+    login_guard.reset()
+    yield
+
+
 class Tenant:
     """One company with its owner, plus the helpers most tests need."""
 

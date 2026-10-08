@@ -124,7 +124,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
     const result = await createInstallments(transaction.id, splitCount, transaction.due_date || undefined);
     setSplitting(false);
     if (!result) {
-      setError('Não foi possível criar as parcelas. Se já existem parcelas pagas, o plano não pode ser refeito.');
+      setError('Não foi possível criar as prestações. Se já existem prestações pagas, o plano não pode ser refeito.');
       return;
     }
     await load();
@@ -193,7 +193,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
           {installments.length > 0 ? (
             <div className="space-y-1.5">
               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                Parcelas ({installments.length})
+                Prestações ({installments.length})
               </h4>
               {installments.map((i) => {
                 const st = INST_STATUS[i.status] || INST_STATUS.pending;
@@ -227,7 +227,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
           ) : (
             !settled && (
               <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-2">
-                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dividir em parcelas</h4>
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dividir em prestações</h4>
                 <div className="flex items-center gap-2 flex-wrap">
                   {[2, 3, 4, 6, 12].map((n) => (
                     <button
@@ -246,7 +246,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
                     max={120}
                     value={splitCount}
                     onChange={(e) => setSplitCount(Math.min(120, Math.max(2, Number(e.target.value) || 2)))}
-                    aria-label="Número de parcelas"
+                    aria-label="Número de prestações"
                     className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                   />
                   <button
@@ -318,7 +318,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
         <form onSubmit={submit} className="p-3 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-2.5">
           <h4 className="text-[11px] font-bold text-indigo-900">
             Registar {noun.toLowerCase()}
-            {targetInstallment && ` · parcela ${installments.find((i) => i.id === targetInstallment)?.label}`}
+            {targetInstallment && ` · prestação ${installments.find((i) => i.id === targetInstallment)?.label}`}
           </h4>
           <div className="grid grid-cols-2 gap-2">
             <div>

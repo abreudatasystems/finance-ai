@@ -61,7 +61,7 @@ export const INITIAL_AI_MESSAGES: AIMessage[] = [
   {
     id: 'msg-1',
     sender: 'ai',
-    text: 'Olá. Sou o **Finance AI Copilot**. Pergunte-me pelo saldo, pelo que está por pagar ou por receber, ou peça-me para registar um lançamento.',
+    text: 'Olá. Sou o **Assistente**. Pergunte-me pelo saldo, pelo que está por pagar ou por receber, ou peça-me para registar um lançamento.',
     timestamp: '',
   },
 ];

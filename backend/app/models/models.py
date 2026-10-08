@@ -4,6 +4,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime
+from app.core.clock import utcnow
 from app.db.base import Base
 
 #: The NIF a company is created with before anyone has typed the real one.
@@ -33,7 +34,7 @@ class Company(Base):
     chart_template = Column(String, nullable=True)
     chart_provisioned = Column(Boolean, default=False)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 class User(Base):
     """A login.
@@ -57,7 +58,7 @@ class User(Base):
     account_type = Column(String, default="full", nullable=False)   # full | invited
     active = Column(Boolean, default=True)
     last_login_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class UserMembership(Base):
@@ -75,7 +76,7 @@ class UserMembership(Base):
     company_id = Column(String, ForeignKey("companies.id"), nullable=False, index=True)
     role = Column(String, default="owner")  # owner, admin, finance_manager, viewer
     invited_by = Column(String, ForeignKey("users.id"), nullable=True)
-    joined_at = Column(DateTime, default=datetime.utcnow)
+    joined_at = Column(DateTime, default=utcnow)
 
 
 class Invitation(Base):
@@ -97,7 +98,7 @@ class Invitation(Base):
     message = Column(Text, nullable=True)
     invited_by = Column(String, ForeignKey("users.id"), nullable=True)
     accepted_by = Column(String, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     expires_at = Column(DateTime, nullable=True)
     accepted_at = Column(DateTime, nullable=True)
 
@@ -123,7 +124,7 @@ class CategoryGroup(Base):
     is_system = Column(Boolean, default=False)     # system groups are protected
     sort_order = Column(Integer, default=0)
     active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class Category(Base):
@@ -206,7 +207,7 @@ class Entity(Base):
     active = Column(Boolean, default=True)
     # Where this row came from when the two old tables were folded in.
     source_ref = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class Supplier(Base):
@@ -274,7 +275,7 @@ class CostCenter(Base):
     #: open | closed — a finished job stops being offered on new documents.
     status = Column(String, default="open")
     active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -349,8 +350,8 @@ class Transaction(Base):
     approved_by = Column(String, nullable=True)
     approved_at = Column(String, nullable=True)
     rejection_reason = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 class TransactionLine(Base):
     """One line of a document — what makes mixed VAT possible.
@@ -394,7 +395,7 @@ class TransactionLine(Base):
     category_id = Column(String, nullable=True)
     category_name = Column(String, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class BankAccount(Base):
@@ -411,7 +412,7 @@ class BankAccount(Base):
     opening_balance = Column(Numeric(14, 2), default=0)
     is_default = Column(Boolean, default=False)
     active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class Installment(Base):
@@ -432,7 +433,7 @@ class Installment(Base):
     amount = Column(Numeric(14, 2), nullable=False)
     paid_amount = Column(Numeric(14, 2), default=0)
     status = Column(String, default="pending")        # pending, partially_paid, paid, overdue, cancelled
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class Payment(Base):
@@ -467,7 +468,7 @@ class Payment(Base):
     # which is what lets an unmatch undo it cleanly.
     source = Column(String, default="manual")
     created_by = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class Recurrence(Base):
@@ -512,7 +513,7 @@ class Recurrence(Base):
     last_generated_period = Column(String, nullable=True)  # "2026-08" — the idempotency key
     last_generated_at = Column(DateTime, nullable=True)
     occurrences_created = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 
 class RecurrenceOccurrence(Base):
@@ -532,7 +533,7 @@ class RecurrenceOccurrence(Base):
     amount = Column(Numeric(14, 2), nullable=False)
     status = Column(String, default="generated")            # generated | skipped
     transaction_id = Column(String, ForeignKey("transactions.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     #: Um período de uma recorrência trata-se uma vez e só uma. Enquanto a
     #: geração era manual bastava a verificação em código; a partir do momento
@@ -555,7 +556,7 @@ class AIDocument(Base):
     channel = Column(String, default="upload")  # email, whatsapp, upload, drive
     # uploaded, processing, extracted, needs_review, approved, rejected, error
     status = Column(String, default="uploaded")
-    upload_date = Column(String, default=lambda: datetime.utcnow().isoformat())
+    upload_date = Column(String, default=lambda: utcnow().isoformat())
 
     # Stored original + duplicate detection
     file_url = Column(String, nullable=True)
@@ -617,7 +618,7 @@ class AIExtraction(Base):
     ai_model = Column(String, nullable=True)
     ai_version = Column(String, nullable=True)
     raw_result = Column(Text, nullable=True)
-    processed_at = Column(DateTime, default=datetime.utcnow)
+    processed_at = Column(DateTime, default=utcnow)
 
 class AIApprovalItem(Base):
     __tablename__ = "ai_approvals"
@@ -646,7 +647,7 @@ class AIApprovalItem(Base):
     decided_by = Column(String, nullable=True)
     decided_at = Column(String, nullable=True)
     rejection_reason = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 class FinancialEvent(Base):
     __tablename__ = "financial_events"
@@ -660,14 +661,14 @@ class FinancialEvent(Base):
     entity_type = Column(String, nullable=True)
     entity_id = Column(String, nullable=True)
     status = Column(String, default="unread")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(String, primary_key=True, index=True)
     company_id = Column(String, ForeignKey("companies.id"), nullable=False)
-    timestamp = Column(String, default=datetime.utcnow().isoformat)
+    timestamp = Column(String, default=utcnow().isoformat)
     user = Column(String, nullable=False)
     action = Column(String, nullable=False)
     module = Column(String, nullable=False)
@@ -684,7 +685,7 @@ class AIRule(Base):
     category_id = Column(String, nullable=False)
     confidence = Column(Integer, default=95)
     uses_count = Column(Integer, default=1)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
 class BankStatement(Base):
     __tablename__ = "bank_statements"
@@ -693,7 +694,7 @@ class BankStatement(Base):
     company_id = Column(String, ForeignKey("companies.id"), nullable=False)
     bank_name = Column(String, nullable=False)
     file_name = Column(String, nullable=False)
-    upload_date = Column(DateTime, default=datetime.utcnow)
+    upload_date = Column(DateTime, default=utcnow)
     period_start = Column(String, nullable=True)
     period_end = Column(String, nullable=True)
     total_entries = Column(Integer, default=0)
@@ -758,8 +759,8 @@ class Budget(Base):
 
     notes = Column(Text, nullable=True)
     created_by = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 class Item(Base):
     __tablename__ = "items"
@@ -797,5 +798,5 @@ class Item(Base):
     # Service specifics
     service_group = Column(String, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

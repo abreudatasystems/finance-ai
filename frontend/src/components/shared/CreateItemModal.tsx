@@ -113,7 +113,7 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
 
   return (
     <SideDrawer
-      title="Cadastrar Novo Item"
+      title="Registar Novo Item"
       subtitle="Registe um novo produto ou serviço no seu catálogo"
       onClose={onClose}
       footer={

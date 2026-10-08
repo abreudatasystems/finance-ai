@@ -15,7 +15,7 @@ export default function ApprovalsPage() {
   const { setPageHeader } = useApp();
 
   useEffect(() => {
-    setPageHeader('Aprovações', 'Confirme o que a IA leu antes de virar obrigação');
+    setPageHeader('Aprovações', 'Confirme o que a IA leu antes de se tornar uma obrigação');
   }, [setPageHeader]);
 
   return <ApprovalQueue />;

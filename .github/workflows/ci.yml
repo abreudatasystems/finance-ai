@@ -19,7 +19,9 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
 
       # Sem o motor instalado, os testes de OCR saltam-se em silêncio — e o
       # que eles fixam é precisamente o que estava partido. A CI tem de os
@@ -31,7 +33,7 @@ jobs:
         working-directory: backend
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Run tests
         working-directory: backend

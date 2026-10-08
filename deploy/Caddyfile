@@ -1,0 +1,26 @@
+# Um só endereço público. O Caddy obtém e renova o certificado HTTPS do
+# domínio sozinho (Let's Encrypt), desde que o DNS aponte para este servidor.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# A API e os documentos (/api/v1/documents/{id}/file) vão para o backend.
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	# Tudo o resto é o frontend.
+	handle {
+		reverse_proxy frontend:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		# SAMEORIGIN e não DENY: o visualizador de faturas mostra o PDF numa
+		# moldura servida pelo próprio domínio.
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+}

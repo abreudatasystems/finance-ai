@@ -1,6 +1,7 @@
 """Bank reconciliation endpoints — upload, matching, and management."""
 import uuid
 from datetime import datetime, timedelta
+from app.core.clock import utcnow
 
 from typing import Optional
 
@@ -85,7 +86,7 @@ async def upload_bank_statement(
         company_id=company_id,
         bank_name=bank_name,
         file_name=file_name,
-        upload_date=datetime.utcnow(),
+        upload_date=utcnow(),
         period_start=min(dates) if dates else None,
         period_end=max(dates) if dates else None,
         total_entries=len(parsed_entries),

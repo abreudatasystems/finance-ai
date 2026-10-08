@@ -8,6 +8,7 @@ the VAT rate and described money that had not necessarily moved.
 """
 
 from datetime import date, datetime, timedelta, timezone
+from app.core.clock import utcnow
 from typing import List, Optional
 
 from sqlalchemy import func
@@ -66,7 +67,7 @@ def _expense_totals_by_category(db: Session, company_id: str, start: str, end: s
 
 def calculate_health_score(company_id: str, db: Session) -> dict:
     """Calculate real-time financial health from actual transaction data."""
-    today = datetime.utcnow().date()
+    today = utcnow().date()
     current_month_start = today.replace(day=1)
 
     next_month_start = (current_month_start + timedelta(days=32)).replace(day=1)
@@ -344,7 +345,7 @@ def get_monthly_summary(company_id: str, db: Session, months: int = 6,
 
 def get_expenses_by_category(company_id: str, db: Session) -> list:
     """Expense breakdown for the current month, net of VAT."""
-    today = datetime.utcnow().date()
+    today = utcnow().date()
     start = today.replace(day=1)
     end = (start + timedelta(days=32)).replace(day=1)
 

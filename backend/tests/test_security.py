@@ -130,6 +130,18 @@ def test_one_account_being_locked_does_not_lock_another(client, tenant, other_te
     assert other.status_code == 200
 
 
+def test_spraying_many_accounts_from_one_address_is_slowed_down(client, tenant):
+    """Uma palavra-passe comum tentada contra muitas contas nunca chegava ao
+    limite de nenhuma — o contador era só por conta."""
+    for i in range(login_guard.MAX_ATTEMPTS_PER_IP):
+        client.post("/api/v1/auth/login",
+                    json={"email": f"alvo{i}@exemplo.pt", "password": "Primavera2026"})
+
+    blocked = client.post("/api/v1/auth/login",
+                          json={"email": tenant.email, "password": "a chave da porta"})
+    assert blocked.status_code == 429
+
+
 def test_failed_logins_reach_the_audit_trail(client, tenant):
     client.post("/api/v1/auth/login", json={"email": tenant.email, "password": "errada"})
     logs = tenant.get("/api/v1/audit/").json()

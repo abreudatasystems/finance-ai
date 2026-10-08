@@ -366,7 +366,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
 
           {/* Parcelas */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-slate-600">Parcelas</label>
+            <label className="text-[11px] font-semibold text-slate-600">Prestações</label>
             <div className="flex gap-2">
               <select
                 value={customInstallment ? 'custom' : installmentCount}
@@ -381,11 +381,11 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                 className="flex-1 px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 font-semibold"
               >
                 <option value="1">À vista (1x)</option>
-                <option value="2">2 parcelas (2x)</option>
-                <option value="3">3 parcelas (3x)</option>
-                <option value="4">4 parcelas (4x)</option>
-                <option value="6">6 parcelas (6x)</option>
-                <option value="12">12 parcelas (12x)</option>
+                <option value="2">2 prestações (2x)</option>
+                <option value="3">3 prestações (3x)</option>
+                <option value="4">4 prestações (4x)</option>
+                <option value="6">6 prestações (6x)</option>
+                <option value="12">12 prestações (12x)</option>
                 <option value="custom">Personalizado...</option>
               </select>
               {customInstallment && (
@@ -404,7 +404,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             {installmentCount > 1 && (
               <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
                 <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                  <span>Plano de {installmentCount} parcelas</span>
+                  <span>Plano de {installmentCount} prestações</span>
                   <span>Mensal, a partir do vencimento</span>
                 </div>
                 {schedulePreview.map((p) => (
@@ -417,7 +417,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                 ))}
                 {installmentCount > 6 && (
                   <p className="text-[10px] text-slate-400 pt-0.5">
-                    …e mais {installmentCount - 6} parcela(s). A última absorve o arredondamento para somar exatamente o total.
+                    …e mais {installmentCount - 6} prestação(ões). A última absorve o arredondamento para somar exatamente o total.
                   </p>
                 )}
               </div>

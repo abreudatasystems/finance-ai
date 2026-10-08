@@ -1,59 +1,156 @@
-version: '3.8'
+# Produção. Antes de arrancar:
+#   1. cp .env.example .env  e preencha (DOMAIN, SECRET_KEY, POSTGRES_PASSWORD...)
+#   2. aponte o DNS do domínio para este servidor (portas 80 e 443 abertas)
+#   3. docker compose -f docker-compose.prod.yml up --build -d
+#
+# Só o Caddy está exposto à internet. Ele obtém e renova o certificado HTTPS
+# sozinho e serve tudo no mesmo endereço: /api/* vai para o backend, o resto
+# para o frontend — por isso o navegador nunca precisa de saber onde o backend
+# está, e não há CORS entre domínios.
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: finance_postgres_prod
     restart: always
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-financedb}
       POSTGRES_USER: ${POSTGRES_USER:-financeuser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-financepass123}
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    # Sem "ports": a base de dados só é alcançável pelos outros contentores.
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U financeuser -d financedb"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-
-  backend:
+  # Põe o esquema em dia uma vez, antes da API. Com a API a migrar ao arrancar,
+  # os vários trabalhadores alteravam as mesmas tabelas ao mesmo tempo.
+  migrate:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    container_name: finance_backend_prod
-    restart: always
-    environment:
-      DATABASE_URL: postgresql://financeuser:financepass123@postgres:5432/financedb
-      JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-key-2026}
-      # Onde ficam as faturas. Sem estas, ficam no disco do contentor — que
-      # desaparece com ele, e uma fatura perdida é um lançamento sem suporte.
+    environment: &backend-env
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-financeuser}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-financedb}
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env}
+      BACKEND_CORS_ORIGINS: https://${DOMAIN:?defina DOMAIN no .env}
+      APP_BASE_URL: https://${DOMAIN}
+      AUTO_MIGRATE: "0"
+      SCHEDULER_ENABLED: "0"
+      SCHEDULER_INTERVAL_HOURS: ${SCHEDULER_INTERVAL_HOURS:-6}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Onde ficam as faturas. Sem estas, ficam no volume "uploads" — que entra
+      # na cópia de segurança diária, mas vive no mesmo servidor.
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
       R2_BUCKET: ${R2_BUCKET:-finance-ai-documents}
       R2_JURISDICTION: ${R2_JURISDICTION:-}
-    ports:
-      - "8000:8000"
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    command: ["python", "-m", "scripts.migrate"]
+    restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
 
+  backend:
+    build:
+      context: ./backend
+    restart: always
+    environment:
+      <<: *backend-env
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-4}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # As recorrências (rendas, avenças...) geradas num processo só, em vez de
+  # um agendador por cada trabalhador da API.
+  scheduler:
+    build:
+      context: ./backend
+    restart: always
+    environment:
+      <<: *backend-env
+    command: ["python", "-m", "scripts.run_scheduler"]
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: finance_frontend_prod
+      args:
+        # Fica gravado no código do navegador durante a construção. Relativo,
+        # porque o Caddy serve a API no mesmo domínio.
+        NEXT_PUBLIC_API_URL: /api/v1
     restart: always
-    environment:
-      NEXT_PUBLIC_API_URL: http://backend:8000/api/v1
-    ports:
-      - "3000:3000"
     depends_on:
       - backend
 
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+
+  # Cópia de segurança diária da base de dados e das faturas guardadas em
+  # disco, para ./backups. Guarda BACKUP_KEEP_DAYS dias. Copie essa pasta
+  # para fora do servidor com regularidade: um backup no mesmo disco não
+  # sobrevive à perda do disco.
+  backup:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-financeuser}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-financedb}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ./backups:/backups
+      - uploads:/uploads:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        while true; do
+          stamp=$$(date +%Y-%m-%d_%H%M)
+          if pg_dump --no-owner | gzip > /backups/db_$$stamp.sql.gz; then
+            echo "backup da base de dados: db_$$stamp.sql.gz"
+          else
+            echo "ERRO: o backup da base de dados falhou" >&2
+            rm -f /backups/db_$$stamp.sql.gz
+          fi
+          tar -czf /backups/uploads_$$stamp.tar.gz -C /uploads . 2>/dev/null || true
+          find /backups -name '*.gz' -mtime +$$BACKUP_KEEP_DAYS -delete
+          sleep 86400
+        done
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_prod_data:
+  uploads:
+  caddy_data:
+  caddy_config:

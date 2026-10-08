@@ -1,24 +1,29 @@
-fastapi>=0.110.0
-uvicorn[standard]>=0.28.0
-sqlalchemy>=2.0.28
-pydantic>=2.6.4
-pydantic-settings>=2.2.1
-python-jose[cryptography]>=3.3.0
-bcrypt>=4.0.0
-python-multipart>=0.0.9
-httpx>=0.27.0
+# Dependências de produção. Cada uma tem a versão testada como mínimo e um
+# tecto na próxima versão maior: uma actualização que parta compatibilidade
+# não entra sozinha numa reconstrução da imagem. Para subir de versão, mude o
+# tecto aqui e corra os testes.
+# As ferramentas de teste estão em requirements-dev.txt.
+fastapi~=0.142.2
+uvicorn[standard]~=0.54.0
+sqlalchemy>=2.1.3,<3
+pydantic>=2.13.5,<3
+pydantic-settings>=2.15.0,<3
+python-jose[cryptography]>=3.5.0,<4
+bcrypt>=5.0.0,<6
+python-multipart~=0.0.32
+httpx~=0.28.1
 # Cloudflare R2 é S3-compatível; o boto3 é o cliente documentado para ele.
-boto3>=1.34.0
-psycopg2-binary>=2.9.9
-pillow>=10.2.0
-pypdf>=4.1.0
+boto3>=1.43.108,<2
+# O SQLAlchemy 2.1 liga "postgresql://" ao psycopg 3 por omissão.
+psycopg[binary]>=3.2,<4
+pillow>=12.3.0,<13
+pypdf>=6.19.0,<7
 # Leitura de documentos (app/services/open_source_ocr.py).
 # pdfplumber lê a camada de texto com o alinhamento das tabelas; pypdfium2
 # converte uma página em imagem, que é o passo sem o qual um PDF
 # digitalizado nunca chega ao motor de OCR; pytesseract é a ponte para o
 # binário tesseract-ocr, instalado no Dockerfile com o dicionário português.
-pdfplumber>=0.11.0
-pypdfium2>=4.30.0
-pytesseract>=0.3.10
-alembic>=1.13.0
-pytest>=8.0.0
+pdfplumber~=0.11.10
+pypdfium2>=5.14.0,<6
+pytesseract~=0.3.13
+alembic>=1.20.0,<2

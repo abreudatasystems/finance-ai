@@ -134,7 +134,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
 
   return (
     <SideDrawer
-      title="Cadastrar Novo Fornecedor"
+      title="Registar Novo Fornecedor"
       subtitle="Registe uma entidade de despesa com detalhe"
       onClose={onClose}
       footer={
