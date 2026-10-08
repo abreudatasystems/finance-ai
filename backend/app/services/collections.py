@@ -33,6 +33,7 @@ from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
 
+from app.core import fmt
 from app.models.models import Entity, Payment, Transaction
 
 CENTS = Decimal("0.01")
@@ -341,15 +342,15 @@ def _message(receivable: dict, payable: dict, has_data: bool = True) -> str:
     parts = []
     if overdue_in > 0:
         worst = next((e for e in receivable["entidades"] if e["vencido"] > 0), None)
-        head = f"Tem {overdue_in:,.2f} € por cobrar já vencidos"
+        head = f"Tem {fmt.eur(overdue_in)} por cobrar já vencidos"
         if worst:
             head += (
-                f", e {worst['vencido']:,.2f} € deles são de {worst['entidade']}"
+                f", e {fmt.eur(worst['vencido'])} deles são de {worst['entidade']}"
                 f" (o mais antigo há {worst['mais_antigo']} dias)"
             )
         parts.append(head + ".")
     if overdue_out > 0:
-        parts.append(f"Do outro lado, {overdue_out:,.2f} € que devia ter pago.")
+        parts.append(f"Do outro lado, {fmt.eur(overdue_out)} que devia ter pago.")
     return " ".join(parts)
 
 
@@ -378,15 +379,15 @@ def reminder_message(company_name: str, entity_name: str,
     total = sum(Decimal(str(row.get("em_falta") or 0)) for row in rows)
     lines = [
         f"- {row.get('documento') or row.get('descricao') or 'Documento'}"
-        f" · vencimento {row.get('vencimento') or '—'}"
-        f" · {float(row.get('em_falta') or 0):,.2f} €"
+        f" · vencimento {fmt.data(row.get('vencimento'))}"
+        f" · {fmt.eur(row.get('em_falta'))}"
         for row in rows
     ]
     body = (
         f"Exmos. Senhores,\n\n"
         f"Vimos por este meio recordar os seguintes valores em aberto:\n\n"
         + "\n".join(lines)
-        + f"\n\nTotal em falta: {float(total):,.2f} €.\n\n"
+        + f"\n\nTotal em falta: {fmt.eur(total)}.\n\n"
         "Agradecemos a regularização ou a indicação de uma data prevista de "
         "pagamento.\n\n"
         f"Com os melhores cumprimentos,\n{company_name}"

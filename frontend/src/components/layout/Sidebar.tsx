@@ -4,7 +4,11 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import {LayoutDashboard, Wallet, BarChart3, Scale, Users, Building2, History, PanelLeftClose, PanelLeftOpen, ScanText, CheckCheck, Repeat, BellRing, FileText, HandCoins, Target, Landmark, Package, Briefcase} from 'lucide-react';
+import { IconButton } from '@/components/ui';
+import {
+  LayoutDashboard, Wallet, BarChart3, Users, Truck, Receipt, PanelLeftClose, PanelLeftOpen, ScanText,
+  CheckCheck, BellRing, FileText, HandCoins, Landmark, Package, Settings,
+} from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -35,15 +39,16 @@ export const Sidebar: React.FC = () => {
       group: 'TESOURARIA',
       items: [
         { label: 'Fluxo de Caixa', href: '/financial/cash-flow', icon: Wallet },
-        { label: 'Contas a Pagar', href: '/financial/payables', icon: Building2 },
+        { label: 'Contas a Pagar', href: '/financial/payables', icon: Receipt },
         { label: 'Contas a Receber', href: '/financial/receivables', icon: HandCoins },
-        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Building2 }
+        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Landmark }
       ]
     },
     {
       group: 'INTELIGÊNCIA ARTIFICIAL',
       items: [
-        { label: 'Automação (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true }
+        { label: 'Automação (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true },
+        { label: 'Aprovações', href: '/documents/approvals', icon: CheckCheck }
       ]
     },
     {
@@ -57,11 +62,26 @@ export const Sidebar: React.FC = () => {
       group: 'REGISTOS',
       items: [
         { label: 'Produtos e Serviços', href: '/registry/items', icon: Package },
-        { label: 'Fornecedores', href: '/registry/suppliers', icon: Building2 },
+        { label: 'Fornecedores', href: '/registry/suppliers', icon: Truck },
         { label: 'Clientes', href: '/registry/customers', icon: Users }
+      ]
+    },
+    {
+      group: 'SISTEMA',
+      items: [
+        { label: 'Configurações', href: '/settings', icon: Settings }
       ]
     }
   ];
+
+  // Só o item mais específico fica activo: em /reports/dre acende "Demonstração
+  // de Resultados", não também "Relatórios".
+  const matches = (href: string) =>
+    pathname === href || (href !== '/dashboard' && pathname.startsWith(href + '/'));
+  const activeHref = navGroups
+    .flatMap((g) => g.items.map((i) => i.href))
+    .filter(matches)
+    .sort((a, b) => b.length - a.length)[0];
 
   return (
     <>
@@ -70,6 +90,7 @@ export const Sidebar: React.FC = () => {
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden animate-in fade-in duration-200"
           onClick={closeMobileMenu}
+          aria-hidden="true"
         />
       )}
 
@@ -82,19 +103,20 @@ export const Sidebar: React.FC = () => {
       {/* Top Controls: Collapse / Expand Toggle Button */}
       <div className="h-12 border-b border-neutral-800/80 flex items-center bg-neutral-950/80 shrink-0">
         <div className="w-[52px] h-full flex items-center justify-center shrink-0">
-          <button
+          <IconButton
+            label={isSidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
             onClick={toggleSidebar}
-            className="p-1.5 rounded-xl hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-            title={isSidebarCollapsed ? 'Expandir Menu' : 'Recolher Menu'}
+            aria-expanded={!isSidebarCollapsed}
+            className="rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 [&_svg]:size-5"
           >
             {isSidebarCollapsed ? (
-              <PanelLeftOpen className="w-5 h-5 text-emerald-400" />
+              <PanelLeftOpen className="text-emerald-400" />
             ) : (
-              <PanelLeftClose className="w-5 h-5 text-neutral-400" />
+              <PanelLeftClose />
             )}
-          </button>
+          </IconButton>
         </div>
-        <span className={`text-[10px] font-bold text-neutral-400 tracking-wider uppercase whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${
+        <span className={`text-2xs font-bold text-neutral-400 tracking-wider uppercase whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out ${
           isSidebarCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100 pr-4'
         }`}>
           Navegação
@@ -107,7 +129,7 @@ export const Sidebar: React.FC = () => {
           <div key={idx} className="space-y-1">
             {/* FIXED HEADER HEIGHT (h-5) */}
             <div className="h-5 flex items-center px-4">
-              <h3 className={`text-[9px] font-bold text-neutral-500 uppercase tracking-widest whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${
+              <h3 className={`text-2xs font-bold text-neutral-500 uppercase tracking-widest whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${
                 isSidebarCollapsed ? 'opacity-0' : 'opacity-100'
               }`}>
                 {group.group}
@@ -117,12 +139,13 @@ export const Sidebar: React.FC = () => {
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                const isActive = item.href === activeHref;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     title={isSidebarCollapsed ? item.label : undefined}
+                    aria-current={isActive ? 'page' : undefined}
                     className={`flex items-center h-11 rounded-xl text-xs font-semibold transition-all duration-200 group relative overflow-hidden ${
                       isActive
                         ? 'bg-neutral-900 text-white font-bold border border-neutral-700 shadow-xs'
@@ -145,7 +168,7 @@ export const Sidebar: React.FC = () => {
 
                     {/* Badge */}
                     {item.badge && !isSidebarCollapsed && (
-                      <span className={`text-[10px] rounded-full font-bold px-1.5 py-0.5 ml-auto mr-3 transition-opacity duration-300 ${
+                      <span className={`text-2xs rounded-full font-bold px-1.5 py-0.5 ml-auto mr-3 transition-opacity duration-300 ${
                         item.highlight 
                           ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
                           : 'bg-neutral-800 text-neutral-400 border border-neutral-700'

@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
+import { IconButton } from '@/components/ui';
 
 interface SideDrawerProps {
   title: string;
@@ -45,7 +46,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
       <div
         onClick={onClose}
         aria-hidden="true"
-        className="fai-overlay fixed inset-0 bg-slate-900/40 backdrop-blur-[2px]"
+        className="fai-overlay fixed inset-0 bg-black/40 backdrop-blur-[2px]"
       />
 
       {/* Panel */}
@@ -56,20 +57,20 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
         className={`fai-drawer relative h-full w-full ${widthClass} bg-white shadow-2xl rounded-2xl md:rounded-3xl overflow-hidden flex flex-col`}
       >
         {/* Header */}
-        <div className="px-5 py-4 text-white flex items-center justify-between bg-slate-900">
+        <div className="px-5 py-4 text-white flex items-center justify-between bg-black">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="min-w-0">
               <h2 className="font-bold text-sm truncate">{title}</h2>
-              {subtitle && <p className="text-[11px] text-white/70 truncate">{subtitle}</p>}
+              {subtitle && <p className="text-2xs text-white/70 truncate">{subtitle}</p>}
             </div>
           </div>
-          <button
+          <IconButton
+            label="Fechar"
             onClick={onClose}
-            aria-label="Fechar"
-            className="p-1.5 rounded-lg hover:bg-white/15 text-white/80 hover:text-white transition-colors"
+            className="text-white/80 hover:text-white hover:bg-white/15 [&_svg]:size-5"
           >
-            <X className="w-5 h-5" />
-          </button>
+            <X />
+          </IconButton>
         </div>
 
         {/* Scrollable body */}
@@ -77,7 +78,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
 
         {/* Sticky footer */}
         {footer && (
-          <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/80 backdrop-blur flex gap-2">
+          <div className="px-5 py-3.5 border-t border-neutral-100 bg-neutral-50/80 backdrop-blur flex gap-2">
             {footer}
           </div>
         )}

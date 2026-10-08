@@ -14,8 +14,9 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Package, Briefcase, Search, X, Loader2 } from 'lucide-react';
+import { Package, Briefcase, Search, X } from 'lucide-react';
 import { CatalogueItem } from './types';
+import { IconButton, LoadingState, cn, inputClass } from '@/components/ui';
 
 interface Props {
   items: CatalogueItem[];
@@ -63,44 +64,45 @@ export const ItemPicker: React.FC<Props> = ({
   return (
     <div className="relative" ref={box}>
       {selected ? (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-800 font-mono text-[10px]">
+        <span className="inline-flex items-center gap-0.5 pl-2 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-800 font-mono text-2xs">
           {selected.code}
-          <button
+          <IconButton
+            label="Desligar do artigo (a linha fica como está)"
             onClick={onClear}
-            title="Desligar do artigo (a linha fica como está)"
-            className="text-indigo-400 hover:text-indigo-700"
+            className="size-6 text-emerald-500 hover:text-emerald-800 hover:bg-emerald-100 [&_svg]:size-3"
           >
-            <X className="w-3 h-3" />
-          </button>
+            <X />
+          </IconButton>
         </span>
       ) : (
         <button
+          type="button"
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 text-slate-500 hover:text-indigo-700 hover:border-indigo-200 text-[10px] font-bold"
+          aria-expanded={open}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-neutral-200 text-neutral-500 hover:text-emerald-700 hover:border-emerald-200 text-2xs font-bold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
         >
           <Search className="w-3 h-3" /> Catálogo
         </button>
       )}
 
       {open && (
-        <div className="absolute z-30 mt-1 left-0 w-72 max-w-[80vw] rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
-          <div className="p-2 border-b border-slate-100">
+        <div className="absolute z-30 mt-1 left-0 w-72 max-w-[80vw] rounded-xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-neutral-100">
             <input
               autoFocus
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               placeholder="Código, descrição ou família…"
-              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
+              aria-label="Procurar no catálogo"
+              className={cn(inputClass, 'h-8 px-2.5 text-xs')}
             />
           </div>
 
           <div className="max-h-56 overflow-y-auto">
             {loading ? (
-              <p className="px-3 py-4 text-center text-slate-400 text-[11px] flex items-center justify-center gap-1.5">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> A carregar o catálogo…
-              </p>
+              <LoadingState label="A carregar o catálogo…" className="py-4" />
             ) : matches.length === 0 ? (
-              <p className="px-3 py-4 text-center text-slate-400 text-[11px]">
+              <p className="px-3 py-4 text-center text-neutral-500 text-xs">
                 {items.length === 0
                   ? 'Ainda não há artigos. Registe-os em Produtos ou Serviços.'
                   : 'Nenhum artigo com esse nome.'}
@@ -110,22 +112,23 @@ export const ItemPicker: React.FC<Props> = ({
                 const Icon = item.kind === 'service' ? Briefcase : Package;
                 return (
                   <button
+                    type="button"
                     key={item.id}
                     onClick={() => { onPick(item); setOpen(false); setTerm(''); }}
-                    className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-indigo-50/60 border-b border-slate-50 last:border-0"
+                    className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-emerald-50/60 border-b border-neutral-50 last:border-0 cursor-pointer focus-visible:outline-none focus-visible:bg-emerald-50"
                   >
-                    <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <Icon className="w-3.5 h-3.5 text-neutral-400 shrink-0" aria-hidden="true" />
                     <span className="flex-1 min-w-0">
-                      <span className="block font-semibold text-slate-800 text-[11px] truncate">
+                      <span className="block font-semibold text-neutral-800 text-xs truncate">
                         {item.description}
                       </span>
-                      <span className="block text-[10px] text-slate-400 font-mono">
+                      <span className="block text-2xs text-neutral-500 font-mono">
                         {item.code}
                         {item.vat_rate ? ` · IVA ${item.vat_rate}` : ''}
                         {item.price_includes_vat ? ' · preço c/ IVA' : ''}
                       </span>
                     </span>
-                    <span className="font-mono text-[11px] text-slate-600 shrink-0">
+                    <span className="font-mono text-xs tabular-nums text-neutral-600 shrink-0">
                       {formatMoney(item.price_1 || 0)}
                     </span>
                   </button>

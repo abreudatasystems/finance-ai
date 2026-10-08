@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import {Loader2, Package, Calculator} from 'lucide-react';
+import { Package, Calculator} from 'lucide-react';
 import { Item } from '@/types';
 import { apiPost } from '@/services/api';
 import { SideDrawer } from './SideDrawer';
+import { toast } from 'sonner';
+import { Button, Field, Input, Select } from '@/components/ui';
 
 interface CreateItemModalProps {
   items: Item[];
@@ -18,7 +20,6 @@ type Tab = 'geral' | 'precos';
 export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose, onCreated }) => {
   const [activeTab, setActiveTab] = useState<Tab>('geral');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Campos Gerais
   const generateCode = (k: 'product' | 'service') => {
@@ -58,7 +59,6 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
     e.preventDefault();
     if (!description.trim() || !code.trim()) return;
     setSubmitting(true);
-    setError(null);
 
     const payload = {
       kind,
@@ -82,7 +82,7 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
     setSubmitting(false);
 
     if (!created) {
-      setError('Não foi possível guardar. Verifique a ligação e tente de novo.');
+      toast.error('Não foi possível guardar. Verifique a ligação e tente de novo.');
       return;
     }
 
@@ -91,11 +91,12 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
   };
 
   const renderTabs = () => (
-    <div className="flex space-x-1 bg-slate-100/50 p-1 rounded-xl mb-6 overflow-x-auto">
+    <div className="flex space-x-1 bg-neutral-100 p-1 rounded-xl mb-6 overflow-x-auto">
       <button
         type="button"
         onClick={() => setActiveTab('geral')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${activeTab === 'geral' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
+        aria-pressed={activeTab === 'geral'}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'geral' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
       >
         <Package className="w-3.5 h-3.5" />
         Dados do {kind === 'product' ? 'Produto' : 'Serviço'}
@@ -103,7 +104,8 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
       <button
         type="button"
         onClick={() => setActiveTab('precos')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${activeTab === 'precos' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
+        aria-pressed={activeTab === 'precos'}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'precos' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
       >
         <Calculator className="w-3.5 h-3.5" />
         Preços & Custos
@@ -118,43 +120,29 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
       onClose={onClose}
       footer={
         <>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50 transition-colors"
-          >
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            form={FORM_ID}
-            disabled={submitting}
-            className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
-          >
-            {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          </Button>
+          <Button type="submit" form={FORM_ID} loading={submitting} className="flex-1">
             Guardar Item
-          </button>
+          </Button>
         </>
       }
     >
-      {error && (
-        <p className="mb-3 px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-[11px]">
-          {error}
-        </p>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600 mb-6">
+      <div role="group" aria-label="Tipo de item" className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-neutral-100 p-1 rounded-xl text-xs font-semibold text-neutral-600 mb-6">
         <button
           type="button"
+          aria-pressed={kind === 'product'}
           onClick={() => handleKindChange('product')}
-          className={`py-2 rounded-lg transition-colors ${kind === 'product' ? 'bg-white text-indigo-600 font-bold shadow-sm border border-slate-200/50' : 'hover:bg-slate-200/50'}`}
+          className={`py-2 rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${kind === 'product' ? 'bg-white text-neutral-900 font-bold shadow-sm border border-neutral-200/50' : 'hover:bg-neutral-200/60'}`}
         >
           Produto
         </button>
         <button
           type="button"
+          aria-pressed={kind === 'service'}
           onClick={() => handleKindChange('service')}
-          className={`py-2 rounded-lg transition-colors ${kind === 'service' ? 'bg-white text-amber-600 font-bold shadow-sm border border-slate-200/50' : 'hover:bg-slate-200/50'}`}
+          className={`py-2 rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${kind === 'service' ? 'bg-white text-neutral-900 font-bold shadow-sm border border-neutral-200/50' : 'hover:bg-neutral-200/60'}`}
         >
           Serviço
         </button>
@@ -167,83 +155,90 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
           <div className="space-y-4">
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Código (Automático)</label>
-                <input
-                  type="text"
-                  readOnly
-                  value={code}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none bg-slate-100 text-slate-500 font-mono cursor-not-allowed"
-                />
-              </div>
-              {kind === 'product' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Código de Barras (EAN)</label>
-                  <input
+              <Field label="Código (Automático)">
+                {(p) => (
+                  <Input
+                    {...p}
                     type="text"
-                    value={ean}
-                    onChange={(e) => setEan(e.target.value)}
-                    placeholder="5600000000000"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
+                    readOnly
+                    value={code}
+                    className="font-mono bg-neutral-50 text-neutral-500"
                   />
-                </div>
+                )}
+              </Field>
+              {kind === 'product' && (
+                <Field label="Código de Barras (EAN)">
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="text"
+                      value={ean}
+                      onChange={(e) => setEan(e.target.value)}
+                      placeholder="5600000000000"
+                    />
+                  )}
+                </Field>
               )}
             </div>
             
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Descrição *</label>
-              <input
-                type="text"
-                required
-                autoFocus
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={kind === 'product' ? "Ex: Monitor Dell 24 polegadas" : "Ex: Consultoria de Gestão"}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-              />
-            </div>
+            <Field label="Descrição" required>
+              {(p) => (
+                <Input
+                  {...p}
+                  type="text"
+                  required
+                  autoFocus
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={kind === 'product' ? "Ex: Monitor Dell 24 polegadas" : "Ex: Consultoria de Gestão"}
+                />
+              )}
+            </Field>
 
             {kind === 'product' && (
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Família / Categoria</label>
-                  <input
-                    type="text"
-                    value={family}
-                    onChange={(e) => setFamily(e.target.value)}
-                    placeholder="Informática"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Unidade</label>
-                  <select
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                  >
-                    <option value="UN">Unidade (UN)</option>
-                    <option value="KG">Quilograma (KG)</option>
-                    <option value="CX">Caixa (CX)</option>
-                    <option value="MT">Metro (MT)</option>
-                  </select>
-                </div>
+                <Field label="Família / Categoria">
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="text"
+                      value={family}
+                      onChange={(e) => setFamily(e.target.value)}
+                      placeholder="Informática"
+                    />
+                  )}
+                </Field>
+                <Field label="Unidade">
+                  {(p) => (
+                    <Select
+                      {...p}
+                      value={unit}
+                      onChange={(e) => setUnit(e.target.value)}
+                    >
+                      <option value="UN">Unidade (UN)</option>
+                      <option value="KG">Quilograma (KG)</option>
+                      <option value="CX">Caixa (CX)</option>
+                      <option value="MT">Metro (MT)</option>
+                    </Select>
+                  )}
+                </Field>
               </div>
             )}
 
             {kind === 'product' && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Produto</label>
-                <select
-                  value={productType}
-                  onChange={(e) => setProductType(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                >
-                  <option value="Mercadoria">Mercadoria</option>
-                  <option value="Produto Acabado">Produto Acabado</option>
-                  <option value="Matéria Prima">Matéria Prima</option>
-                </select>
-              </div>
+              <Field label="Tipo de Produto">
+                {(p) => (
+                  <Select
+                    {...p}
+                    value={productType}
+                    onChange={(e) => setProductType(e.target.value)}
+                  >
+                    <option value="Mercadoria">Mercadoria</option>
+                    <option value="Produto Acabado">Produto Acabado</option>
+                    <option value="Matéria Prima">Matéria Prima</option>
+                  </Select>
+                )}
+              </Field>
             )}
           </div>
         </div>
@@ -251,62 +246,71 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
         <div className={activeTab === 'precos' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Preço de Venda (Base)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={price1}
-                    onChange={(e) => setPrice1(parseFloat(e.target.value) || 0)}
-                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                  />
-                  <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">€</span>
-                </div>
-              </div>
+              <Field label="Preço de Venda (Base)">
+                {(p) => (
+                  <div className="relative">
+                    <Input
+                      {...p}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={price1}
+                      onChange={(e) => setPrice1(parseFloat(e.target.value) || 0)}
+                      className="pl-8 text-right tabular-nums"
+                    />
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 font-bold" aria-hidden="true">€</span>
+                  </div>
+                )}
+              </Field>
               <div className="flex items-end pb-2">
-                <label className="flex items-center gap-2 text-xs text-slate-700 font-medium cursor-pointer">
+                <label className="flex items-center gap-2 text-xs text-neutral-700 font-medium cursor-pointer">
                   <input
                     type="checkbox"
                     checked={priceIncludesVat}
                     onChange={(e) => setPriceIncludesVat(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="size-4 rounded border-neutral-300 accent-emerald-600 cursor-pointer"
                   />
                   Preço inclui IVA
                 </label>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Taxa de IVA Aplicável</label>
-              <select
-                value={vatRate}
-                onChange={(e) => setVatRate(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-              >
-                <option value="Normal">Taxa Normal (23%)</option>
-                <option value="Intermédia">Taxa Intermédia (13%)</option>
-                <option value="Reduzida">Taxa Reduzida (6%)</option>
-                <option value="Isenta">Isento (0%)</option>
-              </select>
-            </div>
+            <Field label="Taxa de IVA Aplicável">
+              {(p) => (
+                <Select
+                  {...p}
+                  value={vatRate}
+                  onChange={(e) => setVatRate(e.target.value)}
+                >
+                  <option value="Normal">Taxa Normal (23%)</option>
+                  <option value="Intermédia">Taxa Intermédia (13%)</option>
+                  <option value="Reduzida">Taxa Reduzida (6%)</option>
+                  <option value="Isenta">Isento (0%)</option>
+                </Select>
+              )}
+            </Field>
 
             {kind === 'product' && (
-              <div className="pt-4 border-t border-slate-200/60">
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Preço de Custo (Compra)</label>
-                <div className="relative w-1/2">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={purchasePrice}
-                    onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
-                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                  />
-                  <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">€</span>
-                </div>
-                <p className="mt-1.5 text-[10px] text-slate-500">O preço de custo ajuda a calcular a margem de lucro nos relatórios.</p>
+              <div className="pt-4 border-t border-neutral-200/60">
+                <Field
+                  label="Preço de Custo (Compra)"
+                  hint="O preço de custo ajuda a calcular a margem de lucro nos relatórios."
+                >
+                  {(p) => (
+                    <div className="relative w-1/2">
+                      <Input
+                        {...p}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={purchasePrice}
+                        onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
+                        className="pl-8 text-right tabular-nums"
+                      />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 font-bold" aria-hidden="true">€</span>
+                    </div>
+                  )}
+                </Field>
               </div>
             )}
           </div>

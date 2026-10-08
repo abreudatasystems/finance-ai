@@ -30,6 +30,7 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core import fmt
 from app.models.models import CostCenter, Transaction
 from app.services import financials
 
@@ -330,13 +331,13 @@ def _message(projects: list, unassigned: Optional[dict]) -> str:
         worst = losing[0]
         parts.append(
             f"{len(losing)} projeto(s) a perder dinheiro. O pior é "
-            f"{worst['projeto']}: {worst['margem']:,.2f} €."
+            f"{worst['projeto']}: {fmt.eur(worst['margem'])}."
         )
     else:
         best = max(real, key=lambda p: p["margem"])
         parts.append(
             f"Todos os projetos com margem positiva. O melhor é "
-            f"{best['projeto']}: {best['margem']:,.2f} €."
+            f"{best['projeto']}: {fmt.eur(best['margem'])}."
         )
 
     over = [p for p in real if p["acima_do_orcamento"]]

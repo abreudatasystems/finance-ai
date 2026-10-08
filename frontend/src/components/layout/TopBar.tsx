@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { Button, IconButton } from '@/components/ui';
 import {
   Search,
   Sparkles,
@@ -10,6 +11,8 @@ import {
   Plus,
   Building2,
   ChevronDown,
+  Tag,
+  Truck,
   FileText,
   TrendingDown,
   TrendingUp,
@@ -47,18 +50,14 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
     }`}>
       
       {/* Left Section: Brand Logo + Company Switcher */}
-      <div className="flex items-center gap-3 sm:gap-5">
+      <div className="flex items-center gap-3 sm:gap-5 min-w-0 flex-1">
         {/* Hamburger Menu (Mobile Only) */}
-        <button
-          onClick={toggleMobileMenu}
-          aria-label="Abrir menu"
-          className="md:hidden p-1.5 rounded-lg text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
+        <IconButton label="Abrir menu" onClick={toggleMobileMenu} size="md" className="md:hidden [&_svg]:size-5">
+          <Menu />
+        </IconButton>
 
         {/* Brand Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2 sm:gap-2.5 group">
+        <Link href="/dashboard" aria-label="Finance AI — Painel" className="flex items-center gap-2 sm:gap-2.5 group shrink-0">
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-black flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-all border border-neutral-800">
             <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-emerald-400 text-emerald-400" />
           </div>
@@ -70,13 +69,14 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         <div className="hidden sm:block h-5 w-px bg-neutral-200" />
 
         {/* Company Dropdown */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <button
+            type="button"
             onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
             aria-haspopup="menu"
             aria-expanded={isCompanyDropdownOpen}
             aria-label={`Empresa activa: ${currentCompany?.name || 'Empresa'}. Mudar de empresa`}
-            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl border border-neutral-200/80 hover:border-neutral-300 bg-neutral-50/80 hover:bg-neutral-100/80 text-[10px] sm:text-xs font-semibold text-neutral-800 transition-colors cursor-pointer"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl border border-neutral-200/80 hover:border-neutral-300 bg-neutral-50/80 hover:bg-neutral-100/80 text-2xs sm:text-xs font-semibold text-neutral-800 transition-colors cursor-pointer"
           >
             <Building2 className="w-3.5 h-3.5 text-neutral-700 hidden sm:block" />
             <span className="truncate max-w-[100px] sm:max-w-none">{currentCompany?.name || 'Empresa'}</span>
@@ -84,18 +84,21 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
           </button>
 
           {isCompanyDropdownOpen && (
-            <div className="absolute top-full left-0 mt-1.5 w-56 bg-white rounded-xl border border-neutral-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150">
-              <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
-                Minhas Empresas
+            <div role="menu" className="absolute top-full left-0 mt-1.5 w-56 bg-white rounded-xl border border-neutral-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-3 py-1.5 text-2xs font-bold text-neutral-400 uppercase tracking-wider">
+                As minhas empresas
               </div>
               {companies.map((comp) => (
                 <button
+                  type="button"
                   key={comp.id}
+                  role="menuitemradio"
+                  aria-checked={comp.id === currentCompany?.id}
                   onClick={() => {
                     switchCompany(comp.id);
                     setIsCompanyDropdownOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${
+                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:bg-neutral-100 ${
                     comp.id === currentCompany?.id
                       ? 'bg-neutral-100 text-neutral-900 font-bold'
                       : 'text-neutral-700 hover:bg-neutral-50 font-medium'
@@ -104,7 +107,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
                   <span className="truncate">{comp.name}</span>
                   {/* The role travels with the company: the same login can be
                       owner here and consulta there. */}
-                  <span className="text-[9px] text-neutral-500 font-bold uppercase shrink-0">
+                  <span className="text-2xs text-neutral-500 font-bold uppercase shrink-0">
                     {comp.role_label || comp.currency}
                   </span>
                 </button>
@@ -113,6 +116,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
               <div className="h-px bg-neutral-100 my-1" />
               <Link
                 href="/settings/companies"
+                role="menuitem"
                 onClick={() => setIsCompanyDropdownOpen(false)}
                 className="w-full text-left px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 flex items-center gap-2"
               >
@@ -123,139 +127,155 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
         </div>
 
         {/* Dynamic Page Header */}
+        {/* No telemóvel não cabe ao lado do seletor de empresa: o AppLayout
+            mostra-o no topo do conteúdo. */}
         {(pageTitle || pageSubtitle) && (
-          <>
-            <div className="hidden lg:block h-6 w-px bg-neutral-200 ml-1" />
-            <div className="hidden lg:flex flex-col ml-1 border-l-2 border-emerald-400 pl-3 justify-center">
-              <span className="text-[13px] font-extrabold text-neutral-900 leading-none tracking-tight">{pageTitle}</span>
-              {pageSubtitle && <span className="text-[10px] font-medium text-neutral-500 leading-none mt-1">{pageSubtitle}</span>}
-            </div>
-          </>
+          <div className="hidden sm:flex flex-col min-w-0 border-l-2 border-emerald-500 pl-2.5 sm:pl-3 justify-center">
+            <h1 className="text-xs sm:text-sm font-extrabold text-neutral-900 leading-tight tracking-tight truncate">{pageTitle}</h1>
+            {pageSubtitle && (
+              <span className="hidden sm:block text-2xs font-medium text-neutral-500 leading-tight truncate">{pageSubtitle}</span>
+            )}
+          </div>
         )}
 
       </div>
 
       {/* Right Section: Actions & Utilities */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 pl-2">
         
         {/* Quick Search Ctrl+K */}
         <button
+          type="button"
           onClick={onOpenSearch}
           aria-label="Pesquisar ou atalhos (Ctrl+K)"
           className="flex items-center gap-2 px-2 sm:px-3.5 py-2 rounded-xl border border-neutral-200/80 bg-neutral-50/80 hover:bg-neutral-100/80 text-neutral-400 text-xs transition-colors cursor-pointer"
         >
           <Search className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-neutral-400" />
           <span className="hidden sm:inline text-neutral-500 font-medium">Pesquisar ou atalhos...</span>
-          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-white border border-neutral-200 rounded-md text-neutral-400 font-semibold shadow-2xs ml-2">
+          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-2xs font-mono bg-white border border-neutral-200 rounded-md text-neutral-400 font-semibold shadow-2xs ml-2">
             ⌘K
           </kbd>
         </button>
 
         {/* Global "+ Novo" Dropdown Button */}
         <div className="relative">
-          <button
+          <Button
             onClick={() => setIsCreateDropdownOpen(!isCreateDropdownOpen)}
             aria-label="Criar novo"
             aria-haspopup="menu"
             aria-expanded={isCreateDropdownOpen}
-            className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs shadow-xs border border-neutral-900 transition-all cursor-pointer"
+            size="sm"
+            icon={<Plus className="text-emerald-400" />}
+            className="px-2.5 sm:px-3"
           >
-            <Plus className="w-4 h-4 text-emerald-400" />
             <span className="hidden sm:inline">Novo</span>
-            <ChevronDown className="w-3.5 h-3.5 opacity-70 ml-0.5 hidden sm:block" />
-          </button>
+            <ChevronDown className="opacity-70 hidden sm:block" />
+          </Button>
 
           {isCreateDropdownOpen && (
-            <div className="absolute top-full right-0 mt-1.5 w-52 bg-white rounded-xl border border-neutral-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div role="menu" className="absolute top-full right-0 mt-1.5 w-52 bg-white rounded-xl border border-neutral-200 shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150">
               <button
+                type="button"
                 onClick={() => {
                   setIsCreateDropdownOpen(false);
                   onOpenCreateModal?.('transaction');
                 }}
-                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                role="menuitem"
+                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 focus-visible:outline-none focus-visible:bg-neutral-100 flex items-center gap-2 cursor-pointer"
               >
                 <CreditCard className="w-3.5 h-3.5 text-neutral-900" />
                 Novo Lançamento
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setIsCreateDropdownOpen(false);
                   onOpenCreateModal?.('expense');
                 }}
-                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                role="menuitem"
+                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 focus-visible:outline-none focus-visible:bg-neutral-100 flex items-center gap-2 cursor-pointer"
               >
                 <TrendingDown className="w-3.5 h-3.5 text-rose-500" />
                 Nova Despesa
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setIsCreateDropdownOpen(false);
                   onOpenCreateModal?.('income');
                 }}
-                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                role="menuitem"
+                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 focus-visible:outline-none focus-visible:bg-neutral-100 flex items-center gap-2 cursor-pointer"
               >
                 <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
                 Nova Receita
               </button>
               <div className="my-1 border-t border-neutral-100" />
               <button
+                type="button"
                 onClick={() => {
                   setIsCreateDropdownOpen(false);
                   onOpenCreateModal?.('category');
                 }}
-                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                role="menuitem"
+                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 focus-visible:outline-none focus-visible:bg-neutral-100 flex items-center gap-2 cursor-pointer"
               >
-                <Building2 className="w-3.5 h-3.5 text-neutral-800" />
+                <Tag className="w-3.5 h-3.5 text-neutral-800" />
                 Nova Categoria
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setIsCreateDropdownOpen(false);
                   onOpenCreateModal?.('supplier');
                 }}
-                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                role="menuitem"
+                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 focus-visible:outline-none focus-visible:bg-neutral-100 flex items-center gap-2 cursor-pointer"
               >
-                <Building2 className="w-3.5 h-3.5 text-neutral-800" />
+                <Truck className="w-3.5 h-3.5 text-neutral-800" />
                 Novo Fornecedor
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setIsCreateDropdownOpen(false);
                   onOpenCreateModal?.('customer');
                 }}
-                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                role="menuitem"
+                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 focus-visible:outline-none focus-visible:bg-neutral-100 flex items-center gap-2 cursor-pointer"
               >
                 <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
                 Novo Cliente
               </button>
               <div className="my-1 border-t border-neutral-100" />
               <button
+                type="button"
                 onClick={() => {
                   setIsCreateDropdownOpen(false);
                   onOpenCreateModal?.('document');
                 }}
-                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                role="menuitem"
+                className="w-full text-left px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 focus-visible:outline-none focus-visible:bg-neutral-100 flex items-center gap-2 cursor-pointer"
               >
                 <FileText className="w-3.5 h-3.5 text-amber-500" />
-                Upload Documento IA
+                Carregar documento (IA)
               </button>
             </div>
           )}
         </div>
 
         {/* AI Assistant Side Panel Trigger Button */}
-        <button
+        <Button
           onClick={toggleAiDrawer}
-          className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border ${
-            isAiDrawerOpen 
-              ? 'bg-black text-white border-black shadow-xs' 
-              : 'bg-neutral-100 hover:bg-neutral-200/80 text-neutral-900 border-neutral-200/80 shadow-2xs'
-          }`}
+          variant={isAiDrawerOpen ? 'primary' : 'secondary'}
+          size="sm"
+          aria-pressed={isAiDrawerOpen}
+          className="hidden sm:inline-flex"
           title="Abrir ou fechar o Assistente"
+          icon={<Sparkles className={isAiDrawerOpen ? 'text-emerald-400' : 'text-emerald-600'} />}
         >
-          <Sparkles className={`w-4 h-4 ${isAiDrawerOpen ? 'text-emerald-400' : 'text-emerald-600 animate-pulse'}`} />
-          <span>Assistente</span>
-        </button>
+          Assistente
+        </Button>
 
         {/* Notification Bell */}
         {/* Era um botão sem acção, com um ponto vermelho a piscar sempre —

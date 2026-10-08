@@ -8,6 +8,7 @@ the VAT rate and described money that had not necessarily moved.
 """
 
 from datetime import date, datetime, timedelta, timezone
+from app.core import fmt
 from app.core.clock import utcnow
 from typing import List, Optional
 
@@ -223,14 +224,14 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
         total_overdue = sum(_to_float(t.outstanding_amount or t.amount) for t in overdue_payables)
         key_insights.append({
             "type": "danger",
-            "text": f"{len(overdue_payables)} fatura(s) a pagar vencida(s) (€{total_overdue:,.2f})"
+            "text": f"{len(overdue_payables)} fatura(s) a pagar vencida(s) ({fmt.eur(total_overdue)})"
         })
 
     if overdue_receivables:
         total_overdue_recv = sum(_to_float(t.outstanding_amount or t.amount) for t in overdue_receivables)
         key_insights.append({
             "type": "warning",
-            "text": f"{len(overdue_receivables)} fatura(s) a receber vencida(s) (€{total_overdue_recv:,.2f})"
+            "text": f"{len(overdue_receivables)} fatura(s) a receber vencida(s) ({fmt.eur(total_overdue_recv)})"
         })
 
     if operating_margin > 20:
@@ -249,7 +250,7 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
         top_cat_val = top_categories[0]["amount"]
         key_insights.append({
             "type": "info",
-            "text": f"Maior despesa: {top_cat_name} (€{top_cat_val:,.2f})"
+            "text": f"Maior despesa: {top_cat_name} ({fmt.eur(top_cat_val)})"
         })
 
     if runway_months < 3 and runway_months < 99:
@@ -265,10 +266,10 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
 
     # ── AI explanations ──
     ai_explanation = [
-        f"Saldo em conta: €{current_balance:,.2f} — soma dos pagamentos e recebimentos reais.",
-        f"Gasto médio mensal (3 meses): €{burn_rate:,.2f}, sem IVA.",
+        f"Saldo em conta: {fmt.eur(current_balance)} — soma dos pagamentos e recebimentos reais.",
+        f"Gasto médio mensal (3 meses): {fmt.eur(burn_rate)}, sem IVA.",
         f"Margem operacional do mês: {operating_margin}%.",
-        f"Resultado do mês (rendimentos menos gastos, sem IVA): €{monthly_result:,.2f}.",
+        f"Resultado do mês (rendimentos menos gastos, sem IVA): {fmt.eur(monthly_result)}.",
     ]
     if balance_trend != 0:
         direction = "acima" if balance_trend > 0 else "abaixo"

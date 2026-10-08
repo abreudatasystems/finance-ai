@@ -29,6 +29,7 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core import fmt
 from app.models.models import Budget, Category
 from app.services import financials
 
@@ -371,21 +372,21 @@ def _message(plans: list, lines: list, planned_result: Decimal,
     gap = actual_result - planned_result
     if gap >= 0:
         parts.append(
-            f"O resultado do mês está {float(gap):,.2f} € acima do orçamentado."
+            f"O resultado do mês está {fmt.eur(gap)} acima do orçamentado."
         )
     else:
         parts.append(
-            f"O resultado do mês está {abs(float(gap)):,.2f} € abaixo do orçamentado."
+            f"O resultado do mês está {fmt.eur(abs(gap))} abaixo do orçamentado."
         )
     if worst:
         parts.append(
-            f"O maior desvio é em {worst['categoria']}: {worst['realizado']:,.2f} € "
-            f"contra {worst['orcamento']:,.2f} € previstos."
+            f"O maior desvio é em {worst['categoria']}: {fmt.eur(worst['realizado'])} "
+            f"contra {fmt.eur(worst['orcamento'])} previstos."
         )
     if unplanned:
         total = sum(line["realizado"] for line in unplanned)
         parts.append(
-            f"Há ainda {float(total):,.2f} € em {len(unplanned)} categoria(s) "
+            f"Há ainda {fmt.eur(total)} em {len(unplanned)} categoria(s) "
             "sem orçamento nenhum."
         )
     return " ".join(parts)

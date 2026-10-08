@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch } from '@/services/api';
 import {ZoomIn, ZoomOut, RotateCw, Maximize2, Minimize2, FileText, ExternalLink} from 'lucide-react';
 import { AIDocument } from '@/types';
+import { EmptyState, IconButton } from '@/components/ui';
 
 interface InvoiceDocumentViewerProps {
   document: AIDocument | null;
@@ -23,6 +24,9 @@ interface InvoiceDocumentViewerProps {
   highlightField?: string | null;
   onSelectField?: (field: string) => void;
 }
+
+/** Os botões da barra escura do visualizador. */
+const darkIcon = 'text-neutral-400 hover:text-white hover:bg-neutral-800';
 
 export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
   document,
@@ -69,12 +73,12 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
 
   if (!document) {
     return (
-      <div className="h-full min-h-[460px] bg-slate-50 rounded-2xl border border-dashed border-slate-300 flex flex-col items-center justify-center p-8 text-center text-slate-400">
-        <FileText className="w-12 h-12 text-slate-300 mb-3" />
-        <h4 className="text-sm font-bold text-slate-600">Nenhum documento selecionado</h4>
-        <p className="text-xs text-slate-400 max-w-sm mt-1">
-          Selecione uma fatura da lista ao lado ou carregue um novo ficheiro para inspecionar a extração OCR e o documento visual em tempo real.
-        </p>
+      <div className="h-full min-h-[460px] bg-neutral-50 rounded-2xl border border-dashed border-neutral-300 flex items-center justify-center">
+        <EmptyState
+          icon={<FileText />}
+          title="Nenhum documento selecionado"
+          description="Selecione uma fatura da lista ao lado ou carregue um novo ficheiro para inspecionar a extração OCR e o documento visual em tempo real."
+        />
       </div>
     );
   }
@@ -94,18 +98,18 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
 
   return (
     <div
-      className={`bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col transition-all duration-300 ${
+      className={`bg-neutral-950 rounded-2xl border border-neutral-800 shadow-xl overflow-hidden flex flex-col transition-all duration-300 ${
         isFullscreen ? 'fixed inset-4 z-50 rounded-2xl' : 'h-full min-h-[500px]'
       }`}
     >
       {/* Viewer Header Toolbar */}
-      <div className="px-4 py-2.5 bg-slate-950/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-white">
+      <div className="px-4 py-2.5 bg-black/90 border-b border-neutral-800 flex flex-wrap items-center justify-between gap-3 text-white">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg">
+          <span className="p-1.5 bg-emerald-500/15 text-emerald-400 rounded-lg" aria-hidden="true">
             <FileText className="w-4 h-4" />
           </span>
           <div className="min-w-0">
-            <h4 className="text-xs font-bold text-slate-100 truncate max-w-[220px] sm:max-w-xs">
+            <h4 className="text-xs font-bold text-neutral-100 truncate max-w-[220px] sm:max-w-xs">
               {document.file_name}
             </h4>
           </div>
@@ -114,59 +118,49 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
 
         {/* Zoom & Rotation Controls */}
         <div className="flex items-center gap-1">
+          <IconButton label="Diminuir zoom" onClick={handleZoomOut} className={darkIcon}>
+            <ZoomOut />
+          </IconButton>
           <button
-            onClick={handleZoomOut}
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
-            title="Diminuir Zoom"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <span
+            type="button"
             onClick={handleResetZoom}
-            className="text-[11px] font-mono text-slate-300 px-1 cursor-pointer hover:text-indigo-400 select-none"
-            title="Resetar Zoom (100%)"
+            className="text-2xs tabular-nums text-neutral-300 px-1 cursor-pointer hover:text-emerald-400 select-none rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            title="Repor zoom (100%)"
+            aria-label={`Zoom ${zoomLevel}% — repor para 100%`}
           >
             {zoomLevel}%
-          </span>
-          <button
-            onClick={handleZoomIn}
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
-            title="Aumentar Zoom"
-          >
-            <ZoomIn className="w-4 h-4" />
           </button>
-          <button
-            onClick={handleRotate}
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer ml-1"
-            title="Girar 90°"
-          >
-            <RotateCw className="w-4 h-4" />
-          </button>
+          <IconButton label="Aumentar zoom" onClick={handleZoomIn} className={darkIcon}>
+            <ZoomIn />
+          </IconButton>
+          <IconButton label="Rodar 90°" onClick={handleRotate} className={`${darkIcon} ml-1`}>
+            <RotateCw />
+          </IconButton>
           <a
             href={resolvedFileUrl || undefined}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
-            title="Abrir em Nova Aba"
+            className={`size-8 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${darkIcon}`}
+            title="Abrir em separador novo"
+            aria-label="Abrir em separador novo"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className="w-4 h-4" aria-hidden="true" />
           </a>
-          <button
+          <IconButton
+            label={isFullscreen ? 'Sair do ecrã inteiro' : 'Ecrã inteiro'}
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
-            title={isFullscreen ? 'Sair do Ecrã Inteiro' : 'Ecrã Inteiro'}
+            className={darkIcon}
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4 text-amber-400" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
+            {isFullscreen ? <Minimize2 className="text-amber-400" /> : <Maximize2 />}
+          </IconButton>
         </div>
       </div>
 
       {/* Main Viewer Body */}
-      <div className="flex-1 bg-slate-950 relative overflow-hidden flex items-center justify-center p-2 select-text">
-        {/* Main Viewer Body */}
+      <div className="flex-1 bg-neutral-950 relative overflow-hidden flex items-center justify-center p-2 select-text">
         <div className="w-full h-full flex items-center justify-center overflow-auto">
           {!resolvedFileUrl ? (
-            <div className="text-center text-slate-400 text-xs px-6">
+            <div role={loadError ? 'alert' : 'status'} className="text-center text-neutral-400 text-xs px-6">
               {loadError || 'A carregar o documento original…'}
             </div>
           ) : isPdf ? (
@@ -206,15 +200,12 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
             >
               <iframe
                 src={resolvedFileUrl}
-                title="Fatura Demonstrativa"
+                title={document.file_name}
                 className="w-full h-full rounded-lg border-0 bg-white"
               />
             </div>
           )}
         </div>
-
-
-
       </div>
     </div>
   );

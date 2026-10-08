@@ -20,12 +20,16 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FileText, Loader2, CalendarRange, TrendingUp, TrendingDown, Minus, Info,
-  ChevronDown, Landmark, AlertCircle,
+  FileText, CalendarRange, TrendingUp, TrendingDown, Minus, Info,
+  ChevronDown, Landmark,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { IncomeStatement, StatementLine, StatementSubtotal } from './types';
 import { fetchIncomeStatement } from './api';
+import {
+  Card, CardHeader, CardBody, ErrorState, LoadingState, Select,
+  Table, THead, TBody, Th, Td,
+} from '@/components/ui';
 
 const SECTIONS: Array<{ id: StatementLine['section']; title: string }> = [
   { id: 'rendimentos', title: 'Rendimentos' },
@@ -71,17 +75,17 @@ const MarginTile: React.FC<{ label: string; value: number; hint: string; previou
   const state = value >= 15 ? 'saudável' : value >= 0 ? 'apertada' : 'negativa';
 
   return (
-    <div className="p-4 rounded-xl bg-white border border-slate-200">
-      <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">{label}</p>
-      <p className={`text-2xl font-black mt-1 ${tone}`}>{value.toFixed(1)}%</p>
-      <p className="text-[10px] text-slate-500 mt-1">
+    <Card className="p-4">
+      <p className="text-2xs uppercase font-bold text-neutral-500 tracking-wider">{label}</p>
+      <p className={`text-2xl font-black mt-1 tabular-nums ${tone}`}>{value.toFixed(1)}%</p>
+      <p className="text-2xs text-neutral-500 mt-1">
         <span className={tone}>{state}</span>
         {delta != null && delta !== 0 && (
           <> · {delta > 0 ? '+' : ''}{delta.toFixed(1)} p.p. vs período anterior</>
         )}
       </p>
-      <p className="text-[10px] text-slate-400 mt-1.5 leading-snug">{hint}</p>
-    </div>
+      <p className="text-2xs text-neutral-500 mt-1.5 leading-snug">{hint}</p>
+    </Card>
   );
 };
 
@@ -89,14 +93,14 @@ const Variation: React.FC<{ value: number; pct: number | null; format: (n: numbe
   value, pct, format,
 }) => {
   if (value === 0) {
-    return <span className="text-slate-300 flex items-center gap-1 justify-end"><Minus className="w-3 h-3" /></span>;
+    return <span className="text-neutral-300 flex items-center gap-1 justify-end"><Minus className="w-3 h-3" aria-label="sem variação" /></span>;
   }
   const up = value > 0;
   return (
     <span className={`flex items-center gap-1 justify-end ${up ? 'text-emerald-700' : 'text-rose-700'}`}>
-      {up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+      {up ? <TrendingUp className="w-3 h-3" aria-label="subiu" /> : <TrendingDown className="w-3 h-3" aria-label="desceu" />}
       {format(Math.abs(value))}
-      {pct != null && <span className="text-slate-400 font-normal">({up ? '+' : '−'}{Math.abs(pct).toFixed(0)}%)</span>}
+      {pct != null && <span className="text-neutral-400 font-normal">({up ? '+' : '−'}{Math.abs(pct).toFixed(0)}%)</span>}
     </span>
   );
 };
@@ -139,47 +143,47 @@ export const IncomeStatementView: React.FC = () => {
   return (
     <div className="space-y-4 text-xs">
       {/* ---------------------------------------------------------- header */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-indigo-600" />
-            <h3 className="font-bold text-sm text-slate-900">Demonstração de Resultados</h3>
-            {data && (
-              <span className="text-[10px] text-slate-400 font-mono">
-                {data.empresa.nome} · {data.periodo.label}
-              </span>
-            )}
-          </div>
-          <label className="flex items-center gap-2">
-            <CalendarRange className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={period} onChange={(e) => setPeriod(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
-            >
-              {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </label>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<FileText />}
+          title="Demonstração de Resultados"
+          subtitle={data ? `${data.empresa.nome} · ${data.periodo.label}` : undefined}
+          actions={
+            <div className="flex items-center gap-2">
+              <CalendarRange className="w-3.5 h-3.5 text-neutral-400" aria-hidden="true" />
+              <Select
+                aria-label="Período"
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                className="w-auto font-semibold"
+              >
+                {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </Select>
+            </div>
+          }
+        />
 
         {data && (
-          <p className="flex items-start gap-2 px-3 py-2 rounded-xl bg-indigo-50/60 border border-indigo-100 text-indigo-900 text-[11px]">
-            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <span>
-              Valores <b>sem IVA</b> — o IVA não é rendimento nem gasto. Regime de{' '}
-              <b>acréscimo</b>: contam os documentos com data no período, pagos ou não.
-            </span>
-          </p>
+          <CardBody className="py-3">
+            <p className="flex items-start gap-2 px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-700 text-2xs">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
+              <span>
+                Valores <b>sem IVA</b> — o IVA não é rendimento nem gasto. Regime de{' '}
+                <b>acréscimo</b>: contam os documentos com data no período, pagos ou não.
+              </span>
+            </p>
+          </CardBody>
         )}
-      </div>
+      </Card>
 
       {loading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-400 flex items-center justify-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin" /> A apurar o período…
-        </div>
+        <Card>
+          <LoadingState label="A apurar o período…" />
+        </Card>
       ) : !data ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-400 flex items-center justify-center gap-2">
-          <AlertCircle className="w-4 h-4" /> Não foi possível carregar a demonstração.
-        </div>
+        <Card>
+          <ErrorState message="Não foi possível carregar a demonstração." />
+        </Card>
       ) : (
         <>
           {/* ------------------------------------------------------ margins */}
@@ -199,161 +203,160 @@ export const IncomeStatementView: React.FC = () => {
           </div>
 
           {/* ---------------------------------------------------- statement */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px]">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[9px] uppercase tracking-wider font-bold text-slate-500">
-                    <th className="text-left p-3">Rubrica</th>
-                    <th className="text-right p-3 w-28">Período</th>
-                    <th className="text-right p-3 w-20">% receita</th>
-                    <th className="text-right p-3 w-28">Anterior</th>
-                    <th className="text-right p-3 w-36">Variação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {SECTIONS.map((section) => {
-                    const lines = data.linhas.filter((l) => l.section === section.id);
-                    if (lines.length === 0 && !(SUBTOTAL_AFTER[section.id] || []).length) return null;
-                    return (
-                      <React.Fragment key={section.id}>
-                        <tr className="bg-slate-50/60">
-                          <td colSpan={5} className="px-3 py-1.5 text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                            {section.title}
-                          </td>
-                        </tr>
+          <Card className="overflow-hidden">
+            <Table className="min-w-[640px]">
+              <THead>
+                <tr>
+                  <Th>Rubrica</Th>
+                  <Th numeric className="w-28">Período</Th>
+                  <Th numeric className="w-20">% receita</Th>
+                  <Th numeric className="w-28">Anterior</Th>
+                  <Th numeric className="w-36">Variação</Th>
+                </tr>
+              </THead>
+              <TBody className="divide-y-0">
+                {SECTIONS.map((section) => {
+                  const lines = data.linhas.filter((l) => l.section === section.id);
+                  if (lines.length === 0 && !(SUBTOTAL_AFTER[section.id] || []).length) return null;
+                  return (
+                    <React.Fragment key={section.id}>
+                      <tr className="bg-neutral-50/60">
+                        <td colSpan={5} className="px-4 py-1.5 text-2xs uppercase font-bold text-neutral-500 tracking-wider">
+                          {section.title}
+                        </td>
+                      </tr>
 
-                        {lines.map((line) => {
-                          const open = expanded === line.key;
-                          return (
-                            <React.Fragment key={line.key}>
-                              <tr className="border-b border-slate-100 hover:bg-slate-50/60">
-                                <td className="p-3">
-                                  <button
-                                    onClick={() => setExpanded(open ? null : line.key)}
-                                    className="text-left group"
-                                    disabled={line.detalhe.length === 0}
-                                  >
-                                    <span className="font-semibold text-slate-800 flex items-center gap-1.5">
-                                      {line.label}
-                                      {line.detalhe.length > 0 && (
-                                        <ChevronDown className={`w-3 h-3 text-slate-300 transition-transform ${open ? 'rotate-180' : ''}`} />
-                                      )}
+                      {lines.map((line) => {
+                        const open = expanded === line.key;
+                        return (
+                          <React.Fragment key={line.key}>
+                            <tr className="border-b border-neutral-100 hover:bg-neutral-50/60">
+                              <Td>
+                                <button
+                                  type="button"
+                                  onClick={() => setExpanded(open ? null : line.key)}
+                                  className="text-left group rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 enabled:cursor-pointer"
+                                  disabled={line.detalhe.length === 0}
+                                  aria-expanded={line.detalhe.length > 0 ? open : undefined}
+                                >
+                                  <span className="font-semibold text-neutral-800 flex items-center gap-1.5">
+                                    {line.label}
+                                    {line.detalhe.length > 0 && (
+                                      <ChevronDown className={`w-3 h-3 text-neutral-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+                                    )}
+                                  </span>
+                                  {line.contas.length > 0 && (
+                                    <span className="text-2xs font-mono text-neutral-400">
+                                      conta{line.contas.length > 1 ? 's' : ''} {line.contas.join(', ')}
                                     </span>
-                                    {line.contas.length > 0 && (
-                                      <span className="text-[9px] font-mono text-slate-400">
-                                        conta{line.contas.length > 1 ? 's' : ''} {line.contas.join(', ')}
-                                      </span>
-                                    )}
-                                    {line.hint && (
-                                      <span className="block text-[10px] text-slate-400 mt-0.5 max-w-md">{line.hint}</span>
-                                    )}
-                                  </button>
-                                </td>
-                                <td className={`p-3 text-right font-mono font-bold ${
-                                  line.nature === 'income' ? 'text-slate-900' : 'text-slate-700'
-                                }`}>
-                                  {line.nature === 'expense' && line.amount > 0 ? '−' : ''}{formatMoney(line.amount)}
-                                </td>
-                                <td className="p-3 text-right font-mono text-slate-400">
-                                  {revenue > 0 ? `${share(line.amount).toFixed(1)}%` : '—'}
-                                </td>
-                                <td className="p-3 text-right font-mono text-slate-400">
-                                  {formatMoney(line.anterior)}
-                                </td>
-                                <td className="p-3 text-right font-mono font-semibold">
-                                  <Variation value={line.variacao} pct={line.variacao_pct} format={formatMoney} />
+                                  )}
+                                  {line.hint && (
+                                    <span className="block text-2xs text-neutral-500 mt-0.5 max-w-md">{line.hint}</span>
+                                  )}
+                                </button>
+                              </Td>
+                              <Td numeric className={`font-bold ${
+                                line.nature === 'income' ? 'text-neutral-900' : 'text-neutral-700'
+                              }`}>
+                                {line.nature === 'expense' && line.amount > 0 ? '−' : ''}{formatMoney(line.amount)}
+                              </Td>
+                              <Td numeric className="text-neutral-500">
+                                {revenue > 0 ? `${share(line.amount).toFixed(1)}%` : '—'}
+                              </Td>
+                              <Td numeric className="text-neutral-500">
+                                {formatMoney(line.anterior)}
+                              </Td>
+                              <Td numeric className="font-semibold">
+                                <Variation value={line.variacao} pct={line.variacao_pct} format={formatMoney} />
+                              </Td>
+                            </tr>
+
+                            {open && line.detalhe.length > 0 && (
+                              <tr className="bg-neutral-50/40">
+                                <td colSpan={5} className="px-8 py-2">
+                                  <ul className="space-y-1">
+                                    {line.detalhe.map((item) => (
+                                      <li key={item.categoria} className="flex justify-between text-2xs text-neutral-600">
+                                        <span>{item.categoria}</span>
+                                        <span className="tabular-nums">{formatMoney(item.amount)}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
                                 </td>
                               </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
 
-                              {open && line.detalhe.length > 0 && (
-                                <tr className="bg-slate-50/40">
-                                  <td colSpan={5} className="px-6 py-2">
-                                    <ul className="space-y-1">
-                                      {line.detalhe.map((item) => (
-                                        <li key={item.categoria} className="flex justify-between text-[11px] text-slate-600">
-                                          <span>{item.categoria}</span>
-                                          <span className="font-mono">{formatMoney(item.amount)}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
-                          );
-                        })}
-
-                        {(SUBTOTAL_AFTER[section.id] || []).map((key) => {
-                          const row = subtotal(key);
-                          if (!row) return null;
-                          const negative = row.amount < 0;
-                          return (
-                            <tr key={key} className={row.emphasis ? 'bg-slate-900 text-white' : 'bg-slate-100'}>
-                              <td className="p-3">
-                                <span className={`font-bold ${row.emphasis ? 'text-white' : 'text-slate-800'}`}>
-                                  {row.label}
+                      {(SUBTOTAL_AFTER[section.id] || []).map((key) => {
+                        const row = subtotal(key);
+                        if (!row) return null;
+                        const negative = row.amount < 0;
+                        return (
+                          <tr key={key} className={row.emphasis ? 'bg-neutral-950 text-white' : 'bg-neutral-100'}>
+                            <Td>
+                              <span className={`font-bold ${row.emphasis ? 'text-white' : 'text-neutral-800'}`}>
+                                {row.label}
+                              </span>
+                              {row.hint && (
+                                <span className={`block text-2xs mt-0.5 max-w-md ${
+                                  row.emphasis ? 'text-neutral-300' : 'text-neutral-500'
+                                }`}>
+                                  {row.hint}
                                 </span>
-                                {row.hint && (
-                                  <span className={`block text-[10px] mt-0.5 max-w-md ${
-                                    row.emphasis ? 'text-slate-300' : 'text-slate-500'
-                                  }`}>
-                                    {row.hint}
-                                  </span>
-                                )}
-                              </td>
-                              <td className={`p-3 text-right font-mono font-black ${
-                                row.emphasis ? (negative ? 'text-rose-300' : 'text-emerald-300') : 'text-slate-900'
-                              }`}>
-                                {formatMoney(row.amount)}
-                              </td>
-                              <td className={`p-3 text-right font-mono ${row.emphasis ? 'text-slate-400' : 'text-slate-500'}`}>
-                                {revenue > 0 ? `${share(row.amount).toFixed(1)}%` : '—'}
-                              </td>
-                              <td className={`p-3 text-right font-mono ${row.emphasis ? 'text-slate-400' : 'text-slate-500'}`}>
-                                {formatMoney(row.anterior)}
-                              </td>
-                              <td className="p-3 text-right font-mono font-semibold">
-                                <Variation value={row.variacao} pct={row.variacao_pct} format={formatMoney} />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                              )}
+                            </Td>
+                            <Td numeric className={`font-black ${
+                              row.emphasis ? (negative ? 'text-rose-300' : 'text-emerald-300') : 'text-neutral-900'
+                            }`}>
+                              {formatMoney(row.amount)}
+                            </Td>
+                            <Td numeric className={row.emphasis ? 'text-neutral-400' : 'text-neutral-500'}>
+                              {revenue > 0 ? `${share(row.amount).toFixed(1)}%` : '—'}
+                            </Td>
+                            <Td numeric className={row.emphasis ? 'text-neutral-400' : 'text-neutral-500'}>
+                              {formatMoney(row.anterior)}
+                            </Td>
+                            <Td numeric className="font-semibold">
+                              <Variation value={row.variacao} pct={row.variacao_pct} format={formatMoney} />
+                            </Td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+              </TBody>
+            </Table>
+          </Card>
 
           {/* --------------------------------------------------- cash bridge */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Landmark className="w-4 h-4 text-indigo-600" />
-              <h3 className="font-bold text-sm text-slate-900">Resultado não é dinheiro em conta</h3>
-            </div>
-            <p className="text-[11px] text-slate-600">{data.ponte_caixa.explicacao}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 rounded-xl border border-slate-200">
-                <p className="text-[9px] uppercase font-bold text-slate-400">Resultado do período</p>
-                <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(data.ponte_caixa.resultado)}</p>
+          <Card>
+            <CardHeader icon={<Landmark />} title="Resultado não é dinheiro em conta" />
+            <CardBody className="space-y-3">
+              <p className="text-2xs text-neutral-600">{data.ponte_caixa.explicacao}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 rounded-xl border border-neutral-200">
+                  <p className="text-2xs uppercase font-bold text-neutral-500">Resultado do período</p>
+                  <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(data.ponte_caixa.resultado)}</p>
+                </div>
+                <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
+                  <p className="text-2xs uppercase font-bold text-emerald-600">Ainda por receber</p>
+                  <p className="font-bold text-emerald-700 text-sm mt-0.5 tabular-nums">{formatMoney(data.ponte_caixa.a_receber)}</p>
+                </div>
+                <div className="p-3 rounded-xl border border-rose-100 bg-rose-50/40">
+                  <p className="text-2xs uppercase font-bold text-rose-600">Ainda por pagar</p>
+                  <p className="font-bold text-rose-700 text-sm mt-0.5 tabular-nums">{formatMoney(data.ponte_caixa.a_pagar)}</p>
+                </div>
+                <div className="p-3 rounded-xl border border-neutral-200 bg-neutral-50">
+                  <p className="text-2xs uppercase font-bold text-neutral-500">Saldo em conta</p>
+                  <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(data.ponte_caixa.saldo_em_conta)}</p>
+                </div>
               </div>
-              <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
-                <p className="text-[9px] uppercase font-bold text-emerald-600">Ainda por receber</p>
-                <p className="font-bold text-emerald-700 text-sm mt-0.5">{formatMoney(data.ponte_caixa.a_receber)}</p>
-              </div>
-              <div className="p-3 rounded-xl border border-rose-100 bg-rose-50/40">
-                <p className="text-[9px] uppercase font-bold text-rose-600">Ainda por pagar</p>
-                <p className="font-bold text-rose-700 text-sm mt-0.5">{formatMoney(data.ponte_caixa.a_pagar)}</p>
-              </div>
-              <div className="p-3 rounded-xl border border-slate-200 bg-slate-50">
-                <p className="text-[9px] uppercase font-bold text-slate-500">Saldo em conta</p>
-                <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(data.ponte_caixa.saldo_em_conta)}</p>
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-400">{data.base.nota_irc}</p>
-          </div>
+              <p className="text-2xs text-neutral-500">{data.base.nota_irc}</p>
+            </CardBody>
+          </Card>
         </>
       )}
     </div>

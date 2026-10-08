@@ -2,8 +2,15 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Landmark, Plus, Loader2, Check, Trash2, AlertTriangle, CalendarClock, ArrowDownLeft, ArrowUpRight,
+  Landmark, Plus, Check, Trash2, CalendarClock, ArrowDownLeft, ArrowUpRight,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  Badge, Button, IconButton, Card, CardHeader, CardBody, Field, Input, Select, LoadingState,
+  cn, inputClass, useConfirm,
+} from '@/components/ui';
+import type { BadgeTone } from '@/components/ui';
+import { formatDate } from '@/lib/format';
 import {
   fetchInstallments, fetchPayments, fetchBankAccounts,
   registerPayment, deletePayment, createInstallments,
@@ -18,11 +25,11 @@ const METHODS = [
   { value: 'other', label: 'Outro' },
 ];
 
-const INST_STATUS: Record<string, { label: string; cls: string }> = {
-  paid: { label: 'Paga', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  partially_paid: { label: 'Parcial', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  overdue: { label: 'Vencida', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
-  pending: { label: 'Pendente', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+const INST_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
+  paid: { label: 'Paga', tone: 'success' },
+  partially_paid: { label: 'Parcial', tone: 'warning' },
+  overdue: { label: 'Vencida', tone: 'danger' },
+  pending: { label: 'Pendente', tone: 'neutral' },
 };
 
 interface Props {
@@ -41,7 +48,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   // register form
   const [open, setOpen] = useState(false);
@@ -81,7 +88,6 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
   useEffect(() => { load(); }, [load]);
 
   const openFor = (inst?: Installment) => {
-    setError(null);
     setTargetInstallment(inst?.id || '');
     setAmount(String(inst ? inst.outstanding_amount : outstanding));
     setOpen(true);
@@ -90,7 +96,6 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setError(null);
     const result = await registerPayment(transaction.id, {
       amount: Number(amount),
       payment_date: payDate,
@@ -100,7 +105,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
     });
     setBusy(false);
     if (!result) {
-      setError(`Não foi possível registar o ${noun.toLowerCase()}. Verifique se o valor não excede o que está em aberto.`);
+      toast.error(`Não foi possível registar o ${noun.toLowerCase()}. Verifique se o valor não excede o que está em aberto.`);
       return;
     }
     setOpen(false);
@@ -109,22 +114,26 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
   };
 
   const undo = async (p: PaymentRecord) => {
+    if (!(await confirm({
+      title: 'Anular este movimento?',
+      description: `${formatMoney(p.amount)} de ${formatDate(p.payment_date)} volta a ficar em aberto.`,
+      danger: true,
+      confirmLabel: 'Anular movimento',
+    }))) return;
     setBusy(true);
-    setError(null);
     const ok = await deletePayment(transaction.id, p.id);
     setBusy(false);
-    if (!ok) { setError('Não foi possível anular este movimento.'); return; }
+    if (!ok) { toast.error('Não foi possível anular este movimento.'); return; }
     await load();
     onChanged();
   };
 
   const split = async () => {
     setSplitting(true);
-    setError(null);
     const result = await createInstallments(transaction.id, splitCount, transaction.due_date || undefined);
     setSplitting(false);
     if (!result) {
-      setError('Não foi possível criar as prestações. Se já existem prestações pagas, o plano não pode ser refeito.');
+      toast.error('Não foi possível criar as prestações. Se já existem prestações pagas, o plano não pode ser refeito.');
       return;
     }
     await load();
@@ -145,242 +154,222 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
   }, [installments.length, gross, splitCount]);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-          <span className="text-indigo-600"><Landmark className="w-4 h-4" /></span>
-          {isIncome ? 'Recebimentos' : 'Pagamentos'}
-        </h3>
-        {!settled && (
-          <button
-            onClick={() => openFor()}
-            className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" /> Registar {noun.toLowerCase()}
-          </button>
-        )}
-      </div>
+    <Card>
+      <CardHeader
+        icon={<Landmark />}
+        title={isIncome ? 'Recebimentos' : 'Pagamentos'}
+        actions={!settled ? (
+          <Button size="sm" icon={<Plus />} onClick={() => openFor()}>
+            Registar {noun.toLowerCase()}
+          </Button>
+        ) : undefined}
+      />
 
-      {error && (
-        <div className="flex items-start gap-2 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium">
-          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {error}
-        </div>
-      )}
-
-      {/* Progress */}
-      <div className="space-y-1.5">
-        <div className="flex justify-between text-[11px] font-semibold">
-          <span className="text-slate-500">{isIncome ? 'Recebido' : 'Pago'} {formatMoney(paid)}</span>
-          <span className={settled ? 'text-emerald-700' : 'text-slate-800'}>
-            {settled ? 'Liquidado' : `Em aberto ${formatMoney(outstanding)}`}
-          </span>
-        </div>
-        <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+      <CardBody className="space-y-4">
+        {/* Progress */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs font-semibold tabular-nums">
+            <span className="text-neutral-500">{isIncome ? 'Recebido' : 'Pago'} {formatMoney(paid)}</span>
+            <span className={settled ? 'text-emerald-700' : 'text-neutral-800'}>
+              {settled ? 'Liquidado' : `Em aberto ${formatMoney(outstanding)}`}
+            </span>
+          </div>
           <div
-            className={`h-full rounded-full transition-all ${settled ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-            style={{ width: `${progress}%` }}
-          />
+            className="h-2 rounded-full bg-neutral-100 overflow-hidden"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress)}
+            aria-label={isIncome ? 'Percentagem recebida' : 'Percentagem paga'}
+          >
+            <div
+              className={cn('h-full rounded-full transition-all', settled ? 'bg-emerald-500' : 'bg-neutral-800')}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
-      </div>
 
-      {loading ? (
-        <div className="flex items-center gap-2 text-slate-400 text-xs py-4">
-          <Loader2 className="w-4 h-4 animate-spin" /> A carregar…
-        </div>
-      ) : (
-        <>
-          {/* Installments */}
-          {installments.length > 0 ? (
-            <div className="space-y-1.5">
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                Prestações ({installments.length})
-              </h4>
-              {installments.map((i) => {
-                const st = INST_STATUS[i.status] || INST_STATUS.pending;
-                return (
-                  <div key={i.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/60">
-                    <span className="w-10 text-[11px] font-black text-slate-700 font-mono shrink-0">{i.label}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-slate-800">{formatMoney(i.amount)}</div>
-                      <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                        <CalendarClock className="w-2.5 h-2.5" /> vence {i.due_date}
-                        {i.paid_amount > 0 && i.status !== 'paid' && (
-                          <span className="ml-1">· pago {formatMoney(i.paid_amount)}</span>
+        {loading ? (
+          <LoadingState className="py-4" />
+        ) : (
+          <>
+            {/* Installments */}
+            {installments.length > 0 ? (
+              <div className="space-y-1.5">
+                <h4 className="text-2xs font-bold text-neutral-500 uppercase tracking-wider">
+                  Prestações ({installments.length})
+                </h4>
+                {installments.map((i) => {
+                  const st = INST_STATUS[i.status] || INST_STATUS.pending;
+                  return (
+                    <div key={i.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-neutral-200 bg-neutral-50/60">
+                      <span className="w-10 text-xs font-black text-neutral-700 font-mono shrink-0">{i.label}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-neutral-800 tabular-nums">{formatMoney(i.amount)}</div>
+                        <div className="text-2xs text-neutral-500 flex items-center gap-1">
+                          <CalendarClock className="w-3 h-3" aria-hidden="true" /> vence {formatDate(i.due_date)}
+                          {i.paid_amount > 0 && i.status !== 'paid' && (
+                            <span className="ml-1">· pago {formatMoney(i.paid_amount)}</span>
+                          )}
+                        </div>
+                      </div>
+                      <Badge tone={st.tone} className="shrink-0">{st.label}</Badge>
+                      {i.status !== 'paid' && (
+                        <Button variant="accent" size="sm" onClick={() => openFor(i)} className="shrink-0">
+                          Liquidar
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              !settled && (
+                <div className="p-3 rounded-xl border border-dashed border-neutral-200 space-y-2">
+                  <h4 className="text-2xs font-bold text-neutral-500 uppercase tracking-wider">Dividir em prestações</h4>
+                  <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Número de prestações">
+                    {[2, 3, 4, 6, 12].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        aria-pressed={splitCount === n}
+                        onClick={() => setSplitCount(n)}
+                        className={cn(
+                          'h-8 px-2.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
+                          splitCount === n
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                            : 'bg-neutral-50 border-neutral-200 text-neutral-600 hover:bg-neutral-100',
                         )}
+                      >
+                        {n}x
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      min={2}
+                      max={120}
+                      value={splitCount}
+                      onChange={(e) => setSplitCount(Math.min(120, Math.max(2, Number(e.target.value) || 2)))}
+                      aria-label="Número de prestações"
+                      className={cn(inputClass, 'w-16 h-8 px-2 text-xs font-bold text-center tabular-nums')}
+                    />
+                    <Button size="sm" onClick={split} loading={splitting}>
+                      Criar plano
+                    </Button>
+                  </div>
+                  {schedulePreview.length > 0 && (
+                    <p className="text-2xs text-neutral-500 tabular-nums">
+                      {splitCount}× de {formatMoney(schedulePreview[0].amount)}
+                      {splitCount > 1 && ` (a última ajusta para somar ${formatMoney(gross)})`}
+                    </p>
+                  )}
+                </div>
+              )
+            )}
+
+            {/* Payment history */}
+            <div className="space-y-1.5">
+              <h4 className="text-2xs font-bold text-neutral-500 uppercase tracking-wider">
+                Movimentos ({payments.length})
+              </h4>
+              {payments.length === 0 ? (
+                <p className="text-xs text-neutral-500">
+                  Ainda não há {isIncome ? 'recebimentos' : 'pagamentos'} registados.
+                </p>
+              ) : (
+                payments.map((p) => (
+                  <div key={p.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-neutral-200">
+                    <div className={cn(
+                      'w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
+                      p.direction === 'in' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600',
+                    )}>
+                      {p.direction === 'in'
+                        ? <ArrowDownLeft className="w-3.5 h-3.5" aria-label="Entrada" />
+                        : <ArrowUpRight className="w-3.5 h-3.5" aria-label="Saída" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-neutral-800 tabular-nums">{formatMoney(p.amount)}</div>
+                      <div className="text-2xs text-neutral-500 truncate">
+                        {formatDate(p.payment_date)}
+                        {p.payment_method ? ` · ${METHODS.find((m) => m.value === p.payment_method)?.label || p.payment_method}` : ''}
+                        {p.created_by ? ` · ${p.created_by}` : ''}
                       </div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase border shrink-0 ${st.cls}`}>
-                      {st.label}
-                    </span>
-                    {i.status !== 'paid' && (
-                      <button
-                        onClick={() => openFor(i)}
-                        className="px-2 py-1 rounded-lg border border-indigo-200 text-indigo-700 text-[10px] font-bold hover:bg-indigo-50 shrink-0"
-                      >
-                        Liquidar
-                      </button>
-                    )}
+                    <IconButton label="Anular movimento" variant="danger" onClick={() => undo(p)} disabled={busy}>
+                      <Trash2 />
+                    </IconButton>
                   </div>
-                );
-              })}
+                ))
+              )}
             </div>
-          ) : (
-            !settled && (
-              <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-2">
-                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dividir em prestações</h4>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {[2, 3, 4, 6, 12].map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => setSplitCount(n)}
-                      className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold ${
-                        splitCount === n ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-slate-50 border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {n}x
-                    </button>
-                  ))}
-                  <input
-                    type="number"
-                    min={2}
-                    max={120}
-                    value={splitCount}
-                    onChange={(e) => setSplitCount(Math.min(120, Math.max(2, Number(e.target.value) || 2)))}
-                    aria-label="Número de prestações"
-                    className="w-16 px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                  <button
-                    onClick={split}
-                    disabled={splitting}
-                    className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-60"
-                  >
-                    {splitting && <Loader2 className="w-3 h-3 animate-spin" />} Criar plano
-                  </button>
-                </div>
-                {schedulePreview.length > 0 && (
-                  <p className="text-[10px] text-slate-400">
-                    {splitCount}× de {formatMoney(schedulePreview[0].amount)}
-                    {splitCount > 1 && ` (a última ajusta para somar ${formatMoney(gross)})`}
-                  </p>
-                )}
+
+            {settled && (
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                <Check className="w-3.5 h-3.5" aria-hidden="true" /> Totalmente liquidado.
               </div>
-            )
-          )}
-
-          {/* Payment history */}
-          <div className="space-y-1.5">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              Movimentos ({payments.length})
-            </h4>
-            {payments.length === 0 ? (
-              <p className="text-[11px] text-slate-400">
-                Ainda não há {isIncome ? 'recebimentos' : 'pagamentos'} registados.
-              </p>
-            ) : (
-              payments.map((p) => (
-                <div key={p.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                    p.direction === 'in' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                  }`}>
-                    {p.direction === 'in' ? <ArrowDownLeft className="w-3.5 h-3.5" /> : <ArrowUpRight className="w-3.5 h-3.5" />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-bold text-slate-800">{formatMoney(p.amount)}</div>
-                    <div className="text-[10px] text-slate-400 truncate">
-                      {p.payment_date}
-                      {p.payment_method ? ` · ${METHODS.find((m) => m.value === p.payment_method)?.label || p.payment_method}` : ''}
-                      {p.created_by ? ` · ${p.created_by}` : ''}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => undo(p)}
-                    disabled={busy}
-                    aria-label="Anular movimento"
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 disabled:opacity-50"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))
             )}
-          </div>
+          </>
+        )}
 
-          {settled && (
-            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
-              <Check className="w-3.5 h-3.5" /> Totalmente liquidado.
+        {/* Register form */}
+        {open && (
+          <form onSubmit={submit} className="p-3 rounded-xl border border-neutral-200 bg-neutral-50 space-y-3">
+            <h4 className="text-xs font-bold text-neutral-900">
+              Registar {noun.toLowerCase()}
+              {targetInstallment && ` · prestação ${installments.find((i) => i.id === targetInstallment)?.label}`}
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Valor">
+                {(f) => (
+                  <Input
+                    {...f}
+                    type="number" step="0.01" min="0" required autoFocus
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="tabular-nums"
+                  />
+                )}
+              </Field>
+              <Field label="Data">
+                {(f) => (
+                  <Input
+                    {...f}
+                    type="date" required
+                    value={payDate}
+                    onChange={(e) => setPayDate(e.target.value)}
+                  />
+                )}
+              </Field>
+              <Field label="Método">
+                {(f) => (
+                  <Select {...f} value={method} onChange={(e) => setMethod(e.target.value)}>
+                    {METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </Select>
+                )}
+              </Field>
+              <Field label="Conta">
+                {(f) => (
+                  <Select {...f} value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+                    {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </Select>
+                )}
+              </Field>
             </div>
-          )}
-        </>
-      )}
-
-      {/* Register form */}
-      {open && (
-        <form onSubmit={submit} className="p-3 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-2.5">
-          <h4 className="text-[11px] font-bold text-indigo-900">
-            Registar {noun.toLowerCase()}
-            {targetInstallment && ` · prestação ${installments.find((i) => i.id === targetInstallment)?.label}`}
-          </h4>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Valor</label>
-              <input
-                type="number" step="0.01" min="0" required autoFocus
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              />
+            <p className="text-2xs text-neutral-500">
+              Máximo em aberto: <b className="tabular-nums">{formatMoney(outstanding)}</b>. Valores parciais são aceites.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setOpen(false)} className="flex-1">
+                Cancelar
+              </Button>
+              <Button type="submit" variant="accent" size="sm" loading={busy} className="flex-1">
+                Confirmar
+              </Button>
             </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Data</label>
-              <input
-                type="date" required
-                value={payDate}
-                onChange={(e) => setPayDate(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Método</label>
-              <select
-                value={method}
-                onChange={(e) => setMethod(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                {METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Conta</label>
-              <select
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
-            </div>
-          </div>
-          <p className="text-[10px] text-slate-500">
-            Máximo em aberto: <b>{formatMoney(outstanding)}</b>. Valores parciais são aceites.
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="flex-1 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 font-semibold text-[11px]"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={busy}
-              className="flex-1 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 disabled:opacity-60"
-            >
-              {busy && <Loader2 className="w-3 h-3 animate-spin" />} Confirmar
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
+          </form>
+        )}
+      </CardBody>
+    </Card>
   );
 };

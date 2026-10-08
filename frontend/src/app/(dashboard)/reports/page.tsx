@@ -2,11 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { FileSpreadsheet, Download, Loader2, MapPin } from 'lucide-react';
+import { FileSpreadsheet, Download, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { fetchDashboardSummary, fetchVatSummary } from '@/services/data';
 import { apiFetch } from '@/services/api';
+import {
+  Badge, Button, Card, CardHeader, CardBody, Select,
+  Table, THead, TBody, Th, Tr, Td,
+} from '@/components/ui';
 
 /* A forma que /fiscal/vat-summary devolve. Lia-se `iva_total` e
    `total_bruto` por linha, que a API não manda: a tabela mostrava "NaN €". */
@@ -76,7 +80,7 @@ export default function ReportsPage() {
   }, [year]);
 
   useEffect(() => {
-    setPageHeader('Relatórios Financeiros & Exportação', 'Análise consolidada do desempenho financeiro, IVA e exportação SAF-T (PT)');
+    setPageHeader('Relatórios', 'Análise consolidada do desempenho financeiro, IVA e exportação SAF-T (PT)');
   }, [setPageHeader]);
 
   const totalReceitas = reportData.reduce((sum, d) => sum + d.Receitas, 0);
@@ -126,134 +130,126 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      
+
       {/* Header Actions */}
       <div className="flex justify-end pb-3">
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportCsv}
-            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Exportar CSV / Excel</span>
-          </button>
-
-          <button
-            onClick={handleSaftExport}
-            disabled={isExporting}
-            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            <span>SAF-T (PT) XML</span>
-          </button>
+          <Button variant="secondary" icon={<FileSpreadsheet />} onClick={handleExportCsv}>
+            Exportar CSV / Excel
+          </Button>
+          <Button icon={<Download />} onClick={handleSaftExport} loading={isExporting}>
+            SAF-T (PT) XML
+          </Button>
         </div>
       </div>
 
       {/* Chart Card */}
-      <div className="p-6 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-sm text-slate-900">Demonstrativo Mensal (Receitas vs Despesas)</h3>
-          <select 
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            className="text-xs text-slate-600 font-medium bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none focus:border-indigo-500 transition-colors cursor-pointer"
-          >
-            {YEARS.map((y) => (
-              <option key={y} value={y}>Ano Fiscal {y}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="h-72 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={reportData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748B' }} />
-              <YAxis tick={{ fontSize: 11, fill: '#64748B' }} />
-              <Tooltip formatter={(val) => formatMoney(Number(val))} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="Receitas" fill="#10B981" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Despesas" fill="#EF4444" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      <Card>
+        <CardHeader
+          title="Demonstrativo Mensal (Receitas vs Despesas)"
+          actions={
+            <Select
+              aria-label="Ano fiscal"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              className="w-auto h-8 text-xs"
+            >
+              {YEARS.map((y) => (
+                <option key={y} value={y}>Ano Fiscal {y}</option>
+              ))}
+            </Select>
+          }
+        />
+        <CardBody>
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={reportData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#737373' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#737373' }} />
+                <Tooltip formatter={(val) => formatMoney(Number(val))} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="Receitas" fill="#10B981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Despesas" fill="#F43F5E" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardBody>
+      </Card>
 
       {/* Summary KPI grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
-          <span className="text-slate-400 font-medium">Total Receitas Acumuladas</span>
-          <div className="text-xl font-black text-emerald-600">{formatMoney(totalReceitas)}</div>
-        </div>
+        <Card className="p-5 space-y-1">
+          <span className="text-neutral-500 font-medium">Total Receitas Acumuladas</span>
+          <div className="text-xl font-black text-emerald-600 tabular-nums">{formatMoney(totalReceitas)}</div>
+        </Card>
 
-        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
-          <span className="text-slate-400 font-medium">Total Despesas Acumuladas</span>
-          <div className="text-xl font-black text-rose-600">{formatMoney(totalDespesas)}</div>
-        </div>
+        <Card className="p-5 space-y-1">
+          <span className="text-neutral-500 font-medium">Total Despesas Acumuladas</span>
+          <div className="text-xl font-black text-rose-600 tabular-nums">{formatMoney(totalDespesas)}</div>
+        </Card>
 
-        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-1">
-          <span className="text-slate-400 font-medium">Resultado Acumulado</span>
-          <div className={`text-xl font-black ${totalReceitas - totalDespesas >= 0 ? 'text-indigo-600' : 'text-rose-600'}`}>
+        <Card className="p-5 space-y-1">
+          <span className="text-neutral-500 font-medium">Resultado Acumulado</span>
+          <div className={`text-xl font-black tabular-nums ${totalReceitas - totalDespesas >= 0 ? 'text-neutral-900' : 'text-rose-600'}`}>
             {totalReceitas - totalDespesas >= 0 ? '+' : ''}{formatMoney(totalReceitas - totalDespesas)}
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* IVA Summary Section — vendas e compras separadas: somar IVA
           liquidado com IVA dedutível dava um número que não quer dizer nada. */}
       {vatSummary && (vatSummary.iva_liquidado.breakdown.length > 0 || vatSummary.iva_dedutivel.breakdown.length > 0) && (
-        <div className="p-6 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">Resumo de IVA</h3>
-              <p className="text-xs text-slate-500">Período: {vatSummary.period_label || vatSummary.period}</p>
-            </div>
-            <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-              <MapPin className="w-3 h-3" /> Portugal
-            </span>
-          </div>
+        <Card className="overflow-hidden">
+          <CardHeader
+            title="Resumo de IVA"
+            subtitle={`Período: ${vatSummary.period_label || vatSummary.period}`}
+            actions={
+              <Badge>
+                <MapPin className="w-3 h-3" aria-hidden="true" /> Portugal
+              </Badge>
+            }
+          />
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
-                  <th className="p-3">Sentido</th>
-                  <th className="p-3">Taxa IVA</th>
-                  <th className="p-3 text-right">Base Tributável</th>
-                  <th className="p-3 text-right">IVA</th>
-                  <th className="p-3 text-right">Total</th>
-                  <th className="p-3 text-right">Nº Documentos</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {([
-                  ['Liquidado (vendas)', vatSummary.iva_liquidado],
-                  ['Dedutível (compras)', vatSummary.iva_dedutivel],
-                ] as const).flatMap(([side, data]) => data.breakdown.map((item, idx) => (
-                  <tr key={`${side}-${idx}`} className="hover:bg-slate-50/80 transition-colors font-medium">
-                    <td className="p-3 text-slate-500">{side}</td>
-                    <td className="p-3 font-semibold text-slate-800">{item.label}</td>
-                    <td className="p-3 text-right text-slate-700">{formatMoney(item.base_tributavel)}</td>
-                    <td className="p-3 text-right text-indigo-600 font-bold">{formatMoney(item.iva)}</td>
-                    <td className="p-3 text-right text-slate-700">{formatMoney(item.total)}</td>
-                    <td className="p-3 text-right text-slate-500">{item.num_documentos}</td>
-                  </tr>
-                )))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-slate-50 border-t-2 border-slate-300 font-bold text-slate-900">
-                  <td className="p-3" colSpan={3}>
-                    {vatSummary.apuramento.a_recuperar > 0 ? 'IVA a recuperar' : 'IVA a entregar ao Estado'}
-                  </td>
-                  <td className="p-3 text-right text-indigo-600">
-                    {formatMoney(vatSummary.apuramento.a_recuperar > 0 ? vatSummary.apuramento.a_recuperar : vatSummary.apuramento.a_entregar)}
-                  </td>
-                  <td className="p-3" colSpan={2} />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+          <Table>
+            <THead>
+              <tr>
+                <Th>Sentido</Th>
+                <Th>Taxa IVA</Th>
+                <Th numeric>Base Tributável</Th>
+                <Th numeric>IVA</Th>
+                <Th numeric>Total</Th>
+                <Th numeric>Nº Documentos</Th>
+              </tr>
+            </THead>
+            <TBody>
+              {([
+                ['Liquidado (vendas)', vatSummary.iva_liquidado],
+                ['Dedutível (compras)', vatSummary.iva_dedutivel],
+              ] as const).flatMap(([side, data]) => data.breakdown.map((item, idx) => (
+                <Tr key={`${side}-${idx}`} className="font-medium">
+                  <Td className="text-neutral-500">{side}</Td>
+                  <Td className="font-semibold text-neutral-800">{item.label}</Td>
+                  <Td numeric className="text-neutral-700">{formatMoney(item.base_tributavel)}</Td>
+                  <Td numeric className="text-neutral-900 font-bold">{formatMoney(item.iva)}</Td>
+                  <Td numeric className="text-neutral-700">{formatMoney(item.total)}</Td>
+                  <Td numeric className="text-neutral-500">{item.num_documentos}</Td>
+                </Tr>
+              )))}
+            </TBody>
+            <tfoot>
+              <tr className="bg-neutral-50 border-t-2 border-neutral-300 font-bold text-neutral-900">
+                <Td colSpan={3}>
+                  {vatSummary.apuramento.a_recuperar > 0 ? 'IVA a recuperar' : 'IVA a entregar ao Estado'}
+                </Td>
+                <Td numeric className={vatSummary.apuramento.a_recuperar > 0 ? 'text-emerald-700' : 'text-neutral-900'}>
+                  {formatMoney(vatSummary.apuramento.a_recuperar > 0 ? vatSummary.apuramento.a_recuperar : vatSummary.apuramento.a_entregar)}
+                </Td>
+                <Td colSpan={2} />
+              </tr>
+            </tfoot>
+          </Table>
+        </Card>
       )}
 
     </div>

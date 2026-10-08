@@ -9,7 +9,12 @@ import { settleMany } from '@/components/cashflow/api';
 import { ForecastPanel } from '@/components/cashflow/ForecastPanel';
 import { Transaction } from '@/types';
 import { formatDate, documentStatusLabel } from '@/lib/format';
-import {Search, CheckCircle2, X, RefreshCcw, Bot, User} from 'lucide-react';
+import { Search, CheckCircle2, X, Bot, User } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  Badge, Button, IconButton, Card, Input, Select, Table, THead, TBody, Th, Tr, Td, TableMessage,
+  LoadingState, EmptyState, cn, useConfirm,
+} from '@/components/ui';
 
 export interface CashFlowViewProps {
   mode?: 'cash-flow' | 'payables' | 'receivables';
@@ -38,12 +43,14 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
   const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [settling, setSettling] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const confirm = useConfirm();
 
   useEffect(() => {
     async function load() {
       const trxs = await fetchTransactions();
       setTransactions(trxs);
+      setLoaded(true);
     }
     load();
   }, []);
@@ -54,7 +61,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
     } else if (mode === 'receivables') {
       setPageHeader('Contas a Receber', 'Gestão de receitas e recebimentos pendentes');
     } else {
-      setPageHeader('Fluxo de Caixa & Movimentos', 'Gestão profissional de todas as entradas, saídas e previsões de caixa');
+      setPageHeader('Fluxo de Caixa', 'Todas as entradas, saídas e previsões de caixa');
     }
   }, [setPageHeader, mode]);
 
@@ -150,18 +157,21 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
 
   const settleSelected = async () => {
     if (selected.size === 0) return;
-    if (!window.confirm(`Marcar ${selected.size} lançamento(s) como liquidado(s) hoje?`)) return;
+    if (!(await confirm({
+      title: `Marcar ${selected.size} lançamento(s) como liquidado(s) hoje?`,
+      description: 'É registado um pagamento ou recebimento, com a data de hoje, pelo valor em aberto de cada um.',
+      confirmLabel: 'Marcar como liquidado',
+    }))) return;
     setSettling(true);
-    setNotice(null);
     const res = await settleMany([...selected]);
     setSettling(false);
-    if (res.error || !res.data) { setNotice(res.error || 'Não foi possível liquidar.'); return; }
+    if (res.error || !res.data) { toast.error(res.error || 'Não foi possível liquidar.'); return; }
     const { liquidados, falhados, total } = res.data;
-    setNotice(
-      falhados
-        ? `${liquidados} liquidado(s) (${formatMoney(total)}), ${falhados} por liquidar.`
-        : `${liquidados} lançamento(s) liquidado(s) — ${formatMoney(total)}.`,
-    );
+    if (falhados) {
+      toast.warning(`${liquidados} liquidado(s) (${formatMoney(total)}), ${falhados} por liquidar.`);
+    } else {
+      toast.success(`${liquidados} lançamento(s) liquidado(s) — ${formatMoney(total)}.`);
+    }
     setSelected(new Set());
     setTransactions(await fetchTransactions());
   };
@@ -181,67 +191,62 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
       {mode === 'cash-flow' && <ForecastPanel />}
 
       {/* Tabs & Filter Header */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
-        
+      <Card className="flex flex-col sm:flex-row items-center justify-between gap-4 p-3">
+
         {/* Navigation Tabs */}
         {mode === 'cash-flow' && (
-        <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600 w-full sm:w-auto overflow-x-auto whitespace-nowrap hide-scrollbar">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-3.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${
-              activeTab === 'all' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'hover:text-slate-900'
-            }`}
-          >
-            Todos os Lançamentos ({transactions.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('income')}
-            className={`px-3.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${
-              activeTab === 'income' ? 'bg-white text-emerald-600 shadow-2xs font-bold' : 'hover:text-slate-900'
-            }`}
-          >
-            Receitas (+ €)
-          </button>
-          <button
-            onClick={() => setActiveTab('expense')}
-            className={`px-3.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${
-              activeTab === 'expense' ? 'bg-white text-rose-600 shadow-2xs font-bold' : 'hover:text-slate-900'
-            }`}
-          >
-            Despesas (- €)
-          </button>
-          <button
-            onClick={() => setActiveTab('open')}
-            className={`px-3.5 py-1.5 rounded-lg transition-all flex-shrink-0 ${
-              activeTab === 'open' ? 'bg-white text-indigo-600 shadow-2xs font-bold' : 'hover:text-slate-900'
-            }`}
-          >
-            Em aberto
-          </button>
+        <div
+          role="tablist"
+          aria-label="Tipo de lançamento"
+          className="flex items-center bg-neutral-100 p-1 rounded-xl text-xs font-semibold text-neutral-600 w-full sm:w-auto overflow-x-auto whitespace-nowrap hide-scrollbar"
+        >
+          {([
+            ['all', `Todos os Lançamentos (${transactions.length})`, 'text-neutral-900'],
+            ['income', 'Receitas (+ €)', 'text-emerald-600'],
+            ['expense', 'Despesas (- €)', 'text-rose-600'],
+            ['open', 'Em aberto', 'text-neutral-900'],
+          ] as const).map(([key, label, activeTone]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === key}
+              onClick={() => setActiveTab(key)}
+              className={cn(
+                'px-3.5 py-1.5 rounded-lg transition-all flex-shrink-0 cursor-pointer',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
+                activeTab === key ? cn('bg-white shadow-2xs font-bold', activeTone) : 'hover:text-neutral-900',
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         )}
 
         {/* Period — the first thing a cash flow needs */}
-        <select
+        <Select
           value={period} onChange={(e) => setPeriod(e.target.value)}
-          className="px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 bg-white font-semibold focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
+          aria-label="Período"
+          className="w-full sm:w-auto h-8 text-xs font-semibold"
         >
           {periodOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        </Select>
 
         {/* Filter Input */}
         <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
+          <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
+          <Input
+            type="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Filtrar por movimento ou fornecedor..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            aria-label="Filtrar lançamentos"
+            className="h-8 pl-8 text-xs"
           />
         </div>
 
-      </div>
+      </Card>
 
       {/* Em aberto: o sentido e os prazos, que é a lista de trabalho da semana.
           As contas a pagar e a receber viviam em páginas próprias a fazer isto
@@ -249,17 +254,26 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
       {activeTab === 'open' && (
         <div className="space-y-3">
           {mode === 'cash-flow' && (
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl w-full sm:w-auto sm:inline-flex">
+            <div
+              role="group"
+              aria-label="Sentido"
+              className="flex items-center bg-neutral-100 p-1 rounded-xl w-full sm:w-auto sm:inline-flex"
+            >
             {([
               ['all', `Tudo (${buckets.aberto.count})`],
               ['expense', 'A pagar'],
               ['income', 'A receber'],
             ] as const).map(([key, label]) => (
               <button
-                key={key} onClick={() => setDirection(key)}
-                className={`px-3 py-1.5 rounded-lg font-bold text-[11px] flex-1 sm:flex-none ${
-                  direction === key ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600'
-                }`}
+                key={key}
+                type="button"
+                aria-pressed={direction === key}
+                onClick={() => setDirection(key)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg font-bold text-xs flex-1 sm:flex-none cursor-pointer',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
+                  direction === key ? 'bg-white text-neutral-900 shadow-2xs' : 'text-neutral-600 hover:text-neutral-900',
+                )}
               >
                 {label}
               </button>
@@ -268,200 +282,218 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
           )}
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="p-3 rounded-xl bg-white border border-rose-200">
-              <p className="text-[9px] uppercase font-bold text-rose-600">Vencido</p>
-              <p className="font-bold text-rose-700 text-sm mt-0.5">{formatMoney(buckets.vencido.total)}</p>
-              <p className="text-[10px] text-slate-400">{buckets.vencido.count} documento(s)</p>
-            </div>
-            <div className="p-3 rounded-xl bg-white border border-amber-200">
-              <p className="text-[9px] uppercase font-bold text-amber-600">Vence hoje</p>
-              <p className="font-bold text-amber-700 text-sm mt-0.5">{formatMoney(buckets.hoje.total)}</p>
-              <p className="text-[10px] text-slate-400">{buckets.hoje.count} documento(s)</p>
-            </div>
-            <div className="p-3 rounded-xl bg-white border border-slate-200">
-              <p className="text-[9px] uppercase font-bold text-slate-500">Próximos 7 dias</p>
-              <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(buckets.semana.total)}</p>
-              <p className="text-[10px] text-slate-400">{buckets.semana.count} documento(s)</p>
-            </div>
-            <div className="p-3 rounded-xl bg-white border border-slate-200">
-              <p className="text-[9px] uppercase font-bold text-slate-500">Total em aberto</p>
-              <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(buckets.aberto.total)}</p>
-              <p className="text-[10px] text-slate-400">
-                <Link href="/financial/receivables" className="hover:text-indigo-600">
+            <Card className="p-3 rounded-xl border-rose-200">
+              <p className="text-2xs uppercase font-bold tracking-wider text-rose-700">Vencido</p>
+              <p className="font-bold text-rose-700 text-sm mt-0.5 tabular-nums">{formatMoney(buckets.vencido.total)}</p>
+              <p className="text-2xs text-neutral-500">{buckets.vencido.count} documento(s)</p>
+            </Card>
+            <Card className="p-3 rounded-xl border-amber-200">
+              <p className="text-2xs uppercase font-bold tracking-wider text-amber-700">Vence hoje</p>
+              <p className="font-bold text-amber-700 text-sm mt-0.5 tabular-nums">{formatMoney(buckets.hoje.total)}</p>
+              <p className="text-2xs text-neutral-500">{buckets.hoje.count} documento(s)</p>
+            </Card>
+            <Card className="p-3 rounded-xl">
+              <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500">Próximos 7 dias</p>
+              <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(buckets.semana.total)}</p>
+              <p className="text-2xs text-neutral-500">{buckets.semana.count} documento(s)</p>
+            </Card>
+            <Card className="p-3 rounded-xl">
+              <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500">Total em aberto</p>
+              <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(buckets.aberto.total)}</p>
+              <p className="text-2xs text-neutral-500">
+                <Link href="/financial/receivables" className="hover:text-emerald-700 underline-offset-2 hover:underline">
                   ver antiguidade →
                 </Link>
               </p>
-            </div>
+            </Card>
           </div>
         </div>
       )}
 
       {/* Totals for what is on screen, and the batch action */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-3 rounded-xl bg-white border border-emerald-100">
-          <p className="text-[9px] uppercase font-bold text-emerald-600">Entradas do período</p>
-          <p className="font-bold text-emerald-700 text-sm mt-0.5">{formatMoney(totals.entradas)}</p>
-        </div>
-        <div className="p-3 rounded-xl bg-white border border-rose-100">
-          <p className="text-[9px] uppercase font-bold text-rose-600">Saídas do período</p>
-          <p className="font-bold text-rose-700 text-sm mt-0.5">{formatMoney(totals.saidas)}</p>
-        </div>
-        <div className="p-3 rounded-xl bg-white border border-slate-200">
-          <p className="text-[9px] uppercase font-bold text-slate-500">Resultado do período</p>
-          <p className={`font-bold text-sm mt-0.5 ${
-            totals.entradas - totals.saidas < 0 ? 'text-rose-700' : 'text-slate-900'
-          }`}>
+        <Card className="p-3 rounded-xl border-emerald-100">
+          <p className="text-2xs uppercase font-bold tracking-wider text-emerald-700">Entradas do período</p>
+          <p className="font-bold text-emerald-700 text-sm mt-0.5 tabular-nums">{formatMoney(totals.entradas)}</p>
+        </Card>
+        <Card className="p-3 rounded-xl border-rose-100">
+          <p className="text-2xs uppercase font-bold tracking-wider text-rose-700">Saídas do período</p>
+          <p className="font-bold text-rose-700 text-sm mt-0.5 tabular-nums">{formatMoney(totals.saidas)}</p>
+        </Card>
+        <Card className="p-3 rounded-xl">
+          <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500">Resultado do período</p>
+          <p className={cn(
+            'font-bold text-sm mt-0.5 tabular-nums',
+            totals.entradas - totals.saidas < 0 ? 'text-rose-700' : 'text-neutral-900',
+          )}>
             {formatMoney(totals.entradas - totals.saidas)}
           </p>
-        </div>
-        <div className="p-3 rounded-xl bg-white border border-slate-200">
-          <p className="text-[9px] uppercase font-bold text-slate-500">Ainda em aberto</p>
-          <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(totals.aberto)}</p>
+        </Card>
+        <Card className="p-3 rounded-xl">
+          <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500">Ainda em aberto</p>
+          <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(totals.aberto)}</p>
           {/* Money that never reaches either side: it goes to the State. */}
           {totals.retido > 0 && (
-            <p className="text-[10px] font-bold text-amber-700 mt-0.5">
+            <p className="text-2xs font-bold text-amber-700 mt-0.5 tabular-nums">
               {formatMoney(totals.retido)} retidos na fonte
             </p>
           )}
-        </div>
+        </Card>
       </div>
 
-      {notice && (
-        <p className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs">{notice}</p>
-      )}
-
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-xs">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-neutral-950 text-white text-xs">
           <span className="font-bold">{selected.size} selecionado(s)</span>
-          <button
-            onClick={settleSelected} disabled={settling}
-            className="ml-auto px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 font-bold flex items-center gap-1.5 disabled:opacity-50"
+          <Button
+            variant="accent"
+            size="sm"
+            onClick={settleSelected}
+            loading={settling}
+            icon={<CheckCircle2 />}
+            className="ml-auto"
           >
-            {settling ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
             Marcar como liquidado hoje
-          </button>
-          <button onClick={() => setSelected(new Set())} aria-label="Limpar selecção" title="Limpar selecção" className="px-2 py-1.5 rounded-lg hover:bg-white/10">
-            <X className="w-3.5 h-3.5" />
-          </button>
+          </Button>
+          <IconButton
+            label="Limpar selecção"
+            onClick={() => setSelected(new Set())}
+            className="text-neutral-300 hover:text-white hover:bg-white/10"
+          >
+            <X />
+          </IconButton>
         </div>
       )}
 
       {/* MAIN TRANSACTIONS TABLE */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
-                <th className="p-3.5 w-8"></th>
-                <th className="p-3.5">Data</th>
-                <th className="p-3.5">Descrição Profissional</th>
-                <th className="p-3.5 hidden md:table-cell">Entidade (Fornecedor/Cliente)</th>
-                <th className="p-3.5 hidden lg:table-cell">Categoria (Hierarquia)</th>
-                <th className="p-3.5 hidden xl:table-cell">Centro Custo</th>
-                <th className="p-3.5 hidden xl:table-cell">IVA</th>
-                <th className="p-3.5">Valor Total</th>
-                <th className="p-3.5">Status</th>
-                <th className="p-3.5 hidden sm:table-cell">Pagamento</th>
-                <th className="p-3.5 text-right hidden lg:table-cell">Saldo acumulado</th>
-                <th className="p-3.5 text-right hidden xl:table-cell">Origem</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredTransactions.map((trx) => (
-                <tr
-                  key={trx.id}
-                  onClick={() => router.push(`/financial/cash-flow/${trx.id}`)}
-                  // Abre também com o teclado (Enter), não só com o rato.
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.target === e.currentTarget) router.push(`/financial/cash-flow/${trx.id}`);
-                  }}
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 hover:bg-indigo-50/40 transition-colors cursor-pointer font-medium"
-                >
-                  <td className="p-3.5" onClick={(e) => e.stopPropagation()}>
-                    {Number(trx.outstanding_amount ?? 0) > 0 ? (
-                      <input
-                        type="checkbox" checked={selected.has(trx.id)}
-                        onChange={() => toggle(trx.id)}
-                        className="rounded"
-                        title="Selecionar para liquidar"
-                      />
-                    ) : (
-                      <span className="text-slate-200">—</span>
-                    )}
-                  </td>
-                  <td className="p-3.5 text-slate-500 font-mono text-[11px] whitespace-nowrap">{formatDate(trx.date)}</td>
-                  <td className="p-3.5 font-bold text-slate-900">{trx.description}</td>
-                  <td className="p-3.5 text-slate-700 font-medium hidden md:table-cell">{trx.entity_name}</td>
-                  <td className="p-3.5 text-slate-600 hidden lg:table-cell">{trx.category_name}</td>
-                  <td className="p-3.5 text-slate-500 hidden xl:table-cell">{trx.cost_center_name || 'Geral'}</td>
-                  <td className="p-3.5 text-slate-500 whitespace-nowrap hidden xl:table-cell">
-                    {trx.vat_amount ? (
-                      <>
-                        {formatMoney(Number(trx.vat_amount))}
-                        {trx.vat_rate ? <span className="text-[10px] text-slate-400 ml-1">({trx.vat_rate}%)</span> : null}
-                      </>
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </td>
-                  <td className={`p-3.5 font-extrabold ${trx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                    {trx.type === 'income' ? '+' : '-'}{formatMoney(moves(trx))}
-                    {Number(trx.retention_amount ?? 0) > 0 && (
-                      <span
-                        className="block text-[9px] font-bold text-amber-700 normal-case"
-                        title={`Documento de ${formatMoney(Number(trx.gross_amount ?? trx.amount))}, com ${formatMoney(Number(trx.retention_amount))} de retenção na fonte`}
-                      >
-                        ret. −{formatMoney(Number(trx.retention_amount))}
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-3.5">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase whitespace-nowrap ${
-                      trx.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                      trx.status === 'approved' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                      'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}>
-                      {documentStatusLabel(trx.status)}
+      <Card className="overflow-hidden">
+        <Table>
+          <THead>
+            <tr>
+              <Th className="w-8"><span className="sr-only">Selecionar</span></Th>
+              <Th>Data</Th>
+              <Th>Descrição Profissional</Th>
+              <Th className="hidden md:table-cell">Entidade (Fornecedor/Cliente)</Th>
+              <Th className="hidden lg:table-cell">Categoria (Hierarquia)</Th>
+              <Th className="hidden xl:table-cell">Centro Custo</Th>
+              <Th numeric className="hidden xl:table-cell">IVA</Th>
+              <Th numeric>Valor Total</Th>
+              <Th>Status</Th>
+              <Th className="hidden sm:table-cell">Pagamento</Th>
+              <Th numeric className="hidden lg:table-cell">Saldo acumulado</Th>
+              <Th align="right" className="hidden xl:table-cell">Origem</Th>
+            </tr>
+          </THead>
+          <TBody>
+            {!loaded ? (
+              <TableMessage colSpan={12}><LoadingState /></TableMessage>
+            ) : filteredTransactions.length === 0 ? (
+              <TableMessage colSpan={12}>
+                <EmptyState
+                  title="Sem lançamentos"
+                  description={
+                    transactions.length === 0
+                      ? 'Ainda não há movimentos registados.'
+                      : 'Nenhum lançamento corresponde ao período, separador ou filtro escolhidos.'
+                  }
+                />
+              </TableMessage>
+            ) : filteredTransactions.map((trx) => (
+              <Tr
+                key={trx.id}
+                onClick={() => router.push(`/financial/cash-flow/${trx.id}`)}
+                // Abre também com o teclado (Enter), não só com o rato.
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.target === e.currentTarget) router.push(`/financial/cash-flow/${trx.id}`);
+                }}
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 font-medium"
+              >
+                <Td onClick={(e) => e.stopPropagation()}>
+                  {Number(trx.outstanding_amount ?? 0) > 0 ? (
+                    <input
+                      type="checkbox" checked={selected.has(trx.id)}
+                      onChange={() => toggle(trx.id)}
+                      className="rounded accent-emerald-600 cursor-pointer"
+                      title="Selecionar para liquidar"
+                      aria-label={`Selecionar ${trx.description} para liquidar`}
+                    />
+                  ) : (
+                    <span className="text-neutral-300" aria-hidden="true">—</span>
+                  )}
+                </Td>
+                <Td className="text-neutral-500 font-mono tabular-nums whitespace-nowrap">{formatDate(trx.date)}</Td>
+                <Td className="font-bold text-neutral-900">{trx.description}</Td>
+                <Td className="text-neutral-700 font-medium hidden md:table-cell">{trx.entity_name}</Td>
+                <Td className="text-neutral-600 hidden lg:table-cell">{trx.category_name}</Td>
+                <Td className="text-neutral-500 hidden xl:table-cell">{trx.cost_center_name || 'Geral'}</Td>
+                <Td numeric className="text-neutral-500 hidden xl:table-cell">
+                  {trx.vat_amount ? (
+                    <>
+                      {formatMoney(Number(trx.vat_amount))}
+                      {trx.vat_rate ? <span className="text-2xs text-neutral-400 ml-1">({trx.vat_rate}%)</span> : null}
+                    </>
+                  ) : (
+                    <span className="text-neutral-300">—</span>
+                  )}
+                </Td>
+                <Td numeric className={cn('font-extrabold', trx.type === 'income' ? 'text-emerald-600' : 'text-neutral-900')}>
+                  {trx.type === 'income' ? '+' : '-'}{formatMoney(moves(trx))}
+                  {Number(trx.retention_amount ?? 0) > 0 && (
+                    <span
+                      className="block text-2xs font-bold text-amber-700 normal-case"
+                      title={`Documento de ${formatMoney(Number(trx.gross_amount ?? trx.amount))}, com ${formatMoney(Number(trx.retention_amount))} de retenção na fonte`}
+                    >
+                      ret. −{formatMoney(Number(trx.retention_amount))}
                     </span>
-                  </td>
-                  <td className="p-3.5 hidden sm:table-cell">
-                    {trx.payment_status ? (
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border whitespace-nowrap ${
-                        trx.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                        trx.payment_status === 'partially_paid' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        trx.payment_status === 'overdue' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                        'bg-slate-100 text-slate-600 border-slate-200'
-                      }`}>
-                        {trx.payment_status === 'paid' ? 'Pago'
-                          : trx.payment_status === 'partially_paid' ? 'Parcial'
-                          : trx.payment_status === 'overdue' ? 'Vencido'
-                          : 'Pendente'}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </td>
-                  <td className={`p-3.5 text-right font-mono text-[11px] hidden lg:table-cell ${
-                    (withRunning.get(trx.id) ?? 0) < 0 ? 'text-rose-600 font-bold' : 'text-slate-500'
-                  }`}>
-                    {formatMoney(withRunning.get(trx.id) ?? 0)}
-                  </td>
-                  <td className="p-3.5 text-right font-mono text-[11px] text-slate-500 hidden xl:table-cell">
-                    {trx.source === 'ai' ? (
-                      <span className="flex items-center justify-end gap-1"><Bot className="w-3.5 h-3.5" /> IA</span>
-                    ) : (
-                      <span className="flex items-center justify-end gap-1"><User className="w-3.5 h-3.5" /> Manual</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  )}
+                </Td>
+                <Td>
+                  <Badge
+                    tone={trx.status === 'paid' ? 'success' : trx.status === 'approved' ? 'neutral' : 'warning'}
+                    className="uppercase"
+                  >
+                    {documentStatusLabel(trx.status)}
+                  </Badge>
+                </Td>
+                <Td className="hidden sm:table-cell">
+                  {trx.payment_status ? (
+                    <Badge
+                      tone={
+                        trx.payment_status === 'paid' ? 'success'
+                          : trx.payment_status === 'partially_paid' ? 'warning'
+                          : trx.payment_status === 'overdue' ? 'danger'
+                          : 'neutral'
+                      }
+                      className="uppercase"
+                    >
+                      {trx.payment_status === 'paid' ? 'Pago'
+                        : trx.payment_status === 'partially_paid' ? 'Parcial'
+                        : trx.payment_status === 'overdue' ? 'Vencido'
+                        : 'Pendente'}
+                    </Badge>
+                  ) : (
+                    <span className="text-neutral-300">—</span>
+                  )}
+                </Td>
+                <Td numeric className={cn(
+                  'font-mono hidden lg:table-cell',
+                  (withRunning.get(trx.id) ?? 0) < 0 ? 'text-rose-600 font-bold' : 'text-neutral-500',
+                )}>
+                  {formatMoney(withRunning.get(trx.id) ?? 0)}
+                </Td>
+                <Td align="right" className="text-neutral-500 hidden xl:table-cell">
+                  {trx.source === 'ai' ? (
+                    <span className="flex items-center justify-end gap-1"><Bot className="w-3.5 h-3.5" aria-hidden="true" /> IA</span>
+                  ) : (
+                    <span className="flex items-center justify-end gap-1"><User className="w-3.5 h-3.5" aria-hidden="true" /> Manual</span>
+                  )}
+                </Td>
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
+      </Card>
 
     </div>
   );
 }
-

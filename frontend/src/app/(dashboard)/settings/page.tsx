@@ -13,9 +13,13 @@ import { TeamPanel } from '@/components/settings/TeamPanel';
 import { ChangePassword } from '@/components/settings/ChangePassword';
 import { DataExport } from '@/components/settings/DataExport';
 import {
-  Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, Mail, BadgeCheck, History,
+  Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, BadgeCheck, History,
   FolderTree
 } from 'lucide-react';
+import {
+  Button, Card, CardHeader, CardBody, Table, THead, TBody, Th, Tr, Td, Field, Input, Select,
+  EmptyState, Badge,
+} from '@/components/ui';
 
 type Tab = 'company' | 'categories' | 'ai' | 'profile' | 'users' | 'audit';
 
@@ -84,7 +88,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    setPageHeader('Configurações da Plataforma', 'Gestão da empresa, preferências do motor de inteligência artificial e utilizadores');
+    setPageHeader('Configurações', 'Gestão da empresa, preferências do motor de inteligência artificial e utilizadores');
   }, [setPageHeader]);
 
   const patch = (p: Partial<StoredSettings>) => setSettings((s) => ({ ...s, ...p }));
@@ -136,367 +140,346 @@ export default function SettingsPage() {
     <div className="space-y-5 animate-in fade-in duration-300">
       {/* Header Actions */}
       <div className="flex justify-end pb-4">
-        <button
+        <Button
           onClick={handleSave}
-          disabled={saving}
-          className="disabled:opacity-60 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 active:scale-95 shrink-0"
+          loading={saving}
+          icon={savedSuccess ? <Check /> : <Save />}
         >
-          {savedSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-          <span>{saving ? 'A guardar…' : savedSuccess ? 'Guardado com sucesso!' : 'Guardar Alterações'}</span>
-        </button>
+          {saving ? 'A guardar…' : savedSuccess ? 'Guardado com sucesso!' : 'Guardar Alterações'}
+        </Button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 items-start">
         {/* Settings Sidebar */}
-        <div className="w-full md:w-[250px] shrink-0 bg-white rounded-3xl border border-slate-200/80 py-3 px-2 shadow-xs space-y-4 sticky top-4">
+        <Card className="w-full md:w-[250px] shrink-0 py-3 px-2 space-y-4 md:sticky md:top-4">
           <div className="h-5 flex items-center px-4">
-            <h3 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap overflow-hidden">Menu de Configuração</h3>
+            <h3 className="text-2xs font-bold text-neutral-400 uppercase tracking-widest whitespace-nowrap overflow-hidden">Menu de Configuração</h3>
           </div>
-          <div className="space-y-0.5">
+          <nav aria-label="Secções de configuração" className="space-y-0.5">
             {TABS.map((t) => (
               <button
+                type="button"
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
-                className={`w-full text-left h-11 px-3 rounded-xl transition-all flex items-center gap-3 text-xs font-semibold ${
-                  activeTab === t.id 
-                    ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-xs' 
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                aria-current={activeTab === t.id ? 'page' : undefined}
+                className={`w-full text-left h-11 px-3 rounded-xl transition-colors flex items-center gap-3 text-xs font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                  activeTab === t.id
+                    ? 'bg-black text-white font-bold'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50'
                 }`}
               >
-                <div className={`w-[32px] flex items-center justify-center shrink-0 ${activeTab === t.id ? 'text-indigo-600' : 'text-slate-400'}`}>
+                <div className={`w-[32px] flex items-center justify-center shrink-0 ${activeTab === t.id ? 'text-emerald-400' : 'text-neutral-400'}`}>
                   {t.icon}
                 </div>
                 {t.label}
               </button>
             ))}
-          </div>
-        </div>
+          </nav>
+        </Card>
 
         {/* Settings Content */}
         <div className="flex-1 min-w-0 w-full">
           {/* TAB: Empresa */}
-      {activeTab === 'company' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4 max-w-2xl text-xs">
-          <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-indigo-600" />
-            <h3 className="font-bold text-sm text-slate-900">Dados da Empresa (Multi-tenant)</h3>
-          </div>
+          {activeTab === 'company' && (
+            <Card className="max-w-2xl">
+              <CardHeader icon={<Building2 />} title="Dados da Empresa (Multi-tenant)" />
+              <CardBody className="space-y-4 text-xs">
+                <Field label="Nome da Empresa" required>
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                    />
+                  )}
+                </Field>
 
-          <div className="space-y-1.5">
-            <label htmlFor="company-name" className="font-semibold text-slate-600">Nome da Empresa</label>
-            <input
-              id="company-name"
-              type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
-            />
-          </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Field label="NIF">
+                    {(p) => (
+                      <Input
+                        {...p}
+                        type="text"
+                        value={companyNif}
+                        onChange={(e) => setCompanyNif(e.target.value)}
+                        className="font-mono"
+                      />
+                    )}
+                  </Field>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="company-nif" className="font-semibold text-slate-600">NIF</label>
-              <input
-                id="company-nif"
-                type="text"
-                value={companyNif}
-                onChange={(e) => setCompanyNif(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"
-              />
-            </div>
+                  <Field label="Moeda por Omissão">
+                    {(p) => (
+                      <Select
+                        {...p}
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value as typeof currency)}
+                      >
+                        <option value="EUR">EUR (€) - Euro</option>
+                        <option value="USD">USD ($) - Dólar Americano</option>
+                        <option value="BRL">BRL (R$) - Real Brasileiro</option>
+                        <option value="GBP">GBP (£) - Libra Esterlina</option>
+                      </Select>
+                    )}
+                  </Field>
+                </div>
 
-            <div className="space-y-1.5">
-              <label className="font-semibold text-slate-600">Moeda por Omissão</label>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value as typeof currency)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-bold"
-              >
-                <option value="EUR">EUR (€) - Euro</option>
-                <option value="USD">USD ($) - Dólar Americano</option>
-                <option value="BRL">BRL (R$) - Real Brasileiro</option>
-                <option value="GBP">GBP (£) - Libra Esterlina</option>
-              </select>
-            </div>
-          </div>
+                <div className="pt-3 border-t border-neutral-100 space-y-3">
+                  <h4 className="font-bold text-neutral-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" /> Perfil Fiscal (Portugal)
+                  </h4>
 
-          <div className="pt-2 border-t border-slate-100 space-y-3">
-            <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" /> Perfil Fiscal (Portugal)
-            </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Field label="Forma jurídica">
+                      {(p) => (
+                        <Select {...p} value={legalForm} onChange={(e) => setLegalForm(e.target.value)}>
+                          <option value="">Não definida</option>
+                          <option value="ENI">ENI — Empresário em Nome Individual</option>
+                          <option value="Unipessoal Lda">Unipessoal Lda</option>
+                          <option value="Lda">Lda</option>
+                          <option value="SA">SA</option>
+                          <option value="Associação">Associação</option>
+                        </Select>
+                      )}
+                    </Field>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <label className="font-semibold text-slate-600">Forma jurídica</label>
-                <select
-                  value={legalForm}
-                  onChange={(e) => setLegalForm(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
-                >
-                  <option value="">Não definida</option>
-                  <option value="ENI">ENI — Empresário em Nome Individual</option>
-                  <option value="Unipessoal Lda">Unipessoal Lda</option>
-                  <option value="Lda">Lda</option>
-                  <option value="SA">SA</option>
-                  <option value="Associação">Associação</option>
-                </select>
-              </div>
+                    <Field label="Regime de IVA">
+                      {(p) => (
+                        <Select {...p} value={vatRegime} onChange={(e) => setVatRegime(e.target.value)}>
+                          <option value="normal">Regime Normal (liquida e deduz)</option>
+                          <option value="isencao_art53">Isenção — art.º 53.º do CIVA</option>
+                        </Select>
+                      )}
+                    </Field>
 
-              <div className="space-y-1.5">
-                <label className="font-semibold text-slate-600">Regime de IVA</label>
-                <select
-                  value={vatRegime}
-                  onChange={(e) => setVatRegime(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
-                >
-                  <option value="normal">Regime Normal (liquida e deduz)</option>
-                  <option value="isencao_art53">Isenção — art.º 53.º do CIVA</option>
-                </select>
-              </div>
+                    <Field label="Periodicidade">
+                      {(p) => (
+                        <Select
+                          {...p}
+                          value={vatPeriodicity}
+                          onChange={(e) => setVatPeriodicity(e.target.value)}
+                          disabled={vatRegime === 'isencao_art53'}
+                        >
+                          <option value="quarterly">Trimestral (volume &lt; 650 mil €)</option>
+                          <option value="monthly">Mensal (volume ≥ 650 mil €)</option>
+                        </Select>
+                      )}
+                    </Field>
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="font-semibold text-slate-600">Periodicidade</label>
-                <select
-                  value={vatPeriodicity}
-                  onChange={(e) => setVatPeriodicity(e.target.value)}
-                  disabled={vatRegime === 'isencao_art53'}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium disabled:bg-slate-50 disabled:text-slate-400"
-                >
-                  <option value="quarterly">Trimestral (volume &lt; 650 mil €)</option>
-                  <option value="monthly">Mensal (volume ≥ 650 mil €)</option>
-                </select>
-              </div>
-            </div>
+                  <p className="text-2xs text-neutral-500">
+                    Define como o <Link href="/reports" className="text-emerald-700 font-semibold hover:underline">apuramento do IVA</Link> é
+                    calculado e os prazos de entrega. Na isenção do art.º 53.º não se liquida nem deduz IVA.
+                  </p>
+                </div>
 
-            <p className="text-[10px] text-slate-400">
-              Define como o <Link href="/reports" className="text-indigo-600 font-semibold hover:underline">apuramento do IVA</Link> é
-              calculado e os prazos de entrega. Na isenção do art.º 53.º não se liquida nem deduz IVA.
-            </p>
-          </div>
+                <div className="flex items-start gap-2 p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-700">
+                  <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
+                  <span>
+                    Todos os dados desta empresa estão isolados por <span className="font-mono font-bold">company_id</span>,
+                    garantido no servidor a partir da sua sessão autenticada.
+                  </span>
+                </div>
+              </CardBody>
+            </Card>
+          )}
 
-          <div className="flex items-start gap-2 p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 text-[11px] text-indigo-800">
-            <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-indigo-600" />
-            <span>
-              Todos os dados desta empresa estão isolados por <span className="font-mono font-bold">company_id</span>,
-              garantido no servidor a partir da sua sessão autenticada.
-            </span>
-          </div>
-        </div>
-      )}
+          {/* TAB: Categorias */}
+          {activeTab === 'categories' && <ChartOfAccounts />}
 
-      {/* TAB: Inteligência Artificial */}
-      {/* TAB: Categorias */}
-      {activeTab === 'categories' && <ChartOfAccounts />}
+          {/* TAB: Inteligência Artificial */}
+          {activeTab === 'ai' && (
+            <div className="space-y-5">
+              <Card className="max-w-2xl">
+                <CardHeader icon={<Sparkles />} title="Preferências & Automação do Motor IA" />
+                <CardBody className="space-y-4 text-xs">
+                  <div className="flex items-center justify-between gap-3 p-3.5 bg-neutral-50 rounded-xl border border-neutral-200">
+                    <div>
+                      <span id="auto-classify-label" className="font-bold text-neutral-800 block">Classificação Automática por IA</span>
+                      <span className="text-neutral-500 text-xs">Processar faturas assim que dão entrada na Automação (OCR)</span>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={settings.autoClassify}
+                      aria-labelledby="auto-classify-label"
+                      onClick={() => patch({ autoClassify: !settings.autoClassify })}
+                      className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 ${settings.autoClassify ? 'bg-emerald-600' : 'bg-neutral-300'}`}
+                    >
+                      <div className={`w-5 h-5 bg-white rounded-full transition-transform ${settings.autoClassify ? 'translate-x-6' : ''}`} />
+                    </button>
+                  </div>
 
-      {activeTab === 'ai' && (
-        <div className="space-y-5">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4 max-w-2xl text-xs">
-            <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
-              Preferências &amp; Automação do Motor IA
-            </h3>
+                  <Field label="Nível de Aprovação Exigido">
+                    {(p) => (
+                      <Select
+                        {...p}
+                        value={settings.approvalLevel}
+                        onChange={(e) => patch({ approvalLevel: e.target.value })}
+                      >
+                        <option value="always_confirm">Confirmar Sempre (Recomendado para início)</option>
+                        <option value="auto_high">Auto-aprovar se Confiança &gt; 90%</option>
+                        <option value="fully_autonomous">Modo 100% Autónomo</option>
+                      </Select>
+                    )}
+                  </Field>
 
-            <div className="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-              <div>
-                <span className="font-bold text-slate-800 block">Classificação Automática por IA</span>
-                <span className="text-slate-500 text-[11px]">Processar faturas assim que dão entrada na Automação (OCR)</span>
-              </div>
-              <button
-                role="switch"
-                aria-checked={settings.autoClassify}
-                onClick={() => patch({ autoClassify: !settings.autoClassify })}
-                className={`w-12 h-6 rounded-full transition-colors relative p-0.5 shrink-0 ${settings.autoClassify ? 'bg-indigo-600' : 'bg-slate-300'}`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${settings.autoClassify ? 'translate-x-6' : ''}`} />
-              </button>
-            </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between font-semibold text-neutral-700">
+                      <label htmlFor="confidence-threshold">Threshold Mínimo de Confiança</label>
+                      <span className="text-emerald-700 font-bold tabular-nums">{settings.confidenceThreshold}%</span>
+                    </div>
+                    <input
+                      id="confidence-threshold"
+                      type="range"
+                      min="60"
+                      max="98"
+                      value={settings.confidenceThreshold}
+                      onChange={(e) => patch({ confidenceThreshold: Number(e.target.value) })}
+                      className="w-full accent-emerald-600"
+                    />
+                    <p className="text-2xs text-neutral-500">
+                      Faturas com confiança abaixo deste valor exigem revisão manual em Aprovações.
+                      {' '}Estas preferências ficam guardadas apenas neste navegador.
+                    </p>
+                  </div>
+                </CardBody>
+              </Card>
 
-            <div className="space-y-1.5">
-              <label className="font-semibold text-slate-600">Nível de Aprovação Exigido</label>
-              <select
-                value={settings.approvalLevel}
-                onChange={(e) => patch({ approvalLevel: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
-              >
-                <option value="always_confirm">Confirmar Sempre (Recomendado para início)</option>
-                <option value="auto_high">Auto-aprovar se Confiança &gt; 90%</option>
-                <option value="fully_autonomous">Modo 100% Autónomo</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between font-semibold text-slate-700">
-                <span>Threshold Mínimo de Confiança</span>
-                <span className="text-indigo-600 font-bold">{settings.confidenceThreshold}%</span>
-              </div>
-              <input
-                type="range"
-                min="60"
-                max="98"
-                value={settings.confidenceThreshold}
-                onChange={(e) => patch({ confidenceThreshold: Number(e.target.value) })}
-                className="w-full accent-indigo-600"
-              />
-              <p className="text-[10px] text-slate-400">
-                Faturas com confiança abaixo deste valor exigem revisão manual em Aprovações.
-                {' '}Estas preferências ficam guardadas apenas neste navegador.
-              </p>
-            </div>
-          </div>
-
-          {/* AI Learned Rules Table */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4 text-xs">
-            <h3 className="font-bold text-sm text-slate-900">Regras Aprendidas pela IA ({aiRules.length})</h3>
-
-            {aiRules.length === 0 ? (
-              <p className="text-slate-400 py-6 text-center">Ainda não existem regras aprendidas.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[520px]">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
-                      <th className="p-3">Fornecedor</th>
-                      <th className="p-3">Categoria Associada</th>
-                      <th className="p-3">Nível Confiança</th>
-                      <th className="p-3">Vezes Utilizada</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {aiRules.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-50 font-medium">
-                        <td className="p-3 font-bold text-slate-900">{r.supplier_name}</td>
-                        <td className="p-3 text-indigo-700 font-semibold">{r.category_name}</td>
-                        <td className="p-3 font-mono text-emerald-600 font-bold">{r.confidence}%</td>
-                        <td className="p-3 font-mono text-slate-600">{r.uses_count} vezes</td>
+              {/* AI Learned Rules Table */}
+              <Card className="overflow-hidden">
+                <CardHeader title={`Regras Aprendidas pela IA (${aiRules.length})`} />
+                {aiRules.length === 0 ? (
+                  <EmptyState title="Ainda não existem regras aprendidas." />
+                ) : (
+                  <Table className="min-w-[520px]">
+                    <THead>
+                      <tr>
+                        <Th>Fornecedor</Th>
+                        <Th>Categoria Associada</Th>
+                        <Th numeric>Nível Confiança</Th>
+                        <Th numeric>Vezes Utilizada</Th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* TAB: Perfil */}
-      {activeTab === 'profile' && (
-        <div className="space-y-5 max-w-xl">
-          {/* Alterar a palavra-passe exige saber a atual — ver ChangePassword. */}
-          <ChangePassword />
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5 text-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                {initials}
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-bold text-sm text-slate-900">{displayName}</h3>
-                  <BadgeCheck className="w-4 h-4 text-indigo-500" />
-                </div>
-                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 font-bold rounded text-[10px] uppercase">
-                  {userRole}
-                </span>
-              </div>
+                    </THead>
+                    <TBody>
+                      {aiRules.map((r) => (
+                        <Tr key={r.id}>
+                          <Td className="font-bold text-neutral-900">{r.supplier_name}</Td>
+                          <Td className="text-neutral-700 font-semibold">{r.category_name}</Td>
+                          <Td numeric className="text-emerald-700 font-bold">{r.confidence}%</Td>
+                          <Td numeric className="text-neutral-600">{r.uses_count} vezes</Td>
+                        </Tr>
+                      ))}
+                    </TBody>
+                  </Table>
+                )}
+              </Card>
             </div>
+          )}
 
-            <div className="space-y-1.5">
-              <label className="font-semibold text-slate-600">Nome Completo</label>
-              <input
-                type="text"
-                value={displayName}
-                readOnly
-                aria-label="Nome completo"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 focus:outline-none"
-              />
-            </div>
+          {/* TAB: Perfil */}
+          {activeTab === 'profile' && (
+            <div className="space-y-5 max-w-xl">
+              {/* Alterar a palavra-passe exige saber a atual — ver ChangePassword. */}
+              <ChangePassword />
 
-            <div className="space-y-1.5">
-              <label className="font-semibold text-slate-600 flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5 text-slate-400" /> Email
-              </label>
-              <input
-                type="email"
-                value={displayEmail}
-                readOnly
-                aria-label="Email"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 focus:outline-none"
-              />
-              {/* Os campos são só de leitura: não há forma de os gravar, e um
-                campo editável que não grava faz crer que gravou. */}
-            <p className="text-[10px] text-slate-400">Para mudar o nome ou o email da conta, contacte o administrador.</p>
-          </div>
-          </div>
-
-          {/* Session / danger zone */}
-          <div className="bg-white rounded-2xl border border-rose-200/70 shadow-xs p-6 text-xs">
-            <h3 className="font-bold text-sm text-slate-900 mb-1">Sessão</h3>
-            <p className="text-slate-500 mb-4">Termine a sessão neste dispositivo. Terá de iniciar sessão novamente.</p>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2.5 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs flex items-center gap-2 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Terminar Sessão
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* TAB: Utilizadores & Roles */}
-      {activeTab === 'users' && (
-        <div className="space-y-5">
-          <TeamPanel />
-          {/* Levar os dados embora é administração da empresa, não uma opção
-              de perfil: fica ao lado de quem tem acesso a eles. */}
-          <DataExport />
-        </div>
-      )}
-
-      {/* TAB: Auditoria & Logs */}
-      {activeTab === 'audit' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-6">
-          <div className="flex items-center gap-2">
-            <History className="w-4 h-4 text-indigo-600" />
-            <h3 className="font-bold text-sm text-slate-900">Auditoria &amp; Activity Log</h3>
-          </div>
-          <p className="text-xs text-slate-500 -mt-4">Histórico cronológico de todas as ações executadas por utilizadores e pelo motor autónomo de IA</p>
-
-          <div className="relative border-l-2 border-slate-200 pl-6 space-y-6">
-            {auditLogs.map((item) => {
-              const isAiAction = item.user.includes('AI') || item.user.includes('Engine');
-              return (
-                <div key={item.id} className="relative group">
-                  {/* Bullet node */}
-                  <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center ${
-                    isAiAction ? 'bg-indigo-600' : 'bg-slate-800'
-                  }`}>
-                    {isAiAction ? <Sparkles className="w-2.5 h-2.5 text-white" /> : <User className="w-2.5 h-2.5 text-white" />}
-                  </div>
-
-                  <div className="p-4 bg-slate-50 hover:bg-slate-100/80 transition-colors rounded-xl border border-slate-200/70 space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">{item.user}</span>
-                        <span className="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded">
-                          {item.action}
-                        </span>
+              <Card>
+                <CardBody className="space-y-5 text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center font-bold text-lg">
+                      {initials}
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-bold text-sm text-neutral-900">{displayName}</h3>
+                        <BadgeCheck className="w-4 h-4 text-emerald-600" aria-hidden="true" />
                       </div>
-                      <span className="text-[11px] text-slate-400 font-mono">{item.timestamp}</span>
-                    </div>
-
-                    <p className="text-slate-700 font-medium">{item.description}</p>
-                    
-                    <div className="pt-1 text-[10px] text-slate-400 font-mono">
-                      Módulo: {item.module} {item.entity_id && `• Entity ID: ${item.entity_id}`}
+                      <Badge tone="success" className="uppercase">{userRole}</Badge>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+
+                  <Field label="Nome Completo">
+                    {(p) => <Input {...p} type="text" value={displayName} readOnly className="bg-neutral-50 text-neutral-600" />}
+                  </Field>
+
+                  {/* Os campos são só de leitura: não há forma de os gravar, e um
+                    campo editável que não grava faz crer que gravou. */}
+                  <Field label="Email" hint="Para mudar o nome ou o email da conta, contacte o administrador.">
+                    {(p) => <Input {...p} type="email" value={displayEmail} readOnly className="bg-neutral-50 text-neutral-600" />}
+                  </Field>
+                </CardBody>
+              </Card>
+
+              {/* Session / danger zone */}
+              <Card className="border-rose-200/70">
+                <CardBody className="text-xs">
+                  <h3 className="font-bold text-sm text-neutral-900 mb-1">Sessão</h3>
+                  <p className="text-neutral-500 mb-4">Termine a sessão neste dispositivo. Terá de iniciar sessão novamente.</p>
+                  <Button variant="danger" onClick={handleLogout} icon={<LogOut />}>
+                    Terminar Sessão
+                  </Button>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+
+          {/* TAB: Utilizadores & Roles */}
+          {activeTab === 'users' && (
+            <div className="space-y-5">
+              <TeamPanel />
+              {/* Levar os dados embora é administração da empresa, não uma opção
+                  de perfil: fica ao lado de quem tem acesso a eles. */}
+              <DataExport />
+            </div>
+          )}
+
+          {/* TAB: Auditoria & Logs */}
+          {activeTab === 'audit' && (
+            <Card>
+              <CardHeader
+                icon={<History />}
+                title="Auditoria & Activity Log"
+                subtitle="Histórico cronológico de todas as ações executadas por utilizadores e pelo motor autónomo de IA"
+              />
+              <CardBody>
+                {auditLogs.length === 0 ? (
+                  <EmptyState title="Ainda não há registos de auditoria." />
+                ) : (
+                  <div className="relative border-l-2 border-neutral-200 pl-6 space-y-6">
+                    {auditLogs.map((item) => {
+                      const isAiAction = item.user.includes('AI') || item.user.includes('Engine');
+                      return (
+                        <div key={item.id} className="relative group">
+                          {/* Bullet node */}
+                          <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center ${
+                            isAiAction ? 'bg-emerald-600' : 'bg-neutral-800'
+                          }`}>
+                            {isAiAction ? <Sparkles className="w-2.5 h-2.5 text-white" /> : <User className="w-2.5 h-2.5 text-white" />}
+                          </div>
+
+                          <div className="p-4 bg-neutral-50 hover:bg-neutral-100/80 transition-colors rounded-xl border border-neutral-200/70 space-y-1 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-neutral-900">{item.user}</span>
+                                <Badge>{item.action}</Badge>
+                              </div>
+                              <span className="text-2xs text-neutral-500 font-mono">{item.timestamp}</span>
+                            </div>
+
+                            <p className="text-neutral-700 font-medium">{item.description}</p>
+
+                            <div className="pt-1 text-2xs text-neutral-500 font-mono">
+                              Módulo: {item.module} {item.entity_id && `• Entity ID: ${item.entity_id}`}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          )}
         </div>
       </div>
     </div>

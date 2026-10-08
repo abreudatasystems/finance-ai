@@ -30,6 +30,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core import fmt
 from app.models.models import Company, Recurrence, Transaction
 from app.services import (
     collections, financials, recurrences as recurrence_service,
@@ -316,17 +317,17 @@ def _message(negative_from: Optional[str], low: dict, opening: Decimal,
     if negative_from:
         base = (
             f"Com o que está previsto, a conta fica negativa a partir de "
-            f"{negative_from} (mínimo de {low['balance']:,.2f} €)."
+            f"{fmt.data(negative_from)} (mínimo de {fmt.eur(low['balance'])})."
         )
         if overdue_in > 0:
             base += (
-                f" Há {float(overdue_in):,.2f} € de faturas já vencidas por cobrar — "
+                f" Há {fmt.eur(overdue_in)} de faturas já vencidas por cobrar — "
                 "é o caminho mais curto para evitar isso."
             )
         return base
     if _d(low["balance"]) < opening / 4 and opening > 0:
         return (
-            f"A conta aguenta, mas desce até {low['balance']:,.2f} € por volta de "
-            f"{low['date']}. Convém não marcar despesas novas para essa altura."
+            f"A conta aguenta, mas desce até {fmt.eur(low['balance'])} por volta de "
+            f"{fmt.data(low['date'])}. Convém não marcar despesas novas para essa altura."
         )
-    return f"Sem apertos à vista: o saldo previsto no fim do período é {float(closing):,.2f} €."
+    return f"Sem apertos à vista: o saldo previsto no fim do período é {fmt.eur(closing)}."

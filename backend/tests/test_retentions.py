@@ -191,7 +191,7 @@ def test_the_delivery_is_due_on_the_twentieth_of_the_next_month(tenant):
 
     assert position["entrega"]["ate"] == "2026-10-20"
     assert position["entrega"]["em_atraso"] is False
-    assert "a entregar ao Estado até 2026-10-20" in position["mensagem"]
+    assert "a entregar ao Estado até 20/10/2026" in position["mensagem"]
 
 
 def test_a_missed_delivery_is_flagged_as_late(tenant):
@@ -199,7 +199,7 @@ def test_a_missed_delivery_is_flagged_as_late(tenant):
     position = tenant.get("/api/v1/retentions/position?period=2026-07&today=2026-09-01").json()
 
     assert position["entrega"]["em_atraso"] is True
-    assert "o prazo era 2026-08-20" in position["mensagem"]
+    assert "o prazo era 20/08/2026" in position["mensagem"]
 
 
 def test_the_position_groups_by_rate_the_way_it_is_declared(tenant):

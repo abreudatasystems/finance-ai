@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core import fmt
 from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.db.session import get_db
 from app.models.models import Installment, Payment, Transaction, User, AuditLog
@@ -347,12 +348,12 @@ def create_payment(
     if amount > outstanding:
         raise HTTPException(
             status_code=400,
-            detail=f"O valor excede o que está em aberto ({outstanding}). Registe no máximo esse montante.",
+            detail=f"O valor excede o que está em aberto ({fmt.eur(outstanding)}). Registe no máximo esse montante.",
         )
     if installment and amount > inst_outstanding:
         raise HTTPException(
             status_code=400,
-            detail=f"O valor excede o que falta nesta parcela ({inst_outstanding}).",
+            detail=f"O valor excede o que falta nesta parcela ({fmt.eur(inst_outstanding)}).",
         )
 
     now = datetime.now(timezone.utc)
@@ -384,9 +385,9 @@ def create_payment(
         action=f"{kind} registado",
         module="Liquidação",
         description=(
-            f"{kind} de {amount} em {payment.payment_date} para {trx.entity_name}"
+            f"{kind} de {fmt.eur(amount)} em {fmt.data(payment.payment_date)} para {trx.entity_name}"
             + (f" (parcela {installment.number}/{installment.total_count})" if installment else "")
-            + f" — em aberto: {trx.outstanding_amount}"
+            + f" — em aberto: {fmt.eur(trx.outstanding_amount)}"
         ),
         entity_id=trx_id,
     ))
@@ -438,7 +439,7 @@ def delete_payment(
         user=current_user.name,
         action="Liquidação anulada",
         module="Liquidação",
-        description=f"Anulou movimento de {amount} em {trx.entity_name} — em aberto: {trx.outstanding_amount}",
+        description=f"Anulou movimento de {fmt.eur(amount)} em {trx.entity_name} — em aberto: {fmt.eur(trx.outstanding_amount)}",
         entity_id=trx_id,
     ))
     db.commit()

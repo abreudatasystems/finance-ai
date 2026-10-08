@@ -183,7 +183,7 @@ def _message(essential_missing: list, missing: list) -> str:
         first = essential_missing[0]
         return (
             f"Faltam {len(essential_missing)} passo(s) essencial(is) — comece por "
-            f"«{first['titulo'].lower()}». Até lá, os valores de caixa e de IVA "
+            f"«{first['titulo'][:1].lower() + first['titulo'][1:]}». Até lá, os valores de caixa e de IVA "
             "ainda não refletem a realidade da empresa."
         )
     return (

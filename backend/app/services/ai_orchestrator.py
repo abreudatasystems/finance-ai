@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core import fmt
 from app.core.clock import utcnow
 from typing import Optional
 
@@ -76,9 +77,9 @@ async def process_ai_intent_and_action(
 
         if rows:
             grand_total = sum(_to_float(r.total) for r in rows)
-            lines = [f"**Total: {cs}{grand_total:,.2f}** ({sum(r.count for r in rows)} movimentos)\n"]
+            lines = [f"**Total: {fmt.eur(grand_total, cs)}** ({sum(r.count for r in rows)} movimentos)\n"]
             for r in rows[:5]:
-                lines.append(f"• {r.entity_name} ({r.category_name}): {cs}{_to_float(r.total):,.2f}")
+                lines.append(f"• {r.entity_name} ({r.category_name}): {fmt.eur(_to_float(r.total), cs)}")
 
             title = f"Despesas com '{search_term}'" if search_term else "Despesas do Mês"
             return AIChatResponse(
@@ -140,8 +141,8 @@ async def process_ai_intent_and_action(
                 text=f"Encontrei {len(pending)} fatura(s) pendente(s):\n\n"
                      f"• **Fornecedor**: {trx.entity_name}\n"
                      f"• **Descrição**: {trx.description}\n"
-                     f"• **Valor em aberto**: **{cs}{amount:,.2f}**\n"
-                     f"• **Vencimento**: {trx.due_date or 'N/A'}",
+                     f"• **Valor em aberto**: **{fmt.eur(amount, cs)}**\n"
+                     f"• **Vencimento**: {fmt.data(trx.due_date)}",
                 type="action",
                 timestamp=timestamp,
                 actionCard={
@@ -196,7 +197,7 @@ async def process_ai_intent_and_action(
         return AIChatResponse(
             id=f"msg-{int(utcnow().timestamp())}",
             sender="ai",
-            text=f"A preparar a cobrança de {cs}{amount:,.2f} ao cliente {entity or 'N/D'}. Confirme os detalhes.",
+            text=f"A preparar a cobrança de {fmt.eur(amount, cs)} ao cliente {entity or 'N/D'}. Confirme os detalhes.",
             type="action",
             timestamp=timestamp,
             actionCard={
@@ -243,9 +244,9 @@ async def process_ai_intent_and_action(
             id=f"msg-{int(utcnow().timestamp())}",
             sender="ai",
             text=f"Para os **próximos 30 dias**, a previsão é:\n\n"
-                 f"• **A Receber**: {cs}{_to_float(upcoming_receivables):,.2f}\n"
-                 f"• **A Pagar**: {cs}{_to_float(upcoming_payables):,.2f}\n\n"
-                 f"**Saldo Previsto do Período**: {cs}{net_future:,.2f}",
+                 f"• **A Receber**: {fmt.eur(_to_float(upcoming_receivables), cs)}\n"
+                 f"• **A Pagar**: {fmt.eur(_to_float(upcoming_payables), cs)}\n\n"
+                 f"**Saldo Previsto do Período**: {fmt.eur(net_future, cs)}",
             type="analysis",
             timestamp=timestamp,
             actions=[
@@ -337,10 +338,10 @@ async def process_ai_intent_and_action(
             id=f"msg-{int(utcnow().timestamp())}",
             sender="ai",
             text=f"**Resumo Financeiro** (dados em tempo real):\n\n"
-                 f"• **Saldo total**: {cs}{total_balance:,.2f}\n"
-                 f"• **Receitas do mês**: {cs}{income:,.2f}\n"
-                 f"• **Despesas do mês**: {cs}{expense:,.2f}\n"
-                 f"• **Resultado do mês**: {cs}{balance:,.2f}\n"
+                 f"• **Saldo total**: {fmt.eur(total_balance, cs)}\n"
+                 f"• **Receitas do mês**: {fmt.eur(income, cs)}\n"
+                 f"• **Despesas do mês**: {fmt.eur(expense, cs)}\n"
+                 f"• **Resultado do mês**: {fmt.eur(balance, cs)}\n"
                  f"• **Faturas pendentes**: {pending_count}",
             type="analysis",
             timestamp=timestamp,
@@ -364,7 +365,7 @@ async def process_ai_intent_and_action(
             return AIChatResponse(
                 id=f"msg-{int(utcnow().timestamp())}",
                 sender="ai",
-                text=f"A empresa tem **{count} clientes** registados com receita total de **{cs}{_to_float(total_rev):,.2f}**.",
+                text=f"A empresa tem **{count} clientes** registados com receita total de **{fmt.eur(_to_float(total_rev), cs)}**.",
                 type="analysis",
                 timestamp=timestamp,
                 actions=[AIChatAction(label="Ver clientes", action="open_customers")],
@@ -381,7 +382,7 @@ async def process_ai_intent_and_action(
             return AIChatResponse(
                 id=f"msg-{int(utcnow().timestamp())}",
                 sender="ai",
-                text=f"A empresa tem **{count} fornecedores** registados com despesa total de **{cs}{_to_float(total_spent):,.2f}**.",
+                text=f"A empresa tem **{count} fornecedores** registados com despesa total de **{fmt.eur(_to_float(total_spent), cs)}**.",
                 type="analysis",
                 timestamp=timestamp,
                 actions=[AIChatAction(label="Ver fornecedores", action="open_suppliers")],

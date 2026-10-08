@@ -17,6 +17,11 @@ import {
   Building2,
   RefreshCcw
 } from 'lucide-react';
+import {
+  Button, Card, CardHeader, EmptyState,
+  Table, THead, TBody, Th, Tr, Td,
+} from '@/components/ui';
+import { formatDate } from '@/lib/format';
 
 interface Statement {
   id: string;
@@ -59,7 +64,7 @@ interface UploadResult {
 }
 
 export default function BankReconciliationPage() {
-  const { formatMoney } = useApp();
+  const { formatMoney, setPageHeader } = useApp();
   const [statements, setStatements] = useState<Statement[]>([]);
   const [selectedStatement, setSelectedStatement] = useState<Statement | null>(null);
   const [entries, setEntries] = useState<StatementEntry[]>([]);
@@ -70,6 +75,10 @@ export default function BankReconciliationPage() {
   // Muda a cada importação ou actualização: o painel de conciliação monta-se
   // de novo e lê os movimentos novos, em vez de só aparecerem com F5.
   const [panelVersion, setPanelVersion] = useState(0);
+
+  useEffect(() => {
+    setPageHeader('Conciliação Bancária', 'Importe extratos e associe cada movimento do banco ao documento que liquida.');
+  }, [setPageHeader]);
 
   const loadStatements = async () => {
     const data = await fetchBankStatements<Statement>();
@@ -85,7 +94,6 @@ export default function BankReconciliationPage() {
     setIsSyncing(false);
   };
 
-   
   useEffect(() => { loadStatements(); }, []);
 
   const loadEntries = async (stmt: Statement) => {
@@ -136,9 +144,9 @@ export default function BankReconciliationPage() {
 
   const statusIcon = (status: string) => {
     switch (status) {
-      case 'matched': return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
-      case 'suggested': return <Zap className="w-4 h-4 text-amber-500" />;
-      default: return <XCircle className="w-4 h-4 text-slate-400" />;
+      case 'matched': return <CheckCircle2 className="w-4 h-4 text-emerald-500" aria-hidden="true" />;
+      case 'suggested': return <Zap className="w-4 h-4 text-amber-500" aria-hidden="true" />;
+      default: return <XCircle className="w-4 h-4 text-neutral-400" aria-hidden="true" />;
     }
   };
 
@@ -156,19 +164,16 @@ export default function BankReconciliationPage() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      
-      {/* Header Actions (Header moved to TopBar) */}
+
       <div className="flex justify-end gap-4 pb-3">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-900/20 flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCcw className={`w-4 h-4 text-white ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>Atualizar</span>
-          </button>
-        </div>
+        <Button
+          variant="secondary"
+          onClick={handleSync}
+          disabled={isSyncing}
+          icon={<RefreshCcw className={isSyncing ? 'animate-spin' : ''} />}
+        >
+          Atualizar
+        </Button>
       </div>
 
       {/* The working surface: match a bank line and the obligation behind it
@@ -182,32 +187,32 @@ export default function BankReconciliationPage() {
         onDrop={handleDrop}
         className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all ${
           isDragOver
-            ? 'border-indigo-400 bg-indigo-50/60 scale-[1.01]'
-            : 'border-slate-300 bg-white hover:border-indigo-300 hover:bg-indigo-50/30'
+            ? 'border-emerald-400 bg-emerald-50/60 scale-[1.01]'
+            : 'border-neutral-300 bg-white hover:border-neutral-400 hover:bg-neutral-50'
         }`}
       >
         {isUploading ? (
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-            <p className="text-sm font-semibold text-indigo-700">A processar extrato bancário...</p>
-            <p className="text-xs text-slate-500">A IA está a analisar e conciliar os movimentos.</p>
+          <div role="status" className="flex flex-col items-center gap-3">
+            <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" aria-hidden="true" />
+            <p className="text-sm font-semibold text-neutral-800">A processar extrato bancário...</p>
+            <p className="text-xs text-neutral-500">A IA está a analisar e conciliar os movimentos.</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center">
-              <Upload className="w-7 h-7 text-indigo-600" />
+            <div className="w-14 h-14 rounded-2xl bg-neutral-100 flex items-center justify-center">
+              <Upload className="w-7 h-7 text-neutral-700" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-bold text-slate-800">
+              <p className="text-sm font-bold text-neutral-800">
                 Arraste o seu extrato bancário aqui
               </p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-neutral-500 mt-1">
                 Formatos aceites: CSV, OFX, QFX • Millennium BCP, CGD, Santander, Novo Banco, BPI, etc.
               </p>
             </div>
-            <label className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer transition-colors shadow-sm">
+            <label className="mt-2 inline-flex items-center justify-center h-9 px-4 rounded-lg bg-black hover:bg-neutral-800 text-white text-sm font-semibold cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-emerald-500 focus-within:ring-offset-1">
               Selecionar Ficheiro
-              <input type="file" accept=".csv,.ofx,.qfx,.txt,.tsv" onChange={handleFileSelect} className="hidden" />
+              <input type="file" accept=".csv,.ofx,.qfx,.txt,.tsv" onChange={handleFileSelect} className="sr-only" />
             </label>
           </div>
         )}
@@ -215,19 +220,22 @@ export default function BankReconciliationPage() {
 
       {/* Upload Result */}
       {uploadResult && (
-        <div className={`p-4 rounded-2xl border text-sm font-medium ${
-          uploadResult.error
-            ? 'bg-rose-50 border-rose-200 text-rose-700'
-            : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-        }`}>
+        <div
+          role={uploadResult.error ? 'alert' : 'status'}
+          className={`p-4 rounded-2xl border text-sm font-medium ${
+            uploadResult.error
+              ? 'bg-rose-50 border-rose-200 text-rose-700'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+          }`}
+        >
           {uploadResult.error ? (
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
+              <AlertTriangle className="w-4 h-4" aria-hidden="true" />
               <span>{uploadResult.error}</span>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
               <span>
                 <strong>{uploadResult.bank_name}</strong> — {uploadResult.total_entries} movimentos importados, {uploadResult.suggested_entries ?? 0} com correspondência sugerida para rever.
               </span>
@@ -238,9 +246,9 @@ export default function BankReconciliationPage() {
 
       {/* Statements List */}
       {statements.length > 0 && (
-        <div className="p-6 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <h3 className="font-bold text-sm text-slate-900">Extratos Importados</h3>
-          <div className="divide-y divide-slate-100">
+        <Card>
+          <CardHeader title="Extratos Importados" icon={<FileSpreadsheet />} />
+          <div className="divide-y divide-neutral-100 p-2">
             {statements.map(stmt => (
               <div
                 key={stmt.id}
@@ -248,139 +256,132 @@ export default function BankReconciliationPage() {
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); loadEntries(stmt); } }}
-                className={`flex items-center justify-between p-3 hover:bg-slate-50 cursor-pointer rounded-xl transition-colors ${
-                  selectedStatement?.id === stmt.id ? 'bg-indigo-50 border border-indigo-200' : ''
+                className={`flex items-center justify-between p-3 hover:bg-neutral-50 cursor-pointer rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                  selectedStatement?.id === stmt.id ? 'bg-emerald-50 border border-emerald-200' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
-                    <Building2 className="w-4 h-4 text-slate-600" />
+                  <div className="w-9 h-9 rounded-lg bg-neutral-100 flex items-center justify-center">
+                    <Building2 className="w-4 h-4 text-neutral-600" aria-hidden="true" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-800">{stmt.bank_name}</p>
-                    <p className="text-[11px] text-slate-500">{stmt.file_name} • {stmt.period_start} a {stmt.period_end}</p>
+                    <p className="text-xs font-bold text-neutral-800">{stmt.bank_name}</p>
+                    <p className="text-2xs text-neutral-500">{stmt.file_name} • {formatDate(stmt.period_start)} a {formatDate(stmt.period_end)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-xs">
                   <div className="text-right">
-                    <span className="font-bold text-slate-700">{stmt.matched_entries}/{stmt.total_entries}</span>
-                    <span className="text-slate-400 ml-1">conciliados</span>
+                    <span className="font-bold text-neutral-700 tabular-nums">{stmt.matched_entries}/{stmt.total_entries}</span>
+                    <span className="text-neutral-400 ml-1">conciliados</span>
                   </div>
                   <div className={`w-2 h-2 rounded-full ${
                     stmt.matched_entries === stmt.total_entries ? 'bg-emerald-500' :
-                    stmt.matched_entries > 0 ? 'bg-amber-500' : 'bg-slate-300'
-                  }`} />
-                  <ArrowRight className="w-4 h-4 text-slate-400" />
+                    stmt.matched_entries > 0 ? 'bg-amber-500' : 'bg-neutral-300'
+                  }`} aria-hidden="true" />
+                  <ArrowRight className="w-4 h-4 text-neutral-400" aria-hidden="true" />
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Entries Detail */}
       {selectedStatement && entries.length > 0 && (
-        <div className="p-6 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">
-                Movimentos — {selectedStatement.bank_name}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {selectedStatement.file_name}
-              </p>
-            </div>
-            <div className="flex items-center gap-3 text-xs font-semibold">
-              <span className="flex items-center gap-1 text-emerald-600">
-                <CheckCircle2 className="w-3.5 h-3.5" /> {matchedCount}
-              </span>
-              <span className="flex items-center gap-1 text-amber-600">
-                <Zap className="w-3.5 h-3.5" /> {suggestedCount}
-              </span>
-              <span className="flex items-center gap-1 text-slate-400">
-                <XCircle className="w-3.5 h-3.5" /> {unmatchedCount}
-              </span>
-            </div>
-          </div>
+        <Card className="overflow-hidden">
+          <CardHeader
+            title={`Movimentos — ${selectedStatement.bank_name}`}
+            subtitle={selectedStatement.file_name}
+            actions={
+              <div className="flex items-center gap-3 text-xs font-semibold">
+                <span className="flex items-center gap-1 text-emerald-600" title="Conciliados">
+                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" /> {matchedCount}
+                </span>
+                <span className="flex items-center gap-1 text-amber-600" title="Sugeridos">
+                  <Zap className="w-3.5 h-3.5" aria-hidden="true" /> {suggestedCount}
+                </span>
+                <span className="flex items-center gap-1 text-neutral-400" title="Sem correspondência">
+                  <XCircle className="w-3.5 h-3.5" aria-hidden="true" /> {unmatchedCount}
+                </span>
+              </div>
+            }
+          />
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Data</th>
-                  <th className="p-3">Descrição Bancária</th>
-                  <th className="p-3">Valor</th>
-                  <th className="p-3">Correspondência</th>
-                  <th className="p-3">Confiança</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {entries.map(entry => (
-                  <tr key={entry.id} className="hover:bg-slate-50/80 transition-colors font-medium">
-                    <td className="p-3">
-                      <div className="flex items-center gap-1.5">
-                        {statusIcon(entry.status)}
-                        <span className={`text-[10px] font-bold uppercase ${
-                          entry.status === 'matched' ? 'text-emerald-600' :
-                          entry.status === 'suggested' ? 'text-amber-600' :
-                          'text-slate-400'
-                        }`}>
-                          {statusLabel(entry.status)}
-                        </span>
+          <Table>
+            <THead>
+              <tr>
+                <Th>Estado</Th>
+                <Th>Data</Th>
+                <Th>Descrição Bancária</Th>
+                <Th numeric>Valor</Th>
+                <Th>Correspondência</Th>
+                <Th>Confiança</Th>
+              </tr>
+            </THead>
+            <TBody>
+              {entries.map(entry => (
+                <Tr key={entry.id} className="font-medium">
+                  <Td>
+                    <div className="flex items-center gap-1.5">
+                      {statusIcon(entry.status)}
+                      <span className={`text-2xs font-bold uppercase ${
+                        entry.status === 'matched' ? 'text-emerald-600' :
+                        entry.status === 'suggested' ? 'text-amber-600' :
+                        'text-neutral-500'
+                      }`}>
+                        {statusLabel(entry.status)}
+                      </span>
+                    </div>
+                  </Td>
+                  <Td className="text-neutral-500 whitespace-nowrap tabular-nums">{formatDate(entry.date)}</Td>
+                  <Td className="font-semibold text-neutral-800 max-w-[250px] truncate">{entry.description}</Td>
+                  <Td numeric className={`font-bold ${entry.type === 'credit' ? 'text-emerald-600' : 'text-neutral-900'}`}>
+                    {entry.type === 'credit' ? '+' : '-'}{formatMoney(entry.amount)}
+                  </Td>
+                  <Td>
+                    {entry.matched_transaction ? (
+                      <div className="text-2xs">
+                        <p className="font-semibold text-neutral-700">{entry.matched_transaction.entity_name}</p>
+                        <p className="text-neutral-500">{entry.matched_transaction.category_name}</p>
                       </div>
-                    </td>
-                    <td className="p-3 text-slate-500">{entry.date}</td>
-                    <td className="p-3 font-semibold text-slate-800 max-w-[250px] truncate">{entry.description}</td>
-                    <td className={`p-3 font-bold ${entry.type === 'credit' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                      {entry.type === 'credit' ? '+' : '-'}{formatMoney(entry.amount)}
-                    </td>
-                    <td className="p-3">
-                      {entry.matched_transaction ? (
-                        <div className="text-[11px]">
-                          <p className="font-semibold text-slate-700">{entry.matched_transaction.entity_name}</p>
-                          <p className="text-slate-500">{entry.matched_transaction.category_name}</p>
+                    ) : (
+                      <span className="text-neutral-400 text-2xs">—</span>
+                    )}
+                  </Td>
+                  <Td>
+                    {entry.match_confidence ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-12 bg-neutral-200 rounded-full h-1.5">
+                          <div
+                            className={`h-1.5 rounded-full ${
+                              entry.match_confidence >= 80 ? 'bg-emerald-500' :
+                              entry.match_confidence >= 50 ? 'bg-amber-500' : 'bg-rose-500'
+                            }`}
+                            style={{ width: `${entry.match_confidence}%` }}
+                          />
                         </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px]">—</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      {entry.match_confidence ? (
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-12 bg-slate-200 rounded-full h-1.5">
-                            <div
-                              className={`h-1.5 rounded-full ${
-                                entry.match_confidence >= 80 ? 'bg-emerald-500' :
-                                entry.match_confidence >= 50 ? 'bg-amber-500' : 'bg-rose-500'
-                              }`}
-                              style={{ width: `${entry.match_confidence}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-600">{entry.match_confidence}%</span>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-[11px]">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                        <span className="text-2xs font-bold text-neutral-600 tabular-nums">{entry.match_confidence}%</span>
+                      </div>
+                    ) : (
+                      <span className="text-neutral-400 text-2xs">—</span>
+                    )}
+                  </Td>
+                </Tr>
+              ))}
+            </TBody>
+          </Table>
+        </Card>
       )}
 
       {/* Empty State */}
       {statements.length === 0 && !uploadResult && (
-        <div className="p-10 bg-white rounded-2xl border border-slate-200/80 shadow-xs text-center space-y-3">
-          <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto" />
-          <p className="text-sm font-bold text-slate-700">Nenhum extrato importado</p>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Carregue o extrato do seu banco para começar a conciliação automática.
-            A IA vai comparar os movimentos com as suas transações registadas.
-          </p>
-        </div>
+        <Card>
+          <EmptyState
+            icon={<FileSpreadsheet />}
+            title="Nenhum extrato importado"
+            description="Carregue o extrato do seu banco para começar a conciliação automática. A IA vai comparar os movimentos com as suas transações registadas."
+          />
+        </Card>
       )}
     </div>
   );

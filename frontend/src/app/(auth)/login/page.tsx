@@ -2,12 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Zap } from 'lucide-react';
 import { login } from '@/services/api';
+import { Button, Card, Field, Input } from '@/components/ui';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('joao@techstart.pt');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -29,69 +30,74 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100 flex items-center justify-center p-4 font-sans select-none">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6">
-        
-        {/* Brand */}
+    <div className="min-h-screen bg-neutral-50 text-neutral-900 flex items-center justify-center p-4 font-sans">
+      <div className="w-full max-w-md space-y-4">
+
+        {/* Marca */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-white text-2xl mx-auto shadow-lg shadow-indigo-900/50">
-            ◉
+          <div className="size-11 rounded-xl bg-black flex items-center justify-center mx-auto border border-neutral-800">
+            <Zap className="size-5 fill-emerald-400 text-emerald-400" aria-hidden="true" />
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center justify-center gap-1.5 pt-2">
-            Finance <span className="text-indigo-400">AI</span>
+          <h1 className="text-2xl font-extrabold tracking-tight">
+            Finance <span className="text-emerald-600">AI</span>
           </h1>
-          <p className="text-xs text-slate-400 font-medium">Your AI Finance Team for Business</p>
+          <p className="text-xs text-neutral-500 font-medium">A sua equipa financeira, com inteligência artificial</p>
         </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-4 text-xs">
-          <div className="space-y-1">
-            <label className="font-semibold text-slate-300">Email Empresarial</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-            />
-          </div>
+        <Card className="p-6 space-y-5">
+          <form onSubmit={handleLogin} className="space-y-4">
+            <Field label="Email profissional">
+              {(p) => (
+                <Input
+                  {...p}
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              )}
+            </Field>
 
-          <div className="space-y-1">
-            <div className="flex justify-between">
-              <label className="font-semibold text-slate-300">Palavra-passe</label>
-              <a href="#" className="text-indigo-400 hover:underline text-[11px]">Esqueceu-se?</a>
+            <div className="space-y-1">
+              <Field label="Palavra-passe">
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                )}
+              </Field>
+              {/* Não há reposição por email: quem esquece a palavra-passe pede-a
+                  a quem administra a empresa, que a pode convidar de novo. */}
+              <p className="text-2xs text-neutral-500 text-right">
+                Esqueceu-se da palavra-passe? Fale com o administrador da empresa.
+              </p>
             </div>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-            />
+
+            {error && (
+              <div role="alert" className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 font-medium">
+                {error}
+              </div>
+            )}
+
+            <Button type="submit" loading={loading} className="w-full">
+              Entrar
+              {!loading && <ArrowRight className="text-emerald-400" />}
+            </Button>
+          </form>
+
+          <div className="text-center text-xs text-neutral-500 pt-4 border-t border-neutral-100">
+            Ainda não tem conta?{' '}
+            <Link href="/register" className="text-emerald-700 font-bold hover:underline">
+              Criar conta de teste &rarr;
+            </Link>
           </div>
-
-          {error && (
-            <div className="text-[11px] text-rose-300 bg-rose-950/40 border border-rose-900/60 rounded-lg px-3 py-2 font-medium">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-indigo-900/40 flex items-center justify-center gap-2 active:scale-98 disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Entrar na Plataforma</span>}
-            {!loading && <ArrowRight className="w-4 h-4" />}
-          </button>
-        </form>
-
-        <div className="text-center text-xs text-slate-400 pt-2 border-t border-slate-800">
-          Ainda não tem conta?{' '}
-          <Link href="/register" className="text-indigo-400 font-bold hover:underline">
-            Criar conta de teste &rarr;
-          </Link>
-        </div>
+        </Card>
 
       </div>
     </div>

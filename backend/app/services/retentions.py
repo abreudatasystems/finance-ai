@@ -32,6 +32,7 @@ from typing import Iterable, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core import fmt
 from app.catalog import retentions as catalog
 from app.models.models import Entity, Transaction
 
@@ -99,8 +100,8 @@ def apply_to(trx: Transaction, code: Optional[str] = None,
         raise HTTPException(
             status_code=400,
             detail=(
-                f"A retenção ({float(withheld):,.2f} €) é superior ao total do "
-                f"documento ({float(gross):,.2f} €). Verifique a base e a taxa."
+                f"A retenção ({fmt.eur(withheld)}) é superior ao total do "
+                f"documento ({fmt.eur(gross)}). Verifique a base e a taxa."
             ),
         )
 
@@ -299,16 +300,16 @@ def _message(owed: Decimal, credit: Decimal, due_on: str, today: date) -> str:
     if owed > 0:
         if due_on < today.isoformat():
             parts.append(
-                f"Há {float(owed):,.2f} € de retenções por entregar ao Estado e o "
-                f"prazo era {due_on}."
+                f"Há {fmt.eur(owed)} de retenções por entregar ao Estado e o "
+                f"prazo era {fmt.data(due_on)}."
             )
         else:
             parts.append(
-                f"Há {float(owed):,.2f} € de retenções a entregar ao Estado até {due_on}."
+                f"Há {fmt.eur(owed)} de retenções a entregar ao Estado até {fmt.data(due_on)}."
             )
     if credit > 0:
         parts.append(
-            f"Os clientes retiveram {float(credit):,.2f} € — é crédito de imposto "
+            f"Os clientes retiveram {fmt.eur(credit)} — é crédito de imposto "
             "da empresa, não entra nesta entrega."
         )
     return " ".join(parts)

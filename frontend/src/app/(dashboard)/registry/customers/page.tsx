@@ -9,11 +9,16 @@ import { Users, Mail, Phone, Plus, Tag, Trash2 } from 'lucide-react';
 import { CreateCustomerModal } from '@/components/shared/CreateCustomerModal';
 import { deleteCustomer } from '@/services/data';
 import { useRouter } from 'next/navigation';
+import {
+  Button, IconButton, Card, Table, THead, TBody, Th, Tr, Td, TableMessage, LoadingState, EmptyState, useConfirm,
+} from '@/components/ui';
 
 export default function CustomersPage() {
   const { formatMoney, setPageHeader } = useApp();
   const router = useRouter();
+  const confirm = useConfirm();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -21,20 +26,27 @@ export default function CustomersPage() {
     async function load() {
       const custs = await fetchCustomers();
       setCustomers(custs);
+      setLoaded(true);
     }
     load();
   }, []);
 
   useEffect(() => {
-    setPageHeader('Gestão de Clientes', 'Registo de clientes para emissão e reconciliação automática de recebimentos');
+    setPageHeader('Clientes', 'Registo de clientes para faturação e conciliação de recebimentos');
   }, [setPageHeader]);
 
   const handleCustomerCreated = (newCust: Customer) => {
     setCustomers(prev => [...prev, newCust]);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem a certeza que deseja eliminar este cliente?')) return;
+  const handleDelete = async (id: string, name: string) => {
+    const ok = await confirm({
+      title: 'Eliminar este cliente?',
+      description: `${name} deixa de aparecer nesta lista.`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
     setDeletingId(id);
     const outcome = await deleteCustomer(id);
     setDeletingId(null);
@@ -48,97 +60,100 @@ export default function CustomersPage() {
     toast.success(outcome.message || 'Cliente eliminado.');
   };
 
+  const open = (id: string) => router.push(`/registry/customers/${id}`);
+
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      
-      {/* Header Actions */}
-      <div className="flex justify-end pb-3">
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"
-        >
-          <Plus className="w-4 h-4 text-emerald-400" />
-          <span>Novo Cliente</span>
-        </button>
+
+      <div className="flex justify-end">
+        <Button onClick={() => setIsModalOpen(true)} icon={<Plus className="text-emerald-400" />}>
+          Novo cliente
+        </Button>
       </div>
 
-      {/* STANDARDIZED ENTERPRISE TABLE */}
-      <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-neutral-50/80 border-b border-neutral-200/80 text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
-                <th className="py-3 px-4">Nome do Cliente</th>
-                <th className="py-3 px-4">NIF</th>
-                <th className="py-3 px-4">Categoria de Receita Padrão</th>
-                <th className="py-3 px-4">Email</th>
-                <th className="py-3 px-4">Telemóvel / Telefone</th>
-                <th className="py-3 px-4 text-right">Faturação Acumulada</th>
-                <th className="py-3 px-4 text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100 text-xs font-medium text-neutral-800">
-              {customers.map((c) => (
-                <tr 
-                  key={c.id} 
-                  onClick={() => router.push(`/registry/customers/${c.id}`)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) router.push(`/registry/customers/${c.id}`); }}
-                  tabIndex={0}
-                  role="link"
-                  aria-label={`Abrir ficha de ${c.name}`}
-                  className="hover:bg-neutral-50/60 transition-colors cursor-pointer"
-                >
-                  <td className="py-3.5 px-4 font-bold text-neutral-900">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs border border-emerald-200">
-                        <Users className="w-4 h-4" />
-                      </div>
-                      <span>{c.name}</span>
+      <Card className="overflow-hidden">
+        <Table>
+          <THead>
+            <tr>
+              <Th>Cliente</Th>
+              <Th>NIF</Th>
+              <Th>Categoria de receita padrão</Th>
+              <Th>Email</Th>
+              <Th>Telefone</Th>
+              <Th numeric>Faturação acumulada</Th>
+              <Th align="right"><span className="sr-only">Acções</span></Th>
+            </tr>
+          </THead>
+          <TBody className="font-medium">
+            {!loaded ? (
+              <TableMessage colSpan={7}><LoadingState /></TableMessage>
+            ) : customers.length === 0 ? (
+              <TableMessage colSpan={7}>
+                <EmptyState
+                  icon={<Users />}
+                  title="Ainda não há clientes"
+                  description="Registe o primeiro cliente para associar os recebimentos automaticamente."
+                />
+              </TableMessage>
+            ) : customers.map((c) => (
+              <Tr
+                key={c.id}
+                onClick={() => open(c.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(c.id); }}
+                tabIndex={0}
+                role="link"
+                aria-label={`Abrir ficha de ${c.name}`}
+                className="focus-visible:outline-none focus-visible:bg-neutral-50"
+              >
+                <Td className="font-bold text-neutral-900">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200 shrink-0">
+                      <Users className="size-4" aria-hidden="true" />
                     </div>
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-neutral-600">
-                    {c.nif}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                      <Tag className="w-3 h-3 text-emerald-600" />
-                      {c.default_category_name}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-neutral-600">
-                    <div className="flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-neutral-400" />
-                      <span>{c.email || 'Sem email'}</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4 text-neutral-600 font-mono">
-                    <div className="flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-neutral-400" />
-                      <span>{c.phone || 'Sem contacto'}</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4 text-right font-bold text-emerald-600">
-                    +{formatMoney(c.total_revenue)}
-                  </td>
-                  <td className="py-3.5 px-4 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(c.id);
-                      }}
-                      disabled={deletingId === c.id}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                      title="Eliminar Cliente" aria-label="Eliminar Cliente"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    <span>{c.name}</span>
+                  </div>
+                </Td>
+                <Td className="font-mono text-neutral-600">{c.nif}</Td>
+                <Td>
+                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                    <Tag className="size-3 text-emerald-600" aria-hidden="true" />
+                    {c.default_category_name}
+                  </span>
+                </Td>
+                <Td className="text-neutral-600">
+                  <div className="flex items-center gap-1.5">
+                    <Mail className="size-3.5 text-neutral-400" aria-hidden="true" />
+                    <span>{c.email || 'Sem email'}</span>
+                  </div>
+                </Td>
+                <Td className="text-neutral-600 font-mono">
+                  <div className="flex items-center gap-1.5">
+                    <Phone className="size-3.5 text-neutral-400" aria-hidden="true" />
+                    <span>{c.phone || 'Sem contacto'}</span>
+                  </div>
+                </Td>
+                <Td numeric className="font-bold text-emerald-600">
+                  +{formatMoney(c.total_revenue)}
+                </Td>
+                <Td align="right">
+                  <IconButton
+                    label={`Eliminar ${c.name}`}
+                    variant="danger"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(c.id, c.name);
+                    }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    disabled={deletingId === c.id}
+                  >
+                    <Trash2 />
+                  </IconButton>
+                </Td>
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
+      </Card>
 
       {/* Creation Modal */}
       {isModalOpen && (

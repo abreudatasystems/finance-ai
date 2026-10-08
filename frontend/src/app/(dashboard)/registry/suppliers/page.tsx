@@ -5,15 +5,21 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { fetchSuppliers } from '@/services/data';
 import { Supplier } from '@/types';
-import { Building2, Mail, Plus, Tag, Calendar, Trash2 } from 'lucide-react';
+import { Truck, Mail, Plus, Tag, Calendar, Trash2 } from 'lucide-react';
+import { formatDate } from '@/lib/format';
 import { CreateSupplierModal } from '@/components/shared/CreateSupplierModal';
 import { deleteSupplier } from '@/services/data';
 import { useRouter } from 'next/navigation';
+import {
+  Button, IconButton, Card, Table, THead, TBody, Th, Tr, Td, TableMessage, LoadingState, EmptyState, useConfirm,
+} from '@/components/ui';
 
 export default function SuppliersPage() {
   const { formatMoney, setPageHeader } = useApp();
   const router = useRouter();
+  const confirm = useConfirm();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -21,20 +27,27 @@ export default function SuppliersPage() {
     async function load() {
       const sups = await fetchSuppliers();
       setSuppliers(sups);
+      setLoaded(true);
     }
     load();
   }, []);
 
   useEffect(() => {
-    setPageHeader('Gestão de Fornecedores', 'Registo inteligente com categorias padrão associadas automaticamente a faturas recebidas');
+    setPageHeader('Fornecedores', 'Cada fornecedor tem uma categoria padrão, aplicada automaticamente às faturas recebidas');
   }, [setPageHeader]);
 
   const handleSupplierCreated = (newSup: Supplier) => {
     setSuppliers(prev => [...prev, newSup]);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem a certeza que deseja eliminar este fornecedor?')) return;
+  const handleDelete = async (id: string, name: string) => {
+    const ok = await confirm({
+      title: 'Eliminar este fornecedor?',
+      description: `${name} deixa de aparecer nesta lista.`,
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
     setDeletingId(id);
     const outcome = await deleteSupplier(id);
     setDeletingId(null);
@@ -48,97 +61,100 @@ export default function SuppliersPage() {
     toast.success(outcome.message || 'Fornecedor eliminado.');
   };
 
+  const open = (id: string) => router.push(`/registry/suppliers/${id}`);
+
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      
-      {/* Header Actions */}
-      <div className="flex justify-end pb-3">
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-black hover:bg-neutral-800 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer border border-neutral-900"
-        >
-          <Plus className="w-4 h-4 text-emerald-400" />
-          <span>Novo Fornecedor</span>
-        </button>
+
+      <div className="flex justify-end">
+        <Button onClick={() => setIsModalOpen(true)} icon={<Plus className="text-emerald-400" />}>
+          Novo fornecedor
+        </Button>
       </div>
 
-      {/* STANDARDIZED ENTERPRISE TABLE */}
-      <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-neutral-50/80 border-b border-neutral-200/80 text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
-                <th className="py-3 px-4">Entidade / Fornecedor</th>
-                <th className="py-3 px-4">NIF</th>
-                <th className="py-3 px-4">Categoria Padrão</th>
-                <th className="py-3 px-4">Email de Contacto</th>
-                <th className="py-3 px-4">Último Movimento</th>
-                <th className="py-3 px-4 text-right">Total Acumulado Gasto</th>
-                <th className="py-3 px-4 text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100 text-xs font-medium text-neutral-800">
-              {suppliers.map((s) => (
-                <tr 
-                  key={s.id} 
-                  onClick={() => router.push(`/registry/suppliers/${s.id}`)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) router.push(`/registry/suppliers/${s.id}`); }}
-                  tabIndex={0}
-                  role="link"
-                  aria-label={`Abrir ficha de ${s.name}`}
-                  className="hover:bg-neutral-50/60 transition-colors cursor-pointer"
-                >
-                  <td className="py-3.5 px-4 font-bold text-neutral-900">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-neutral-100 text-neutral-800 flex items-center justify-center font-bold text-xs border border-neutral-200">
-                        <Building2 className="w-4 h-4" />
-                      </div>
-                      <span>{s.name}</span>
+      <Card className="overflow-hidden">
+        <Table>
+          <THead>
+            <tr>
+              <Th>Fornecedor</Th>
+              <Th>NIF</Th>
+              <Th>Categoria padrão</Th>
+              <Th>Email de contacto</Th>
+              <Th>Último movimento</Th>
+              <Th numeric>Total gasto</Th>
+              <Th align="right"><span className="sr-only">Acções</span></Th>
+            </tr>
+          </THead>
+          <TBody className="font-medium">
+            {!loaded ? (
+              <TableMessage colSpan={7}><LoadingState /></TableMessage>
+            ) : suppliers.length === 0 ? (
+              <TableMessage colSpan={7}>
+                <EmptyState
+                  icon={<Truck />}
+                  title="Ainda não há fornecedores"
+                  description="Registe o primeiro fornecedor para classificar as faturas recebidas automaticamente."
+                />
+              </TableMessage>
+            ) : suppliers.map((s) => (
+              <Tr
+                key={s.id}
+                onClick={() => open(s.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(s.id); }}
+                tabIndex={0}
+                role="link"
+                aria-label={`Abrir ficha de ${s.name}`}
+                className="focus-visible:outline-none focus-visible:bg-neutral-50"
+              >
+                <Td className="font-bold text-neutral-900">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-xl bg-neutral-100 text-neutral-800 flex items-center justify-center border border-neutral-200 shrink-0">
+                      <Truck className="size-4" aria-hidden="true" />
                     </div>
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-neutral-600">
-                    {s.nif}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center gap-1 font-semibold text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg border border-neutral-200">
-                      <Tag className="w-3 h-3 text-neutral-600" />
-                      {s.default_category_name}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-neutral-600">
-                    <div className="flex items-center gap-1.5">
-                      <Mail className="w-3.5 h-3.5 text-neutral-400" />
-                      <span>{s.email || 'Sem email'}</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-neutral-600">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-neutral-400" />
-                      <span>{s.last_transaction_date}</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4 text-right font-bold text-neutral-900">
-                    {formatMoney(s.total_spent)}
-                  </td>
-                  <td className="py-3.5 px-4 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(s.id);
-                      }}
-                      disabled={deletingId === s.id}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                      title="Eliminar Fornecedor" aria-label="Eliminar Fornecedor"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    <span>{s.name}</span>
+                  </div>
+                </Td>
+                <Td className="font-mono text-neutral-600">{s.nif}</Td>
+                <Td>
+                  <span className="inline-flex items-center gap-1 font-semibold text-neutral-800 bg-neutral-100 px-2.5 py-1 rounded-lg border border-neutral-200">
+                    <Tag className="size-3 text-neutral-600" aria-hidden="true" />
+                    {s.default_category_name}
+                  </span>
+                </Td>
+                <Td className="text-neutral-600">
+                  <div className="flex items-center gap-1.5">
+                    <Mail className="size-3.5 text-neutral-400" aria-hidden="true" />
+                    <span>{s.email || 'Sem email'}</span>
+                  </div>
+                </Td>
+                <Td className="text-neutral-600 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="size-3.5 text-neutral-400" aria-hidden="true" />
+                    <span>{formatDate(s.last_transaction_date)}</span>
+                  </div>
+                </Td>
+                <Td numeric className="font-bold text-neutral-900">
+                  {formatMoney(s.total_spent)}
+                </Td>
+                <Td align="right">
+                  <IconButton
+                    label={`Eliminar ${s.name}`}
+                    variant="danger"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(s.id, s.name);
+                    }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    disabled={deletingId === s.id}
+                  >
+                    <Trash2 />
+                  </IconButton>
+                </Td>
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
+      </Card>
 
       {/* Creation Modal */}
       {isModalOpen && (

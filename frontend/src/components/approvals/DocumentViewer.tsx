@@ -12,6 +12,7 @@
 import React, { useEffect, useState } from 'react';
 import { FileText, ExternalLink, ZoomIn, ZoomOut, AlertCircle } from 'lucide-react';
 import { API_BASE, apiFetch } from '@/services/api';
+import { IconButton } from '@/components/ui';
 
 interface Props {
   fileUrl?: string | null;
@@ -102,27 +103,31 @@ export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType })
   const isImage = (fileType || '').startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(fileName || '');
 
   return (
-    <div className="flex flex-col h-full rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
-      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white border-b border-slate-200">
+    <div className="flex flex-col h-full rounded-2xl border border-neutral-200/80 bg-neutral-50 overflow-hidden shadow-xs">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white border-b border-neutral-200">
         <div className="flex items-center gap-1.5 min-w-0">
-          <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span className="text-[11px] font-semibold text-slate-700 truncate">{fileName || 'Documento'}</span>
+          <FileText className="w-3.5 h-3.5 text-neutral-400 shrink-0" aria-hidden="true" />
+          <span className="text-2xs font-semibold text-neutral-700 truncate">{fileName || 'Documento'}</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {isImage && (
             <>
-              <button onClick={() => setZoom((z) => Math.max(50, z - 25))} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Reduzir" aria-label="Reduzir">
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <span className="text-[10px] font-mono text-slate-400 w-9 text-center">{zoom}%</span>
-              <button onClick={() => setZoom((z) => Math.min(300, z + 25))} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Ampliar" aria-label="Ampliar">
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
+              <IconButton label="Reduzir" onClick={() => setZoom((z) => Math.max(50, z - 25))}>
+                <ZoomOut />
+              </IconButton>
+              <span className="text-2xs tabular-nums text-neutral-500 w-9 text-center" aria-live="polite">{zoom}%</span>
+              <IconButton label="Ampliar" onClick={() => setZoom((z) => Math.min(300, z + 25))}>
+                <ZoomIn />
+              </IconButton>
             </>
           )}
           {fileUrl && src && (
-            <a href={src} target="_blank" rel="noreferrer" className="p-1 rounded-lg hover:bg-slate-100 text-slate-500" title="Abrir em separador novo">
-              <ExternalLink className="w-3.5 h-3.5" />
+            <a
+              href={src} target="_blank" rel="noreferrer"
+              className="size-8 inline-flex items-center justify-center rounded-lg text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              title="Abrir em separador novo" aria-label="Abrir em separador novo"
+            >
+              <ExternalLink className="w-4 h-4" aria-hidden="true" />
             </a>
           )}
         </div>
@@ -130,9 +135,9 @@ export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType })
 
       <div className="flex-1 overflow-auto min-h-[320px]">
         {!fileUrl || !src ? (
-          <div className="h-full flex flex-col items-center justify-center gap-2 p-6 text-center text-slate-400">
-            <AlertCircle className="w-5 h-5" />
-            <p className="text-[11px]">
+          <div role={loadError ? 'alert' : 'status'} className="h-full flex flex-col items-center justify-center gap-2 p-6 text-center text-neutral-500">
+            <AlertCircle className="w-5 h-5" aria-hidden="true" />
+            <p className="text-2xs">
               {!fileUrl
                 ? 'O ficheiro original não está guardado para este documento.'
                 : loadError ? 'Não foi possível abrir o ficheiro original.' : 'A carregar o original…'}
@@ -148,8 +153,8 @@ export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType })
           </div>
         ) : (
           <div className="h-full flex flex-col items-center justify-center gap-2 p-6 text-center">
-            <FileText className="w-5 h-5 text-slate-400" />
-            <a href={src} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-indigo-600 hover:underline">
+            <FileText className="w-5 h-5 text-neutral-400" aria-hidden="true" />
+            <a href={src} target="_blank" rel="noreferrer" className="text-xs font-bold text-emerald-700 hover:underline">
               Abrir {fileName}
             </a>
           </div>

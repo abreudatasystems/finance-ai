@@ -8,7 +8,9 @@ import { FirstSteps } from '@/components/onboarding/FirstSteps';
 import { fetchHealthScore, fetchTransactions, fetchFinancialEvents, fetchDashboardSummary, fetchExpensesByCategory } from '@/services/data';
 import { FinancialHealthScore, Transaction } from '@/types';
 import { formatDate, documentStatusLabel } from '@/lib/format';
-import {TrendingUp, TrendingDown, Clock, Activity, DollarSign, PieChart as PieIcon, Bot, User} from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, Activity, Wallet, PieChart as PieIcon, Bot, User, ArrowRight } from 'lucide-react';
+import { Badge, Card, CardHeader, EmptyState, Table, THead, TBody, Th, Tr, Td } from '@/components/ui';
+import type { BadgeTone } from '@/components/ui';
 import {
   AreaChart,
   Area,
@@ -36,6 +38,36 @@ interface PieDataItem {
   color: string;
 }
 
+/** Um indicador do topo do painel. */
+function KpiCard({
+  label,
+  icon,
+  iconClass,
+  value,
+  valueClass = 'text-neutral-900',
+  footer,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  iconClass: string;
+  value: React.ReactNode;
+  valueClass?: string;
+  footer: React.ReactNode;
+}) {
+  return (
+    <Card className="p-4 hover:shadow-sm transition-shadow overflow-hidden">
+      <div className="flex items-center justify-between gap-2 text-neutral-500 text-2xs font-bold uppercase tracking-wider">
+        <span className="truncate">{label}</span>
+        <span className={`size-6 rounded-md flex items-center justify-center shrink-0 [&_svg]:size-3.5 ${iconClass}`}>{icon}</span>
+      </div>
+      <div className={`mt-2 text-lg font-bold tracking-tight tabular-nums ${valueClass}`}>{value}</div>
+      <div className="mt-1 flex items-center gap-1 text-2xs font-semibold truncate">{footer}</div>
+    </Card>
+  );
+}
+
+const STATUS_TONE: Record<string, BadgeTone> = { paid: 'success', received: 'success', approved: 'neutral' };
+
 export default function DashboardPage() {
   const { formatMoney, setPageHeader } = useApp();
   const [healthScore, setHealthScore] = useState<FinancialHealthScore | null>(null);
@@ -45,7 +77,7 @@ export default function DashboardPage() {
   const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
-    setPageHeader('Financial Command Center', 'Painel de Controlo Executivo (CEO View)');
+    setPageHeader('Painel', 'Visão geral da tesouraria e dos resultados');
   }, [setPageHeader]);
 
   useEffect(() => {
@@ -85,10 +117,13 @@ export default function DashboardPage() {
   // Derived trend from healthScore
   const balanceTrend = healthScore?.trend ?? 0;
   const burnRate = healthScore?.burn_rate;
+  const margin = healthScore?.operating_margin || 0;
+  const monthlyResult = healthScore?.monthly_result || 0;
+  const recent = transactions.slice(0, 3);
 
   return (
     <div className="flex flex-col h-[calc(100vh-104px)] space-y-3 overflow-hidden animate-in fade-in duration-300">
-      
+
       {/* O que ainda falta configurar, antes de acreditar em qualquer número */}
       <div className="shrink-0">
         <FirstSteps />
@@ -105,124 +140,93 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* CEO TOP KPI CARDS ROW */}
+      {/* Indicadores principais */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        {/* Card 1: Saldo Disponível */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-            <span>Saldo Disponível</span>
-            <div className="w-6 h-6 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <DollarSign className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-2 text-lg font-bold text-slate-900 tracking-tight">
-            {formatMoney(healthScore?.current_balance || 0)}
-          </div>
-          <div className={`mt-1 flex items-center gap-1 text-[10px] font-semibold ${balanceTrend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {balanceTrend >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            <span>{balanceTrend >= 0 ? '+' : ''}{balanceTrend}% ms/ms</span>
-          </div>
-        </div>
+        <KpiCard
+          label="Saldo disponível"
+          icon={<Wallet />}
+          iconClass="bg-neutral-100 text-neutral-700"
+          value={formatMoney(healthScore?.current_balance || 0)}
+          footer={
+            <span className={`flex items-center gap-1 ${balanceTrend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {balanceTrend >= 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+              {balanceTrend >= 0 ? '+' : ''}{balanceTrend}% vs. mês anterior
+            </span>
+          }
+        />
 
-        {/* Card 2: Runway */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-            <span>Runway (Caixa)</span>
-            <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <Clock className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-2 text-lg font-bold text-slate-900 tracking-tight">
-            {/* 99 é o valor-sentinela do servidor para "sem gastos": não há
-                fim de caixa para calcular, e "99 meses" seria uma previsão falsa. */}
-            {healthScore == null ? '—'
+        {/* 99 é o valor-sentinela do servidor para "sem gastos": não há fim de
+            caixa para calcular, e "99 meses" seria uma previsão falsa. */}
+        <KpiCard
+          label="Autonomia de caixa"
+          icon={<Clock />}
+          iconClass="bg-emerald-50 text-emerald-600"
+          value={
+            healthScore == null ? '—'
               : (healthScore.runway_months ?? 0) >= 99 ? 'Sem gastos'
-              : `${healthScore.runway_months} Meses`}
-          </div>
-          <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-500 font-medium truncate">
-            {burnRate ? <span>Burn: {formatMoney(burnRate)}/m</span> : <span>Cobertura Segura</span>}
-          </div>
-        </div>
+              : `${healthScore.runway_months} meses`
+          }
+          footer={
+            <span className="text-neutral-500 font-medium truncate">
+              {burnRate ? `Gasto médio: ${formatMoney(burnRate)}/mês` : 'Cobertura segura'}
+            </span>
+          }
+        />
 
-        {/* Card 3: Margem Operacional */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-            <span>Margem</span>
-            <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Activity className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-2 text-lg font-bold text-slate-900 tracking-tight">
-            {healthScore?.operating_margin || 0}%
-          </div>
-          <div className={`mt-1 flex items-center gap-1 text-[10px] font-semibold ${(healthScore?.operating_margin || 0) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {(healthScore?.operating_margin || 0) > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            <span>Tempo real</span>
-          </div>
-        </div>
+        <KpiCard
+          label="Margem"
+          icon={<Activity />}
+          iconClass="bg-neutral-100 text-neutral-700"
+          value={`${margin}%`}
+          footer={
+            <span className={`flex items-center gap-1 ${margin > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {margin > 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+              Tempo real
+            </span>
+          }
+        />
 
-        {/* Card 4: Resultado Mês */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-            <span>Resultado Mês</span>
-            <div className="w-6 h-6 rounded-md bg-violet-50 text-violet-600 flex items-center justify-center">
-              <TrendingUp className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className={`mt-2 text-lg font-bold tracking-tight ${(healthScore?.monthly_result || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {(healthScore?.monthly_result || 0) >= 0 ? '+' : ''}{formatMoney(healthScore?.monthly_result || 0)}
-          </div>
-          <div className={`mt-1 flex items-center gap-1 text-[10px] font-semibold ${(healthScore?.monthly_result || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-            <span>{(healthScore?.monthly_result || 0) >= 0 ? 'Lucro' : 'Prejuízo'}</span>
-          </div>
-        </div>
+        <KpiCard
+          label="Resultado do mês"
+          icon={<TrendingUp />}
+          iconClass="bg-neutral-100 text-neutral-700"
+          value={`${monthlyResult >= 0 ? '+' : ''}${formatMoney(monthlyResult)}`}
+          valueClass={monthlyResult >= 0 ? 'text-emerald-600' : 'text-rose-600'}
+          footer={
+            <span className={monthlyResult >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+              {monthlyResult >= 0 ? 'Lucro' : 'Prejuízo'}
+            </span>
+          }
+        />
 
-        {/* Card 5: Contas a Receber (30d) */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-            <span>A Receber (30d)</span>
-            <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <TrendingUp className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-2 text-lg font-bold text-slate-900 tracking-tight">
-            {formatMoney(healthScore?.upcoming_receivables || 0)}
-          </div>
-          <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
-            <span>Entrada pendente</span>
-          </div>
-        </div>
+        <KpiCard
+          label="A receber (30d)"
+          icon={<TrendingUp />}
+          iconClass="bg-emerald-50 text-emerald-600"
+          value={formatMoney(healthScore?.upcoming_receivables || 0)}
+          footer={<span className="text-emerald-600">Entrada pendente</span>}
+        />
 
-        {/* Card 6: Contas a Pagar (30d) */}
-        <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-            <span>A Pagar (30d)</span>
-            <div className="w-6 h-6 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center">
-              <TrendingDown className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-2 text-lg font-bold text-slate-900 tracking-tight">
-            {formatMoney(healthScore?.upcoming_payables || 0)}
-          </div>
-          <div className="mt-1 flex items-center gap-1 text-[10px] text-rose-600 font-semibold">
-            <span>Saída pendente</span>
-          </div>
-        </div>
+        <KpiCard
+          label="A pagar (30d)"
+          icon={<TrendingDown />}
+          iconClass="bg-rose-50 text-rose-600"
+          value={formatMoney(healthScore?.upcoming_payables || 0)}
+          footer={<span className="text-rose-600">Saída pendente</span>}
+        />
       </div>
 
-
-
-      {/* CHARTS SECTION */}
+      {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-1 min-h-0">
-        
-        {/* Fluxo Financeiro Area Chart (2 cols) */}
-        <div className="lg:col-span-2 p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">Fluxo Financeiro (Últimos 6 Meses)</h3>
-              <p className="text-xs text-slate-500">Comparativo de Entradas, Saídas e Resultado Acumulado</p>
+
+        {/* Fluxo financeiro (2 colunas) */}
+        <Card className="lg:col-span-2 p-4 flex flex-col space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="font-bold text-sm text-neutral-900">Fluxo financeiro (últimos 6 meses)</h2>
+              <p className="text-xs text-neutral-500">Comparativo de entradas, saídas e resultado acumulado</p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-semibold">
+            <div className="flex items-center gap-4 text-xs font-semibold shrink-0">
               <span className="flex items-center gap-1 text-emerald-600">● Entradas</span>
               <span className="flex items-center gap-1 text-rose-500">● Saídas</span>
             </div>
@@ -241,22 +245,22 @@ export default function DashboardPage() {
                     <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748B' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748B' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#737373' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#737373' }} />
                 <Tooltip formatter={(value) => formatMoney(Number(value))} />
                 <Area type="monotone" dataKey="Entradas" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorEntradas)" />
                 <Area type="monotone" dataKey="Saídas" stroke="#EF4444" strokeWidth={2} fillOpacity={1} fill="url(#colorSaidas)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </Card>
 
-        {/* Despesas por Categoria Donut (1 col) */}
-        <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col space-y-3">
+        {/* Despesas por categoria (1 coluna) */}
+        <Card className="p-4 flex flex-col space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-slate-900">Despesas por Categoria</h3>
-            <PieIcon className="w-4 h-4 text-slate-400" />
+            <h2 className="font-bold text-sm text-neutral-900">Despesas por categoria</h2>
+            <PieIcon className="size-4 text-neutral-400" aria-hidden="true" />
           </div>
 
           <div className="flex-1 min-h-0 w-full relative">
@@ -282,76 +286,79 @@ export default function DashboardPage() {
 
           <div className="space-y-1 shrink-0">
             {pieData.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between text-xs text-slate-600 font-medium">
+              <div key={idx} className="flex items-center justify-between text-xs text-neutral-600 font-medium">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="size-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                   <span>{item.name}</span>
                 </div>
-                <span className="font-bold text-slate-800">{item.value}%</span>
+                <span className="font-bold text-neutral-800 tabular-nums">{item.value}%</span>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
 
       </div>
 
-      {/* RECENT TRANSACTIONS TABLE */}
-      <div className="shrink-0 p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-sm text-slate-900">Últimos Lançamentos Financeiros</h3>
-            <p className="text-xs text-slate-500">Sincronizado automaticamente pela IA e lançamentos manuais</p>
-          </div>
-          <Link href="/financial/cash-flow" className="text-xs text-indigo-600 font-bold hover:underline">
-            Ver Fluxo Completo &rarr;
-          </Link>
-        </div>
+      {/* Últimos lançamentos */}
+      <Card className="shrink-0 overflow-hidden">
+        <CardHeader
+          title="Últimos lançamentos"
+          subtitle="Lidos pela IA e lançados à mão"
+          actions={
+            <Link
+              href="/financial/cash-flow"
+              className="inline-flex items-center gap-1 text-xs text-emerald-700 font-bold hover:underline"
+            >
+              Ver fluxo completo <ArrowRight className="size-3.5" aria-hidden="true" />
+            </Link>
+          }
+        />
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
-              <tr className="border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
-                <th className="p-3">Data</th>
-                <th className="p-3">Descrição Movimento</th>
-                <th className="p-3 hidden sm:table-cell">Entidade</th>
-                <th className="p-3 hidden md:table-cell">Categoria</th>
-                <th className="p-3">Valor</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right hidden lg:table-cell">Origem</th>
+        {recent.length === 0 ? (
+          <EmptyState
+            title="Ainda não há lançamentos"
+            description="Os documentos aprovados e os lançamentos manuais aparecem aqui."
+            className="py-6"
+          />
+        ) : (
+          <Table>
+            <THead>
+              <tr>
+                <Th>Data</Th>
+                <Th>Descrição</Th>
+                <Th className="hidden sm:table-cell">Entidade</Th>
+                <Th className="hidden md:table-cell">Categoria</Th>
+                <Th numeric>Valor</Th>
+                <Th>Estado</Th>
+                <Th align="right" className="hidden lg:table-cell">Origem</Th>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {transactions.slice(0, 3).map((trx) => (
-                <tr key={trx.id} className="hover:bg-slate-50/80 transition-colors font-medium">
-                  <td className="p-3 text-slate-500 whitespace-nowrap">{formatDate(trx.date)}</td>
-                  <td className="p-3 font-semibold text-slate-800">{trx.description}</td>
-                  <td className="p-3 text-slate-600 hidden sm:table-cell">{trx.entity_name}</td>
-                  <td className="p-3 text-slate-600 hidden md:table-cell">{trx.category_name}</td>
-                  <td className={`p-3 font-bold ${trx.type === 'income' ? 'text-emerald-600' : 'text-slate-900'}`}>
+            </THead>
+            <TBody>
+              {recent.map((trx) => (
+                <Tr key={trx.id}>
+                  <Td className="text-neutral-500 whitespace-nowrap">{formatDate(trx.date)}</Td>
+                  <Td className="font-semibold">{trx.description}</Td>
+                  <Td className="text-neutral-600 hidden sm:table-cell">{trx.entity_name}</Td>
+                  <Td className="text-neutral-600 hidden md:table-cell">{trx.category_name}</Td>
+                  <Td numeric className={`font-bold ${trx.type === 'income' ? 'text-emerald-600' : 'text-neutral-900'}`}>
                     {trx.type === 'income' ? '+' : '-'}{formatMoney(trx.amount)}
-                  </td>
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase whitespace-nowrap ${
-                      trx.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                      trx.status === 'approved' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                      'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}>
-                      {documentStatusLabel(trx.status)}
-                    </span>
-                  </td>
-                  <td className="p-3 text-right font-mono text-[11px] text-slate-500 hidden lg:table-cell">
+                  </Td>
+                  <Td>
+                    <Badge tone={STATUS_TONE[trx.status] ?? 'warning'}>{documentStatusLabel(trx.status)}</Badge>
+                  </Td>
+                  <Td align="right" className="text-neutral-500 hidden lg:table-cell">
                     {trx.source === 'ai' ? (
-                      <span className="flex items-center justify-end gap-1"><Bot className="w-3.5 h-3.5" /> IA</span>
+                      <span className="flex items-center justify-end gap-1"><Bot className="size-3.5" aria-hidden="true" /> IA</span>
                     ) : (
-                      <span className="flex items-center justify-end gap-1"><User className="w-3.5 h-3.5" /> Manual</span>
+                      <span className="flex items-center justify-end gap-1"><User className="size-3.5" aria-hidden="true" /> Manual</span>
                     )}
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </TBody>
+          </Table>
+        )}
+      </Card>
 
     </div>
   );

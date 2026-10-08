@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Currency, Company, UserRole, User } from '@/types';
 import { fetchCompanies, fetchCurrentUser } from '@/services/data';
 import { getActiveCompany, setActiveCompany } from '@/services/api';
@@ -44,13 +45,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const [pageTitle, setPageTitle] = useState<string>('');
-  const [pageSubtitle, setPageSubtitle] = useState<string>('');
+  const pathname = usePathname();
+  // O título pertence à rota que o definiu: ao mudar de página, uma página que
+  // não define título não herda o da anterior.
+  const [pageHeader, setPageHeaderState] = useState<{ title: string; subtitle: string; path: string | null }>({
+    title: '',
+    subtitle: '',
+    path: null,
+  });
 
-  const setPageHeader = (title: string, subtitle: string = '') => {
-    setPageTitle(title);
-    setPageSubtitle(subtitle);
-  };
+  const setPageHeader = useCallback(
+    (title: string, subtitle: string = '') => {
+      setPageHeaderState({ title, subtitle, path: pathname });
+    },
+    [pathname],
+  );
+
+  const headerIsCurrent = pageHeader.path === pathname;
+  const pageTitle = headerIsCurrent ? pageHeader.title : '';
+  const pageSubtitle = headerIsCurrent ? pageHeader.subtitle : '';
 
   /** Pick the company this session works in: the remembered one, else the first. */
   const applyActive = (comps: Company[], preferred?: string | null) => {

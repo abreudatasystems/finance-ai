@@ -16,7 +16,7 @@ import { isAuthenticated, redirectToLogin } from '@/services/api';
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [createModalType, setCreateModalType] = useState<string | null>(null);
-  const { isAiDrawerOpen, isSidebarCollapsed } = useApp();
+  const { isAiDrawerOpen, isSidebarCollapsed, pageTitle } = useApp();
   const router = useRouter();
 
   // Sem sessão não há empresa: em vez de um painel a 0 €, vai-se ao login.
@@ -25,7 +25,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans antialiased">
+    <div className="min-h-screen bg-white text-neutral-900 flex flex-col font-sans antialiased">
       {/* Full-width TopBar - Spans 100% across the top ABOVE the left sidebar */}
       <TopBar
         onOpenSearch={() => setIsSearchOpen(true)}
@@ -50,6 +50,10 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         }`}>
           {/* Page Content Viewport */}
           <main className="flex-1 px-4 sm:px-6 py-5 max-w-[1750px] w-full mx-auto space-y-4">
+            {/* O título da página no telemóvel, onde a barra de topo não tem espaço. */}
+            {pageTitle && (
+              <h1 className="sm:hidden text-lg font-extrabold text-neutral-900 tracking-tight">{pageTitle}</h1>
+            )}
             {children}
           </main>
         </div>

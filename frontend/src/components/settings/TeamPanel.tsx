@@ -16,9 +16,10 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Users, UserPlus, Shield, Eye, Trash2, Copy, Check, Loader2, Link2, X,
-  Activity, ArrowUpRight, ArrowDownRight, Mail, Clock, Send, MailWarning,
+  Users, UserPlus, Shield, Eye, Trash2, Copy, Check, Link2, X,
+  Activity, ArrowUpRight, ArrowDownRight, Clock, Send, MailWarning,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useApp } from '@/context/AppContext';
 import { Invitation, MemberActivity, TeamMember, UserRole } from '@/types';
 import {
@@ -26,6 +27,11 @@ import {
   resendInvitation, updateMemberRole, removeMember, fetchMemberActivity,
 } from '@/services/data';
 import { API_BASE } from '@/services/api';
+import { formatDate } from '@/lib/format';
+import {
+  Button, IconButton, Card, CardHeader, CardBody, Field, Input, Select, Badge, LoadingState, EmptyState, useConfirm,
+} from '@/components/ui';
+import type { BadgeTone } from '@/components/ui';
 
 /** What each role may do, in the words the user sees. */
 const ROLES: { value: UserRole; label: string; hint: string }[] = [
@@ -37,14 +43,10 @@ const ROLES: { value: UserRole; label: string; hint: string }[] = [
 
 const INVITABLE = ROLES.filter((r) => r.value !== 'owner');
 
-const roleStyle = (role: UserRole) =>
-  role === 'owner' ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-    : role === 'admin' ? 'bg-violet-50 text-violet-700 border-violet-200'
-    : role === 'finance_manager' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    : 'bg-slate-100 text-slate-600 border-slate-200';
-
-const fmtDate = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const roleTone = (role: UserRole): BadgeTone =>
+  role === 'owner' ? 'success'
+    : role === 'admin' ? 'info'
+    : 'neutral';
 
 /** The link to send. The server builds it from the app's public address;
  *  falling back to this origin covers a deployment that has not set one. */
@@ -57,13 +59,13 @@ const inviteLink = (invitation: Pick<Invitation, 'token' | 'accept_url'>) => {
 
 export const TeamPanel: React.FC = () => {
   const { currentCompany, userRole, formatMoney } = useApp();
+  const confirm = useConfirm();
   const companyId = currentCompany?.id;
   const canManage = userRole === 'owner' || userRole === 'admin';
 
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [invites, setInvites] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [busyInvite, setBusyInvite] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -95,10 +97,9 @@ export const TeamPanel: React.FC = () => {
     e.preventDefault();
     if (!companyId) return;
     setSending(true);
-    setError(null);
     const res = await createInvitation(companyId, { email: email.trim(), role, message: message.trim() || undefined });
     setSending(false);
-    if (res.error) { setError(res.error); return; }
+    if (res.error) { toast.error(res.error); return; }
     setEmail(''); setMessage(''); setInviteOpen(false);
     await reload();
 
@@ -119,17 +120,16 @@ export const TeamPanel: React.FC = () => {
       setCopied(invitation.token || null);
       setTimeout(() => setCopied(null), 2500);
     } catch {
-      setError('Não foi possível copiar. Selecione o link manualmente.');
+      toast.error('Não foi possível copiar. Selecione o link manualmente.');
     }
   };
 
   const resend = async (invitation: Invitation) => {
     setBusyInvite(invitation.id);
-    setError(null);
     setNotice(null);
     const res = await resendInvitation(invitation.id);
     setBusyInvite(null);
-    if (res.error) { setError(res.error); return; }
+    if (res.error) { toast.error(res.error); return; }
     const mail = res.data?.email_result;
     setNotice(mail?.enviado
       ? `Convite reenviado para ${invitation.email}.`
@@ -139,21 +139,30 @@ export const TeamPanel: React.FC = () => {
 
   const changeRole = async (userId: string, next: UserRole) => {
     if (!companyId) return;
-    setError(null);
     const res = await updateMemberRole(companyId, userId, next);
-    if (res.error) { setError(res.error); return; }
+    if (res.error) { toast.error(res.error); return; }
     await reload();
   };
 
   const drop = async (member: TeamMember) => {
     if (!companyId) return;
     const self = member.is_you;
-    if (!window.confirm(self
-      ? 'Sair desta empresa? Perde o acesso aos dados dela.'
-      : `Remover ${member.name} da equipa? Deixa de ter acesso a esta empresa.`)) return;
-    setError(null);
+    const ok = await confirm(self
+      ? {
+          title: 'Sair desta empresa?',
+          description: 'Perde o acesso aos dados dela.',
+          danger: true,
+          confirmLabel: 'Sair da empresa',
+        }
+      : {
+          title: `Remover ${member.name} da equipa?`,
+          description: 'Deixa de ter acesso a esta empresa.',
+          danger: true,
+          confirmLabel: 'Remover',
+        });
+    if (!ok) return;
     const res = await removeMember(companyId, member.user_id);
-    if (res.error) { setError(res.error); return; }
+    if (res.error) { toast.error(res.error); return; }
     if (self && typeof window !== 'undefined') {
       // Recarregamento completo de propósito: sair da empresa invalida tudo o
       // que o contexto tem em memória sobre ela, e router.push mantinha-o.
@@ -173,279 +182,270 @@ export const TeamPanel: React.FC = () => {
   };
 
   const revoke = async (id: string) => {
-    setError(null);
     const res = await revokeInvitation(id);
-    if (res.error) { setError(res.error); return; }
+    if (res.error) { toast.error(res.error); return; }
     await reload();
   };
 
   return (
     <div className="space-y-5 text-xs">
       {/* ------------------------------------------------------------ header */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-indigo-600" />
-            <h3 className="font-bold text-sm text-slate-900">Equipa de {currentCompany?.name || 'a empresa'}</h3>
-            <span className="text-[10px] text-slate-400 font-mono">
-              {members.length} membro(s){invites.length ? ` · ${invites.length} convite(s) por aceitar` : ''}
+      <Card>
+        <CardHeader
+          icon={<Users />}
+          title={`Equipa de ${currentCompany?.name || 'a empresa'}`}
+          subtitle={`${members.length} membro(s)${invites.length ? ` · ${invites.length} convite(s) por aceitar` : ''}`}
+          actions={canManage ? (
+            <Button
+              size="sm"
+              variant={inviteOpen ? 'secondary' : 'primary'}
+              onClick={() => setInviteOpen((v) => !v)}
+              icon={inviteOpen ? <X /> : <UserPlus />}
+              aria-expanded={inviteOpen}
+            >
+              {inviteOpen ? 'Fechar' : 'Convidar pessoa'}
+            </Button>
+          ) : undefined}
+        />
+        <CardBody className="space-y-4">
+          <div className="flex items-start gap-2.5 p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-700">
+            <Shield className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
+            <span>
+              Cada pessoa vê <b>apenas esta empresa</b> — as suas outras empresas continuam separadas.
+              Quem entra por convite trabalha aqui mas <b>não pode abrir empresas próprias</b>.
             </span>
           </div>
-          {canManage && (
-            <button
-              onClick={() => setInviteOpen((v) => !v)}
-              className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs"
-            >
-              {inviteOpen ? <X className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
-              {inviteOpen ? 'Fechar' : 'Convidar pessoa'}
-            </button>
+
+          {notice && (
+            <p role="status" className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">{notice}</p>
           )}
-        </div>
 
-        <div className="flex items-start gap-2.5 p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 text-[11px] text-indigo-900">
-          <Shield className="w-4 h-4 shrink-0 mt-0.5 text-indigo-600" />
-          <span>
-            Cada pessoa vê <b>apenas esta empresa</b> — as suas outras empresas continuam separadas.
-            Quem entra por convite trabalha aqui mas <b>não pode abrir empresas próprias</b>.
-          </span>
-        </div>
+          {/* ------------------------------------------------------ invite form */}
+          {inviteOpen && canManage && (
+            <form onSubmit={send} className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/60 space-y-3">
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="Email" required>
+                  {(p) => (
+                    <Input
+                      {...p}
+                      type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                      placeholder="pessoa@empresa.pt"
+                    />
+                  )}
+                </Field>
+                <Field label="Papel" hint={INVITABLE.find((r) => r.value === role)?.hint}>
+                  {(p) => (
+                    <Select {...p} value={role} onChange={(e) => setRole(e.target.value as UserRole)}>
+                      {INVITABLE.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    </Select>
+                  )}
+                </Field>
+              </div>
+              <Field label="Mensagem (opcional)">
+                {(p) => (
+                  <Input
+                    {...p}
+                    value={message} onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Escreva uma nota para a pessoa convidada"
+                  />
+                )}
+              </Field>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="submit" size="sm" loading={sending} icon={<Link2 />}>
+                  Gerar convite
+                </Button>
+                <span className="text-2xs text-neutral-500 flex items-center gap-1">
+                  <MailWarning className="w-3 h-3 shrink-0" aria-hidden="true" />
+                  Enviamos o convite por email. Se o envio não estiver configurado, o link
+                  é copiado para si enviar.
+                </span>
+              </div>
+            </form>
+          )}
 
-        {notice && (
-          <p className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-800 text-[11px]">{notice}</p>
-        )}
-        {error && (
-          <p className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-[11px]">{error}</p>
-        )}
-
-        {/* ------------------------------------------------------ invite form */}
-        {inviteOpen && canManage && (
-          <form onSubmit={send} className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <label className="space-y-1.5">
-                <span className="font-bold text-slate-700 flex items-center gap-1.5"><Mail className="w-3 h-3" /> Email</span>
-                <input
-                  type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="pessoa@empresa.pt"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
-                />
-              </label>
-              <label className="space-y-1.5">
-                <span className="font-bold text-slate-700">Papel</span>
-                <select
-                  value={role} onChange={(e) => setRole(e.target.value as UserRole)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
-                >
-                  {INVITABLE.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                </select>
-              </label>
-            </div>
-            <p className="text-[10px] text-slate-500">{INVITABLE.find((r) => r.value === role)?.hint}</p>
-            <input
-              value={message} onChange={(e) => setMessage(e.target.value)}
-              placeholder="Mensagem (opcional)"
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                type="submit" disabled={sending}
-                className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] flex items-center gap-1.5 disabled:opacity-50"
-              >
-                {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
-                Gerar convite
-              </button>
-              <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                <MailWarning className="w-3 h-3" />
-                Enviamos o convite por email. Se o envio não estiver configurado, o link
-                é copiado para si enviar.
-              </span>
-            </div>
-          </form>
-        )}
-
-        {/* --------------------------------------------------- pending invites */}
-        {canManage && invites.length > 0 && (
-          <div className="border border-amber-200 rounded-xl overflow-hidden">
-            <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 font-bold text-amber-900 flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5" /> Convites por aceitar
-            </div>
-            <div className="divide-y divide-amber-100">
-              {invites.map((inv) => (
-                <div key={inv.id} className="px-4 py-2.5 flex flex-wrap items-center gap-2 justify-between">
-                  <div className="min-w-0">
-                    <span className="font-semibold text-slate-800">{inv.email}</span>
-                    <span className={`ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${roleStyle(inv.role)}`}>
-                      {inv.role_label}
-                    </span>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Expira a {fmtDate(inv.expires_at)}{inv.invited_by_name ? ` · convidado por ${inv.invited_by_name}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => resend(inv)}
-                      disabled={busyInvite === inv.id}
-                      className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-[10px] flex items-center gap-1 hover:bg-slate-50 disabled:opacity-50"
-                      title="Enviar o convite outra vez por email"
-                    >
-                      {busyInvite === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                      Reenviar
-                    </button>
-                    <button
-                      onClick={() => copy(inv)}
-                      className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-[10px] flex items-center gap-1 hover:bg-slate-50"
-                    >
-                      {copied === inv.token ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      {copied === inv.token ? 'Copiado' : 'Copiar link'}
-                    </button>
-                    <button
-                      onClick={() => revoke(inv.id)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                      title="Cancelar convite"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ------------------------------------------------------------ members */}
-        {loading ? (
-          <p className="py-6 text-center text-slate-400 flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> A carregar a equipa…
-          </p>
-        ) : (
-          <div className="border border-slate-200 rounded-xl overflow-hidden">
-            <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 font-bold text-slate-700">Membros</div>
-            <div className="divide-y divide-slate-100">
-              {members.map((m) => (
-                <div key={m.user_id}>
-                  <div className="px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
+          {/* --------------------------------------------------- pending invites */}
+          {canManage && invites.length > 0 && (
+            <div className="border border-amber-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 font-bold text-amber-900 flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5" aria-hidden="true" /> Convites por aceitar
+              </div>
+              <div className="divide-y divide-amber-100">
+                {invites.map((inv) => (
+                  <div key={inv.id} className="px-4 py-2.5 flex flex-wrap items-center gap-2 justify-between">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-slate-800">{m.name}</span>
-                        {m.is_you && <span className="text-[9px] font-bold uppercase bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">Você</span>}
-                        {m.account_type === 'invited' && (
-                          <span className="text-[9px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">
-                            Convidado
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-0.5">
-                        {m.email} · entrou a {fmtDate(m.joined_at)} · {m.movimentos} movimento(s)
+                      <span className="font-semibold text-neutral-800">{inv.email}</span>
+                      <Badge tone={roleTone(inv.role)} className="ml-2 uppercase">{inv.role_label}</Badge>
+                      <p className="text-2xs text-neutral-500 mt-0.5">
+                        Expira a {formatDate(inv.expires_at)}{inv.invited_by_name ? ` · convidado por ${inv.invited_by_name}` : ''}
                       </p>
                     </div>
-
                     <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => openActivity(m.user_id)}
-                        className="px-2 py-1.5 rounded-lg border border-slate-200 text-slate-700 font-bold text-[10px] flex items-center gap-1 hover:bg-slate-50"
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => resend(inv)}
+                        loading={busyInvite === inv.id}
+                        icon={<Send />}
+                        title="Enviar o convite outra vez por email"
                       >
-                        <Activity className="w-3 h-3" /> {activityFor === m.user_id ? 'Fechar' : 'Atividade'}
-                      </button>
-
-                      {canManage ? (
-                        <select
-                          value={m.role}
-                          onChange={(e) => changeRole(m.user_id, e.target.value as UserRole)}
-                          className={`px-2 py-1.5 rounded-lg border text-[10px] font-bold ${roleStyle(m.role)}`}
-                        >
-                          {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                        </select>
-                      ) : (
-                        <span className={`px-2 py-1 rounded-lg border text-[10px] font-bold ${roleStyle(m.role)}`}>
-                          {m.role_label}
-                        </span>
-                      )}
-
-                      {(canManage || m.is_you) && (
-                        <button
-                          onClick={() => drop(m)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                          title={m.is_you ? 'Sair da empresa' : 'Remover da equipa'}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                        Reenviar
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => copy(inv)}
+                        icon={copied === inv.token ? <Check className="text-emerald-600" /> : <Copy />}
+                      >
+                        {copied === inv.token ? 'Copiado' : 'Copiar link'}
+                      </Button>
+                      <IconButton variant="danger" label="Cancelar convite" onClick={() => revoke(inv.id)}>
+                        <Trash2 />
+                      </IconButton>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-                  {/* --------------------------------------------- activity */}
-                  {activityFor === m.user_id && (
-                    <div className="px-4 pb-4 bg-slate-50/60 border-t border-slate-100">
-                      {!activity ? (
-                        <p className="py-4 text-slate-400 flex items-center gap-2">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> A carregar…
-                        </p>
-                      ) : (
-                        <div className="pt-3 space-y-3">
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                              <p className="text-[9px] uppercase font-bold text-slate-400">Lançamentos</p>
-                              <p className="font-bold text-slate-900 text-sm">{activity.lancamentos}</p>
-                            </div>
-                            <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                              <p className="text-[9px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                                <ArrowUpRight className="w-3 h-3 text-emerald-600" /> Entradas
-                              </p>
-                              <p className="font-bold text-emerald-700 text-sm">{formatMoney(activity.total_entradas)}</p>
-                            </div>
-                            <div className="p-2.5 rounded-xl bg-white border border-slate-200">
-                              <p className="text-[9px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                                <ArrowDownRight className="w-3 h-3 text-rose-600" /> Saídas
-                              </p>
-                              <p className="font-bold text-rose-700 text-sm">{formatMoney(activity.total_saidas)}</p>
-                            </div>
-                          </div>
-
-                          {activity.movimentos.length === 0 ? (
-                            <p className="text-slate-400 text-[11px]">Ainda não lançou nada nesta empresa.</p>
-                          ) : (
-                            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                              {activity.movimentos.map((t) => (
-                                <div key={t.id} className="px-3 py-2 flex items-center justify-between border-b border-slate-100 last:border-0">
-                                  <span className="truncate text-slate-700">{t.date} · {t.description}</span>
-                                  <span className={`font-bold font-mono ${t.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                    {t.type === 'income' ? '+' : '−'}{formatMoney(t.amount)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {activity.acoes.length > 0 && (
-                            <div>
-                              <p className="text-[9px] uppercase font-bold text-slate-400 mb-1">Últimas ações</p>
-                              <ul className="space-y-1">
-                                {activity.acoes.slice(0, 6).map((a, idx) => (
-                                  <li key={idx} className="text-[10px] text-slate-600">
-                                    <span className="font-mono text-slate-400">{a.timestamp.slice(0, 16).replace('T', ' ')}</span>
-                                    {' · '}{a.description}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
+          {/* ------------------------------------------------------------ members */}
+          {loading ? (
+            <LoadingState label="A carregar a equipa…" />
+          ) : (
+            <div className="border border-neutral-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2 bg-neutral-50 border-b border-neutral-200 font-bold text-neutral-700">Membros</div>
+              {members.length === 0 ? (
+                <EmptyState title="Ainda não há membros nesta equipa." />
+              ) : (
+              <div className="divide-y divide-neutral-100">
+                {members.map((m) => (
+                  <div key={m.user_id}>
+                    <div className="px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-neutral-800">{m.name}</span>
+                          {m.is_you && <Badge className="uppercase">Você</Badge>}
+                          {m.account_type === 'invited' && (
+                            <Badge tone="warning" className="uppercase">Convidado</Badge>
                           )}
                         </div>
-                      )}
+                        <p className="text-2xs text-neutral-500 mt-0.5">
+                          {m.email} · entrou a {formatDate(m.joined_at)} · {m.movimentos} movimento(s)
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openActivity(m.user_id)}
+                          icon={<Activity />}
+                          aria-expanded={activityFor === m.user_id}
+                        >
+                          {activityFor === m.user_id ? 'Fechar' : 'Atividade'}
+                        </Button>
+
+                        {canManage ? (
+                          <Select
+                            aria-label={`Papel de ${m.name}`}
+                            value={m.role}
+                            onChange={(e) => changeRole(m.user_id, e.target.value as UserRole)}
+                            className="h-8 w-auto text-xs font-semibold"
+                          >
+                            {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                          </Select>
+                        ) : (
+                          <Badge tone={roleTone(m.role)}>{m.role_label}</Badge>
+                        )}
+
+                        {(canManage || m.is_you) && (
+                          <IconButton
+                            variant="danger"
+                            label={m.is_you ? 'Sair da empresa' : 'Remover da equipa'}
+                            onClick={() => drop(m)}
+                          >
+                            <Trash2 />
+                          </IconButton>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {/* --------------------------------------------- activity */}
+                    {activityFor === m.user_id && (
+                      <div className="px-4 pb-4 bg-neutral-50/60 border-t border-neutral-100">
+                        {!activity ? (
+                          <LoadingState className="py-4" />
+                        ) : (
+                          <div className="pt-3 space-y-3">
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="p-2.5 rounded-xl bg-white border border-neutral-200">
+                                <p className="text-2xs uppercase font-bold text-neutral-500">Lançamentos</p>
+                                <p className="font-bold text-neutral-900 text-sm tabular-nums">{activity.lancamentos}</p>
+                              </div>
+                              <div className="p-2.5 rounded-xl bg-white border border-neutral-200">
+                                <p className="text-2xs uppercase font-bold text-neutral-500 flex items-center gap-1">
+                                  <ArrowUpRight className="w-3 h-3 text-emerald-600" aria-hidden="true" /> Entradas
+                                </p>
+                                <p className="font-bold text-emerald-700 text-sm tabular-nums">{formatMoney(activity.total_entradas)}</p>
+                              </div>
+                              <div className="p-2.5 rounded-xl bg-white border border-neutral-200">
+                                <p className="text-2xs uppercase font-bold text-neutral-500 flex items-center gap-1">
+                                  <ArrowDownRight className="w-3 h-3 text-rose-600" aria-hidden="true" /> Saídas
+                                </p>
+                                <p className="font-bold text-rose-700 text-sm tabular-nums">{formatMoney(activity.total_saidas)}</p>
+                              </div>
+                            </div>
+
+                            {activity.movimentos.length === 0 ? (
+                              <p className="text-neutral-500 text-xs">Ainda não lançou nada nesta empresa.</p>
+                            ) : (
+                              <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+                                {activity.movimentos.map((t) => (
+                                  <div key={t.id} className="px-3 py-2 flex items-center justify-between gap-3 border-b border-neutral-100 last:border-0">
+                                    <span className="truncate text-neutral-700">{formatDate(t.date)} · {t.description}</span>
+                                    <span className={`font-bold tabular-nums whitespace-nowrap ${t.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                      {t.type === 'income' ? '+' : '−'}{formatMoney(t.amount)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {activity.acoes.length > 0 && (
+                              <div>
+                                <p className="text-2xs uppercase font-bold text-neutral-500 mb-1">Últimas ações</p>
+                                <ul className="space-y-1">
+                                  {activity.acoes.slice(0, 6).map((a, idx) => (
+                                    <li key={idx} className="text-2xs text-neutral-600">
+                                      <span className="font-mono text-neutral-500">
+                                        {formatDate(a.timestamp)} {a.timestamp.slice(11, 16)}
+                                      </span>
+                                      {' · '}{a.description}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {!canManage && (
-          <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
-            <Eye className="w-3.5 h-3.5" /> Só o proprietário ou um administrador pode convidar pessoas e alterar papéis.
-          </p>
-        )}
-      </div>
+          {!canManage && (
+            <p className="text-xs text-neutral-500 flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5" aria-hidden="true" /> Só o proprietário ou um administrador pode convidar pessoas e alterar papéis.
+            </p>
+          )}
+        </CardBody>
+      </Card>
 
-      <p className="text-[10px] text-slate-400 text-center">
+      <p className="text-2xs text-neutral-500 text-center">
         Convites e papéis são verificados no servidor ({API_BASE}) — o que se altera aqui não contorna essa validação.
       </p>
     </div>

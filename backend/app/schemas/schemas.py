@@ -73,6 +73,7 @@ class CustomerCreate(BaseModel):
     is_taxable: Optional[bool] = True
     vat_cash_regime: Optional[bool] = False
     is_vat_exempt: Optional[bool] = False
+    address: Optional[str] = None
     address_name: Optional[str] = None
     postal_code: Optional[str] = None
     city: Optional[str] = None

@@ -208,3 +208,15 @@ def test_health_answers_only_when_the_database_does(client):
     res = client.get("/health")
     assert res.status_code == 200
     assert res.json()["database"] == "ok"
+
+
+def test_a_customer_address_is_kept(tenant):
+    """O formulário pedia a morada do cliente, mas o esquema não a aceitava e
+    ela perdia-se em silêncio."""
+    created = tenant.post("/api/v1/customers/", {
+        "name": "Cliente com Morada", "address": "Rua de Santa Catarina 100"})
+    assert created.status_code in (200, 201), created.text
+    entity_id = created.json()["id"]
+    account = tenant.get(f"/api/v1/entities/{entity_id}").json()
+    entity = account["entidade"]
+    assert entity["address"] == "Rua de Santa Catarina 100"

@@ -15,12 +15,16 @@
 
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
-  TrendingDown, Loader2, AlertCircle, Check, ChevronDown, RefreshCw, Wallet,
+  TrendingDown, AlertCircle, Check, ChevronDown, RefreshCw, Wallet,
   FileText, Repeat, Landmark, CalendarClock,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { CashForecast, ForecastMovement, ForecastWeek } from './types';
 import { fetchForecast } from './api';
+import {
+  Badge, Button, IconButton, Card, CardHeader, CardBody, LoadingState, ErrorState, cn,
+} from '@/components/ui';
+import { formatDate } from '@/lib/format';
 
 const HORIZONS = [
   { weeks: 4, label: '4 semanas' },
@@ -29,11 +33,12 @@ const HORIZONS = [
 ];
 
 const ORIGIN_ICON: Record<ForecastMovement['origin'], React.ReactNode> = {
-  'documento': <FileText className="w-3 h-3" />,
-  'recorrência': <Repeat className="w-3 h-3" />,
-  'IVA': <Landmark className="w-3 h-3" />,
+  'documento': <FileText className="w-3 h-3" aria-hidden="true" />,
+  'recorrência': <Repeat className="w-3 h-3" aria-hidden="true" />,
+  'IVA': <Landmark className="w-3 h-3" aria-hidden="true" />,
 };
 
+/** Só para o eixo do gráfico: "08 out" cabe por baixo de um ponto, dd/mm/aaaa não. */
 const shortDate = (iso: string) =>
   new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' });
 
@@ -80,19 +85,19 @@ const BalanceChart: React.FC<{
            aria-label="Saldo previsto ao longo das próximas semanas">
         {/* zero baseline — recessive, but always drawn: it is the line that matters */}
         <line x1={padding.left} x2={width - padding.right} y1={y(0)} y2={y(0)}
-              stroke="#cbd5e1" strokeWidth="1" strokeDasharray="3 3" />
-        <text x={padding.left} y={y(0) - 4} className="fill-slate-400" style={{ fontSize: 9 }}>0 €</text>
+              stroke="#d4d4d4" strokeWidth="1" strokeDasharray="3 3" />
+        <text x={padding.left} y={y(0) - 4} className="fill-neutral-500" style={{ fontSize: 11 }}>0 €</text>
 
-        <path d={area} fill="#6366f1" fillOpacity="0.10" />
-        <path d={line} fill="none" stroke="#6366f1" strokeWidth="2"
+        <path d={area} fill="#262626" fillOpacity="0.06" />
+        <path d={line} fill="none" stroke="#262626" strokeWidth="2"
               strokeLinejoin="round" strokeLinecap="round" />
 
         {/* the low point, labelled directly rather than left to the legend */}
         <circle cx={x(lowIndex)} cy={y(values[lowIndex])} r="4"
-                fill={goesNegative ? '#e11d48' : '#6366f1'} stroke="#fff" strokeWidth="2" />
+                fill={goesNegative ? '#e11d48' : '#262626'} stroke="#fff" strokeWidth="2" />
         <text x={Math.min(x(lowIndex), width - 90)} y={Math.max(y(values[lowIndex]) - 10, 12)}
-              className={goesNegative ? 'fill-rose-600' : 'fill-slate-500'}
-              style={{ fontSize: 10, fontWeight: 700 }}>
+              className={goesNegative ? 'fill-rose-600' : 'fill-neutral-600'}
+              style={{ fontSize: 11, fontWeight: 700 }}>
           mínimo {formatMoney(values[lowIndex])}
         </text>
 
@@ -103,7 +108,7 @@ const BalanceChart: React.FC<{
                   fill="transparent" onMouseEnter={() => setHover(index)}
                   onMouseLeave={() => setHover(null)} />
             {hover === index && (
-              <circle cx={x(index)} cy={y(point.value)} r="4" fill="#6366f1" stroke="#fff" strokeWidth="2" />
+              <circle cx={x(index)} cy={y(point.value)} r="4" fill="#262626" stroke="#fff" strokeWidth="2" />
             )}
           </g>
         ))}
@@ -111,7 +116,7 @@ const BalanceChart: React.FC<{
         {points.map((point, index) =>
           index % Math.ceil(points.length / 7) === 0 || index === points.length - 1 ? (
             <text key={index} x={x(index)} y={height - 6} textAnchor="middle"
-                  className="fill-slate-400" style={{ fontSize: 9 }}>
+                  className="fill-neutral-500" style={{ fontSize: 11 }}>
               {point.label}
             </text>
           ) : null,
@@ -119,7 +124,7 @@ const BalanceChart: React.FC<{
       </svg>
 
       {hover != null && (
-        <div className="absolute top-0 right-0 px-2.5 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-mono shadow-lg pointer-events-none">
+        <div className="absolute top-0 right-0 px-2.5 py-1.5 rounded-lg bg-black text-white text-2xs font-mono tabular-nums shadow-lg pointer-events-none">
           {points[hover].label}: {formatMoney(points[hover].value)}
         </div>
       )}
@@ -156,97 +161,115 @@ export const ForecastPanel: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> A projetar as próximas semanas…
-      </div>
+      <Card>
+        <LoadingState label="A projetar as próximas semanas…" />
+      </Card>
     );
   }
-  if (!data) return null;
+  if (!data) {
+    return (
+      <Card>
+        <ErrorState
+          message="Não foi possível calcular a previsão de tesouraria."
+          action={<Button variant="secondary" size="sm" icon={<RefreshCw />} onClick={load}>Tentar novamente</Button>}
+        />
+      </Card>
+    );
+  }
 
   const tight = data.resumo.aperta;
   const empty = data.resumo.sem_dados;
 
   return (
     <div className="space-y-4 text-xs">
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <CalendarClock className="w-4 h-4 text-indigo-600" />
-            <h3 className="font-bold text-sm text-slate-900">Previsão de tesouraria</h3>
-            <span className="text-[10px] text-slate-400 font-mono">até {shortDate(data.horizonte)}</span>
+      <Card>
+        <CardHeader
+          icon={<CalendarClock />}
+          title="Previsão de tesouraria"
+          subtitle={`até ${formatDate(data.horizonte)}`}
+          className="flex-wrap"
+          actions={
+            <>
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-neutral-100" role="group" aria-label="Horizonte da previsão">
+                {HORIZONS.map((h) => (
+                  <button
+                    key={h.weeks}
+                    type="button"
+                    aria-pressed={weeks === h.weeks}
+                    onClick={() => setWeeks(h.weeks)}
+                    className={cn(
+                      'h-7 px-2.5 rounded-md font-bold text-xs cursor-pointer transition-colors',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
+                      weeks === h.weeks ? 'bg-black text-white' : 'text-neutral-600 hover:text-neutral-900',
+                    )}
+                  >
+                    {h.label}
+                  </button>
+                ))}
+              </div>
+              <IconButton label="Actualizar projecção" onClick={load}>
+                <RefreshCw />
+              </IconButton>
+            </>
+          }
+        />
+
+        <CardBody className="space-y-4">
+          {/* The sentence first: it is the whole answer. On an empty company the
+              honest answer is that there is not one yet — a flat line at zero
+              must never be dressed as good news. */}
+          <div className={cn(
+            'flex items-start gap-2.5 px-3 py-2.5 rounded-xl border',
+            empty ? 'bg-neutral-50 border-neutral-200 text-neutral-700'
+              : tight ? 'bg-rose-50 border-rose-200 text-rose-900'
+              : 'bg-emerald-50 border-emerald-100 text-emerald-900',
+          )}>
+            {empty ? <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-neutral-400" aria-hidden="true" />
+              : tight ? <TrendingDown className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+              : <Check className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />}
+            <p className="font-semibold">{data.resumo.mensagem}</p>
           </div>
-          <div className="flex items-center gap-1">
-            {HORIZONS.map((h) => (
-              <button
-                key={h.weeks} onClick={() => setWeeks(h.weeks)}
-                className={`px-2.5 py-1.5 rounded-lg font-bold text-[11px] ${
-                  weeks === h.weeks ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                {h.label}
-              </button>
-            ))}
-            <button onClick={load} aria-label="Actualizar projecção" title="Actualizar projecção" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
+
+          {!empty && (
+            <BalanceChart weeks={data.semanas} opening={data.saldo_inicial} formatMoney={formatMoney} />
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 rounded-xl border border-neutral-200 bg-neutral-50">
+              <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500 flex items-center gap-1">
+                <Wallet className="w-3 h-3" aria-hidden="true" /> Saldo hoje
+              </p>
+              <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(data.saldo_inicial)}</p>
+            </div>
+            <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
+              <p className="text-2xs uppercase font-bold tracking-wider text-emerald-700">Entradas previstas</p>
+              <p className="font-bold text-emerald-700 text-sm mt-0.5 tabular-nums">{formatMoney(data.total_entradas)}</p>
+            </div>
+            <div className="p-3 rounded-xl border border-rose-100 bg-rose-50/40">
+              <p className="text-2xs uppercase font-bold tracking-wider text-rose-700">Saídas previstas</p>
+              <p className="font-bold text-rose-700 text-sm mt-0.5 tabular-nums">{formatMoney(data.total_saidas)}</p>
+            </div>
+            <div className="p-3 rounded-xl border border-neutral-200">
+              <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500">Saldo no fim</p>
+              <p className={cn('font-bold text-sm mt-0.5 tabular-nums', data.saldo_final < 0 ? 'text-rose-700' : 'text-neutral-900')}>
+                {formatMoney(data.saldo_final)}
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* The sentence first: it is the whole answer. On an empty company the
-            honest answer is that there is not one yet — a flat line at zero
-            must never be dressed as good news. */}
-        <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl border ${
-          empty ? 'bg-slate-50 border-slate-200 text-slate-700'
-            : tight ? 'bg-rose-50 border-rose-200 text-rose-900'
-            : 'bg-emerald-50 border-emerald-100 text-emerald-900'
-        }`}>
-          {empty ? <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
-            : tight ? <TrendingDown className="w-4 h-4 shrink-0 mt-0.5" />
-            : <Check className="w-4 h-4 shrink-0 mt-0.5" />}
-          <p className="font-semibold">{data.resumo.mensagem}</p>
-        </div>
-
-        {!empty && (
-          <BalanceChart weeks={data.semanas} opening={data.saldo_inicial} formatMoney={formatMoney} />
-        )}
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3 rounded-xl border border-slate-200 bg-slate-50">
-            <p className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1">
-              <Wallet className="w-3 h-3" /> Saldo hoje
+          {data.resumo.saidas_previstas_sem_documento > 0 && (
+            <p className="text-2xs text-neutral-500">
+              Inclui {formatMoney(data.resumo.saidas_previstas_sem_documento)} de custos recorrentes
+              ainda por lançar (renda, salários, avenças) — previstos, não documentados.
             </p>
-            <p className="font-bold text-slate-900 text-sm mt-0.5">{formatMoney(data.saldo_inicial)}</p>
-          </div>
-          <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
-            <p className="text-[9px] uppercase font-bold text-emerald-600">Entradas previstas</p>
-            <p className="font-bold text-emerald-700 text-sm mt-0.5">{formatMoney(data.total_entradas)}</p>
-          </div>
-          <div className="p-3 rounded-xl border border-rose-100 bg-rose-50/40">
-            <p className="text-[9px] uppercase font-bold text-rose-600">Saídas previstas</p>
-            <p className="font-bold text-rose-700 text-sm mt-0.5">{formatMoney(data.total_saidas)}</p>
-          </div>
-          <div className="p-3 rounded-xl border border-slate-200">
-            <p className="text-[9px] uppercase font-bold text-slate-500">Saldo no fim</p>
-            <p className={`font-bold text-sm mt-0.5 ${data.saldo_final < 0 ? 'text-rose-700' : 'text-slate-900'}`}>
-              {formatMoney(data.saldo_final)}
-            </p>
-          </div>
-        </div>
-
-        {data.resumo.saidas_previstas_sem_documento > 0 && (
-          <p className="text-[10px] text-slate-500">
-            Inclui {formatMoney(data.resumo.saidas_previstas_sem_documento)} de custos recorrentes
-            ainda por lançar (renda, salários, avenças) — previstos, não documentados.
-          </p>
-        )}
-      </div>
+          )}
+        </CardBody>
+      </Card>
 
       {/* ----------------------------------------------------- week by week */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 font-bold text-slate-700">
-          Semana a semana
-        </div>
-        <div className="divide-y divide-slate-100 max-h-[26rem] overflow-y-auto">
+      <Card className="overflow-hidden">
+        <CardHeader title="Semana a semana" className="py-3" />
+        <div className="divide-y divide-neutral-100 max-h-[26rem] overflow-y-auto">
           {data.semanas.map((week) => {
             const isOpen = open === week.semana;
             const negative = week.saldo_final < 0;
@@ -254,57 +277,54 @@ export const ForecastPanel: React.FC = () => {
             return (
               <div key={week.semana}>
                 <button
+                  type="button"
                   onClick={() => setOpen(isOpen ? null : week.semana)}
                   disabled={quiet}
-                  className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 text-left disabled:hover:bg-transparent"
+                  aria-expanded={quiet ? undefined : isOpen}
+                  className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-neutral-50 text-left cursor-pointer disabled:cursor-default disabled:hover:bg-transparent focus-visible:outline-none focus-visible:bg-neutral-50"
                 >
-                  <span className="text-[10px] font-mono text-slate-400 w-24 shrink-0">
-                    {shortDate(week.inicio)} – {shortDate(week.fim)}
+                  <span className="text-2xs font-mono tabular-nums text-neutral-500 w-40 shrink-0">
+                    {formatDate(week.inicio)} – {formatDate(week.fim)}
                   </span>
-                  <span className="flex-1 min-w-0 text-slate-600">
+                  <span className="flex-1 min-w-0 text-neutral-600 tabular-nums">
                     {quiet ? (
-                      <span className="text-slate-300">sem movimentos</span>
+                      <span className="text-neutral-400">sem movimentos</span>
                     ) : (
                       <>
                         <span className="text-emerald-700 font-semibold">+{formatMoney(week.entradas)}</span>
                         {' '}
                         <span className="text-rose-700 font-semibold">−{formatMoney(week.saidas)}</span>
-                        <span className="text-slate-400"> · {week.movimentos.length} movimento(s)</span>
+                        <span className="text-neutral-500"> · {week.movimentos.length} movimento(s)</span>
                       </>
                     )}
                   </span>
-                  <span className={`font-mono font-bold shrink-0 ${negative ? 'text-rose-700' : 'text-slate-900'}`}>
+                  <span className={cn('font-mono tabular-nums font-bold shrink-0', negative ? 'text-rose-700' : 'text-neutral-900')}>
                     {formatMoney(week.saldo_final)}
                   </span>
                   {negative && (
-                    <span className="text-[9px] font-bold uppercase text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded shrink-0">
-                      a descoberto
-                    </span>
+                    <Badge tone="danger" className="uppercase shrink-0">a descoberto</Badge>
                   )}
                   {!quiet && (
-                    <ChevronDown className={`w-3.5 h-3.5 text-slate-300 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={cn('w-3.5 h-3.5 text-neutral-400 shrink-0 transition-transform', isOpen && 'rotate-180')} aria-hidden="true" />
                   )}
                 </button>
 
                 {isOpen && (
-                  <ul className="px-4 pb-3 space-y-1 bg-slate-50/60">
+                  <ul className="px-4 pb-3 space-y-1 bg-neutral-50/60">
                     {week.movimentos.map((movement, index) => (
-                      <li key={index} className="flex items-center gap-2 text-[11px]">
-                        <span className="text-slate-300 shrink-0">{ORIGIN_ICON[movement.origin]}</span>
-                        <span className="text-slate-400 font-mono w-14 shrink-0">{shortDate(movement.date)}</span>
-                        <span className="flex-1 min-w-0 truncate text-slate-700">{movement.label}</span>
+                      <li key={index} className="flex items-center gap-2 text-xs">
+                        <span className="text-neutral-400 shrink-0" aria-label={movement.origin}>{ORIGIN_ICON[movement.origin]}</span>
+                        <span className="text-neutral-500 font-mono tabular-nums w-20 shrink-0">{formatDate(movement.date)}</span>
+                        <span className="flex-1 min-w-0 truncate text-neutral-700">{movement.label}</span>
                         {movement.certainty !== 'confirmado' && (
-                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border shrink-0 ${
-                            movement.certainty === 'vencido'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-slate-100 text-slate-500 border-slate-200'
-                          }`}>
+                          <Badge tone={movement.certainty === 'vencido' ? 'warning' : 'neutral'} className="uppercase shrink-0">
                             {movement.certainty}
-                          </span>
+                          </Badge>
                         )}
-                        <span className={`font-mono font-bold shrink-0 ${
-                          movement.kind === 'in' ? 'text-emerald-700' : 'text-rose-700'
-                        }`}>
+                        <span className={cn(
+                          'font-mono tabular-nums font-bold shrink-0',
+                          movement.kind === 'in' ? 'text-emerald-700' : 'text-rose-700',
+                        )}>
                           {movement.kind === 'in' ? '+' : '−'}{formatMoney(movement.amount)}
                         </span>
                       </li>
@@ -315,10 +335,10 @@ export const ForecastPanel: React.FC = () => {
             );
           })}
         </div>
-      </div>
+      </Card>
 
-      <p className="text-[10px] text-slate-400 flex items-start gap-1.5">
-        <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+      <p className="text-2xs text-neutral-500 flex items-start gap-1.5">
+        <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" aria-hidden="true" />
         A previsão parte do saldo real das contas e junta o que está por receber e por pagar
         nas datas de vencimento, os custos recorrentes ainda não lançados e o IVA na data
         legal de pagamento. Uma fatura já vencida entra hoje, porque é o mais cedo que pode entrar.

@@ -2,14 +2,15 @@
 
 import React, { Suspense } from 'react';
 import { CashFlowContent } from '@/components/cashflow/CashFlowView';
+import { Card, LoadingState } from '@/components/ui';
 
 export default function CashFlowPage() {
   return (
     <Suspense
       fallback={
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-400 text-xs">
-          A carregar o fluxo de caixa…
-        </div>
+        <Card>
+          <LoadingState label="A carregar o fluxo de caixa…" />
+        </Card>
       }
     >
       <CashFlowContent mode="cash-flow" />

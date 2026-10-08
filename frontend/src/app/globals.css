@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Identidade visual: preto + verde (emerald) sobre neutros.
+   Os componentes em components/ui usam estes tokens; uma página não escolhe
+   cores de botão nem tamanhos de letra por conta própria.
+   text-2xs (11px) é o mais pequeno que se usa — abaixo disso não se lê. */
+@theme {
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+}
+
 @layer base {
   body {
     background-color: #FFFFFF;

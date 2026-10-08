@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import {Loader2, User, MapPin, FileText, Settings} from 'lucide-react';
+import { User, MapPin, FileText, Settings} from 'lucide-react';
 import { Supplier } from '@/types';
 import { apiPost } from '@/services/api';
 import { SideDrawer } from './SideDrawer';
+import { toast } from 'sonner';
+import { Button, Field, Input, Select, Textarea } from '@/components/ui';
 
 interface CreateSupplierModalProps {
   onClose: () => void;
@@ -17,7 +19,6 @@ type Tab = 'geral' | 'endereco' | 'faturacao' | 'avancado';
 export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClose, onCreated }) => {
   const [activeTab, setActiveTab] = useState<Tab>('geral');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Campos
   const [name, setName] = useState('');
@@ -52,7 +53,6 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
     e.preventDefault();
     if (!name.trim()) return;
     setSubmitting(true);
-    setError(null);
 
     const payload = {
       name: name.trim(),
@@ -87,7 +87,7 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
     setSubmitting(false);
 
     if (!created) {
-      setError('Não foi possível guardar. Verifique a ligação e tente de novo.');
+      toast.error('Não foi possível guardar. Verifique a ligação e tente de novo.');
       return;
     }
 
@@ -96,11 +96,12 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
   };
 
   const renderTabs = () => (
-    <div className="flex space-x-1 bg-slate-100/50 p-1 rounded-xl mb-6 overflow-x-auto">
+    <div className="flex space-x-1 bg-neutral-100 p-1 rounded-xl mb-6 overflow-x-auto">
       <button
         type="button"
         onClick={() => setActiveTab('geral')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${activeTab === 'geral' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
+        aria-pressed={activeTab === 'geral'}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'geral' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
       >
         <User className="w-3.5 h-3.5" />
         Geral
@@ -108,7 +109,8 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
       <button
         type="button"
         onClick={() => setActiveTab('endereco')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${activeTab === 'endereco' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
+        aria-pressed={activeTab === 'endereco'}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'endereco' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
       >
         <MapPin className="w-3.5 h-3.5" />
         Endereço
@@ -116,7 +118,8 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
       <button
         type="button"
         onClick={() => setActiveTab('faturacao')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${activeTab === 'faturacao' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
+        aria-pressed={activeTab === 'faturacao'}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'faturacao' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
       >
         <FileText className="w-3.5 h-3.5" />
         Faturação & IVA
@@ -124,7 +127,8 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
       <button
         type="button"
         onClick={() => setActiveTab('avancado')}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${activeTab === 'avancado' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'}`}
+        aria-pressed={activeTab === 'avancado'}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'avancado' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
       >
         <Settings className="w-3.5 h-3.5" />
         Avançado
@@ -139,229 +143,229 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
       onClose={onClose}
       footer={
         <>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50 transition-colors"
-          >
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            form={FORM_ID}
-            disabled={submitting}
-            className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
-          >
-            {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          </Button>
+          <Button type="submit" form={FORM_ID} loading={submitting} className="flex-1">
             Guardar Fornecedor
-          </button>
+          </Button>
         </>
       }
     >
-      {error && (
-        <p className="mb-3 px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-[11px]">
-          {error}
-        </p>
-      )}
-
       {renderTabs()}
 
       <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
         <div className={activeTab === 'geral' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nome do Fornecedor *</label>
-              <input
-                type="text"
-                required
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Microsoft, Empresa XPTO Lda..."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-              />
+            <Field label="Nome do Fornecedor" required>
+              {(p) => (
+                <Input
+                  {...p}
+                  type="text"
+                  required
+                  autoFocus
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ex: Microsoft, Empresa XPTO Lda..."
+                />
+              )}
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="NIF / NIPC">
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="text"
+                    value={nif}
+                    onChange={(e) => setNif(e.target.value)}
+                    placeholder="PT500000000"
+                    className="font-mono"
+                  />
+                )}
+              </Field>
+              <Field label="Website">
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="text"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="www.exemplo.com"
+                  />
+                )}
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">NIF / NIPC</label>
-                <input
-                  type="text"
-                  value={nif}
-                  onChange={(e) => setNif(e.target.value)}
-                  placeholder="PT500000000"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 font-mono"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Website</label>
-                <input
-                  type="text"
-                  value={website}
-                  onChange={(e) => setWebsite(e.target.value)}
-                  placeholder="www.exemplo.com"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                />
-              </div>
+              <Field label="Email Principal">
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="geral@fornecedor.com"
+                  />
+                )}
+              </Field>
+              <Field label="Telefone Fixo">
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+351 210 000 000"
+                  />
+                )}
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email Principal</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="geral@fornecedor.com"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Telefone Fixo</label>
-                <input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+351 210 000 000"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nome do Contacto</label>
-                <input
-                  type="text"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  placeholder="João Silva"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Telemóvel Contacto</label>
-                <input
-                  type="text"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                  placeholder="+351 900 000 000"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                />
-              </div>
+              <Field label="Nome do Contacto">
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="text"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="João Silva"
+                  />
+                )}
+              </Field>
+              <Field label="Telemóvel Contacto">
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="text"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                    placeholder="+351 900 000 000"
+                  />
+                )}
+              </Field>
             </div>
           </div>
         </div>
 
         <div className={activeTab === 'endereco' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
            <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nome do Endereço (ex: Sede, Armazém)</label>
-              <input
-                type="text"
-                value={addressName}
-                onChange={(e) => setAddressName(e.target.value)}
-                placeholder="Sede"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Morada Completa</label>
-              <textarea
-                rows={2}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Rua da Empresa, Nº 123..."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 resize-none"
-              />
-            </div>
+            <Field label="Nome do Endereço (ex: Sede, Armazém)">
+              {(p) => (
+                <Input
+                  {...p}
+                  type="text"
+                  value={addressName}
+                  onChange={(e) => setAddressName(e.target.value)}
+                  placeholder="Sede"
+                />
+              )}
+            </Field>
+            <Field label="Morada Completa">
+              {(p) => (
+                <Textarea
+                  {...p}
+                  rows={2}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Rua da Empresa, Nº 123..."
+                  className="resize-none"
+                />
+              )}
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Código Postal</label>
-                <input
-                  type="text"
-                  value={postalCode}
-                  onChange={(e) => setPostalCode(e.target.value)}
-                  placeholder="1000-001"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Localidade / Cidade</label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Lisboa"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-                />
-              </div>
+              <Field label="Código Postal">
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="text"
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                    placeholder="1000-001"
+                  />
+                )}
+              </Field>
+              <Field label="Localidade / Cidade">
+                {(p) => (
+                  <Input
+                    {...p}
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Lisboa"
+                  />
+                )}
+              </Field>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">País</label>
-              <select
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-              >
-                <option value="PT">Portugal</option>
-                <option value="ES">Espanha</option>
-                <option value="FR">França</option>
-                <option value="US">Estados Unidos</option>
-                {/* ... mais países ... */}
-              </select>
-            </div>
+            <Field label="País">
+              {(p) => (
+                <Select
+                  {...p}
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                >
+                  <option value="PT">Portugal</option>
+                  <option value="ES">Espanha</option>
+                  <option value="FR">França</option>
+                  <option value="US">Estados Unidos</option>
+                  {/* ... mais países ... */}
+                </Select>
+              )}
+            </Field>
           </div>
         </div>
 
         <div className={activeTab === 'faturacao' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
            <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Sub-conta (Plano de Contas)</label>
-              <input
-                type="text"
-                value={subAccount}
-                onChange={(e) => setSubAccount(e.target.value)}
-                placeholder="22.1.1.X"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Categoria Padrão (IA)</label>
-              <select
-                value={defaultCategory}
-                onChange={(e) => setDefaultCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50"
-              >
-                <option value="Marketing > Google Ads">Marketing &gt; Google Ads</option>
-                <option value="Software > Licenças & SaaS">Software &gt; Licenças &amp; SaaS</option>
-                <option value="Operações > Instalações & Energia">Operações &gt; Instalações &amp; Energia</option>
-                <option value="Viagens > Transporte">Viagens &gt; Transporte</option>
-              </select>
-            </div>
+            <Field label="Sub-conta (Plano de Contas)">
+              {(p) => (
+                <Input
+                  {...p}
+                  type="text"
+                  value={subAccount}
+                  onChange={(e) => setSubAccount(e.target.value)}
+                  placeholder="22.1.1.X"
+                />
+              )}
+            </Field>
+            <Field label="Categoria Padrão (IA)">
+              {(p) => (
+                <Select
+                  {...p}
+                  value={defaultCategory}
+                  onChange={(e) => setDefaultCategory(e.target.value)}
+                >
+                  <option value="Marketing > Google Ads">Marketing &gt; Google Ads</option>
+                  <option value="Software > Licenças & SaaS">Software &gt; Licenças &amp; SaaS</option>
+                  <option value="Operações > Instalações & Energia">Operações &gt; Instalações &amp; Energia</option>
+                  <option value="Viagens > Transporte">Viagens &gt; Transporte</option>
+                </Select>
+              )}
+            </Field>
 
             <div className="space-y-3 pt-2">
-              <label className="flex items-center gap-2 text-xs text-slate-700 font-medium cursor-pointer">
+              <label className="flex items-center gap-2 text-xs text-neutral-700 font-medium cursor-pointer">
                 <input
                   type="checkbox"
                   checked={isTaxable}
                   onChange={(e) => setIsTaxable(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  className="size-4 rounded border-neutral-300 accent-emerald-600 cursor-pointer"
                 />
                 Entidade Sujeita a IVA
               </label>
-              <label className="flex items-center gap-2 text-xs text-slate-700 font-medium cursor-pointer">
+              <label className="flex items-center gap-2 text-xs text-neutral-700 font-medium cursor-pointer">
                 <input
                   type="checkbox"
                   checked={isVatExempt}
                   onChange={(e) => setIsVatExempt(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  className="size-4 rounded border-neutral-300 accent-emerald-600 cursor-pointer"
                 />
                 Isento de IVA
               </label>
-              <label className="flex items-center gap-2 text-xs text-slate-700 font-medium cursor-pointer">
+              <label className="flex items-center gap-2 text-xs text-neutral-700 font-medium cursor-pointer">
                 <input
                   type="checkbox"
                   checked={vatCashRegime}
                   onChange={(e) => setVatCashRegime(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  className="size-4 rounded border-neutral-300 accent-emerald-600 cursor-pointer"
                 />
                 Regime de IVA de Caixa
               </label>
@@ -371,43 +375,47 @@ export const CreateSupplierModal: React.FC<CreateSupplierModalProps> = ({ onClos
 
         <div className={activeTab === 'avancado' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
            <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Observações em Documentos</label>
-              <textarea
-                rows={2}
-                value={documentObservations}
-                onChange={(e) => setDocumentObservations(e.target.value)}
-                placeholder="Texto que aparecerá impresso nos documentos..."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 resize-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Observações Internas</label>
-              <textarea
-                rows={2}
-                value={internalObservations}
-                onChange={(e) => setInternalObservations(e.target.value)}
-                placeholder="Informações apenas para uso interno..."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50/50 resize-none"
-              />
-            </div>
+            <Field label="Observações em Documentos">
+              {(p) => (
+                <Textarea
+                  {...p}
+                  rows={2}
+                  value={documentObservations}
+                  onChange={(e) => setDocumentObservations(e.target.value)}
+                  placeholder="Texto que aparecerá impresso nos documentos..."
+                  className="resize-none"
+                />
+              )}
+            </Field>
+            <Field label="Observações Internas">
+              {(p) => (
+                <Textarea
+                  {...p}
+                  rows={2}
+                  value={internalObservations}
+                  onChange={(e) => setInternalObservations(e.target.value)}
+                  placeholder="Informações apenas para uso interno..."
+                  className="resize-none"
+                />
+              )}
+            </Field>
             
             <div className="space-y-3 pt-2">
-              <label className="flex items-center gap-2 text-xs text-slate-700 font-medium cursor-pointer">
+              <label className="flex items-center gap-2 text-xs text-neutral-700 font-medium cursor-pointer">
                 <input
                   type="checkbox"
                   checked={autoInvoicing}
                   onChange={(e) => setAutoInvoicing(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  className="size-4 rounded border-neutral-300 accent-emerald-600 cursor-pointer"
                 />
                 Faturação Automática
               </label>
-              <label className="flex items-center gap-2 text-xs text-slate-700 font-medium cursor-pointer">
+              <label className="flex items-center gap-2 text-xs text-neutral-700 font-medium cursor-pointer">
                 <input
                   type="checkbox"
                   checked={model10}
                   onChange={(e) => setModel10(e.target.checked)}
-                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  className="size-4 rounded border-neutral-300 accent-emerald-600 cursor-pointer"
                 />
                 Incluir no Modelo 10 (IRS)
               </label>

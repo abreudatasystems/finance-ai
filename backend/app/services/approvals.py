@@ -23,6 +23,7 @@ from typing import Iterable, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core import fmt
 from app.models.models import (
     AIApprovalItem, AIDocument, AIExtraction, AuditLog, Transaction, User,
 )
@@ -252,7 +253,7 @@ def decide(db: Session, company_id: str, current_user: User, approval_id: str,
         item.rejection_reason = getattr(d, "rejection_reason", None)
         set_document_status(db, item, company_id, "rejected")
         audit(db, company_id, now, current_user.name, "Rejeição IA",
-              f"Rejeitou {item.supplier_name} ({item.amount}): "
+              f"Rejeitou {item.supplier_name} ({fmt.eur(item.amount)}): "
               f"{item.rejection_reason or 'sem motivo'}", item.document_id)
         db.commit()
         return {"status": "success", "action": "rejected", "approval_id": item.id}
@@ -327,8 +328,8 @@ def decide(db: Session, company_id: str, current_user: User, approval_id: str,
     set_document_status(db, item, company_id, "approved")
 
     audit(db, company_id, now, current_user.name, "Aprovação IA",
-          f"Aprovou {item.supplier_name}: total {gross}, IVA {vat} — "
-          f"obrigação a pagar até {due_date}", trx_id)
+          f"Aprovou {item.supplier_name}: total {fmt.eur(gross)}, IVA {fmt.eur(vat)} — "
+          f"obrigação a pagar até {fmt.data(due_date)}", trx_id)
 
     db.commit()
     return {

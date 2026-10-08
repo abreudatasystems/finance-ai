@@ -22,6 +22,7 @@ from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core import fmt
 from app.models.models import (
     BankStatement, BankStatementEntry, Payment, Transaction, User,
 )
@@ -200,7 +201,7 @@ def match(db: Session, company_id: str, current_user: User, entry_id: str,
         if (_d(payment.amount) - amount).copy_abs() > AMOUNT_TOLERANCE:
             raise HTTPException(
                 status_code=409,
-                detail=f"O pagamento é de {_d(payment.amount)} € e o movimento de {amount} €. Os valores têm de coincidir.",
+                detail=f"O pagamento é de {fmt.eur(payment.amount)} e o movimento de {fmt.eur(amount)}. Os valores têm de coincidir.",
             )
         trx = db.query(Transaction).filter(Transaction.id == payment.transaction_id).first()
 
@@ -232,7 +233,7 @@ def match(db: Session, company_id: str, current_user: User, entry_id: str,
             if amount > outstanding + AMOUNT_TOLERANCE:
                 raise HTTPException(
                     status_code=409,
-                    detail=f"O movimento ({amount} €) é maior do que o que está em aberto ({outstanding} €).",
+                    detail=f"O movimento ({fmt.eur(amount)}) é maior do que o que está em aberto ({fmt.eur(outstanding)}).",
                 )
             now = datetime.now(timezone.utc)
             payment = Payment(

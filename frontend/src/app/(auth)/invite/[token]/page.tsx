@@ -12,7 +12,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, Loader2, ShieldCheck, Check, LogIn, UserPlus, AlertCircle } from 'lucide-react';
+import { Zap, ShieldCheck, Check, LogIn, UserPlus, AlertCircle } from 'lucide-react';
+import { Button, Card, Field, Input, LoadingState } from '@/components/ui';
 import { InvitationPreview } from '@/types';
 import { previewInvitation, acceptInvitation, registerFromInvitation } from '@/services/data';
 import { isAuthenticated, setToken, setActiveCompany } from '@/services/api';
@@ -71,117 +72,119 @@ export default function InvitePage() {
     finish(res.data.company_id);
   };
 
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-center justify-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-black flex items-center justify-center border border-neutral-800">
-            <Zap className="w-4 h-4 fill-emerald-400 text-emerald-400" />
+          <div className="size-9 rounded-xl bg-black flex items-center justify-center border border-neutral-800">
+            <Zap className="size-4 fill-emerald-400 text-emerald-400" aria-hidden="true" />
           </div>
           <span className="font-extrabold text-lg tracking-tight text-neutral-900">
             Finance <span className="text-emerald-600">AI</span>
           </span>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4 text-xs">
+        <Card className="p-6 space-y-4 text-xs">
           {loading ? (
-            <p className="py-8 text-center text-slate-400 flex items-center justify-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" /> A abrir o convite…
-            </p>
+            <LoadingState label="A abrir o convite…" />
           ) : loadError ? (
             <div className="space-y-3">
-              <p className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-[11px]">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {loadError}
+              <p role="alert" className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs">
+                <AlertCircle className="size-4 shrink-0 mt-0.5" aria-hidden="true" /> {loadError}
               </p>
-              <Link href="/login" className="block text-center px-3 py-2 rounded-xl border border-slate-200 font-bold text-slate-700 hover:bg-slate-50">
+              <Link
+                href="/login"
+                className="flex items-center justify-center h-9 px-4 rounded-lg border border-neutral-200 bg-white font-semibold text-sm text-neutral-800 hover:bg-neutral-50"
+              >
                 Ir para o início de sessão
               </Link>
             </div>
           ) : done ? (
-            <p className="py-8 text-center text-emerald-700 font-bold flex items-center justify-center gap-2">
-              <Check className="w-4 h-4" /> Entrou em {preview?.company_name}. A abrir…
+            <p role="status" className="py-8 text-center text-emerald-700 font-bold flex items-center justify-center gap-2">
+              <Check className="size-4" aria-hidden="true" /> Entrou em {preview?.company_name}. A abrir…
             </p>
           ) : preview && (
             <>
               <div className="text-center space-y-1">
-                <p className="text-slate-500">Foi convidado para</p>
-                <h1 className="text-lg font-extrabold text-slate-900">{preview.company_name}</h1>
-                <p className="text-slate-500">
-                  como <b className="text-slate-800">{preview.role_label}</b>
+                <p className="text-neutral-500">Foi convidado para</p>
+                <h1 className="text-lg font-extrabold text-neutral-900">{preview.company_name}</h1>
+                <p className="text-neutral-500">
+                  como <b className="text-neutral-800">{preview.role_label}</b>
                   {preview.invited_by_name ? <> · convite de {preview.invited_by_name}</> : null}
                 </p>
               </div>
 
               {preview.message && (
-                <p className="px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 italic">
+                <p className="px-3 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-700 italic">
                   “{preview.message}”
                 </p>
               )}
 
-              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-indigo-50/60 border border-indigo-100 text-[11px] text-indigo-900">
-                <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-indigo-600" />
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-emerald-50/60 border border-emerald-100 text-xs text-emerald-900">
+                <ShieldCheck className="size-4 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
                 <span>
                   O convite é para <b>{preview.email}</b> e dá acesso apenas a esta empresa.
                 </span>
               </div>
 
               {error && (
-                <p className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-[11px]">{error}</p>
+                <p role="alert" className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs">{error}</p>
               )}
 
               {signedIn ? (
-                <button
-                  onClick={acceptAsSignedIn} disabled={busy}
-                  className="w-full px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                <Button
+                  variant="accent"
+                  className="w-full"
+                  onClick={acceptAsSignedIn}
+                  loading={busy}
+                  icon={<Check />}
                 >
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   Aceitar convite
-                </button>
+                </Button>
               ) : preview.account_exists ? (
                 <div className="space-y-2">
-                  <p className="text-slate-600 text-center">
+                  <p className="text-neutral-600 text-center">
                     Já existe uma conta com este email. Entre com ela para aceitar.
                   </p>
                   <Link
                     href="/login"
-                    className="w-full px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center justify-center gap-1.5"
+                    className="w-full h-9 px-4 rounded-lg bg-black hover:bg-neutral-800 text-white text-sm font-semibold flex items-center justify-center gap-2"
                   >
-                    <LogIn className="w-4 h-4" /> Iniciar sessão
+                    <LogIn className="size-4" aria-hidden="true" /> Iniciar sessão
                   </Link>
-                  <p className="text-[10px] text-slate-400 text-center">
+                  <p className="text-2xs text-neutral-500 text-center">
                     Depois de entrar, volte a abrir este link para concluir.
                   </p>
                 </div>
               ) : (
                 <form onSubmit={createAccount} className="space-y-3">
-                  <label className="space-y-1.5 block">
-                    <span className="font-bold text-slate-700">O seu nome</span>
-                    <input
-                      required value={name} onChange={(e) => setName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
-                    />
-                  </label>
-                  <label className="space-y-1.5 block">
-                    <span className="font-bold text-slate-700">Palavra-passe</span>
-                    <input
-                      type="password" required minLength={8} value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-100"
-                    />
-                    <span className="text-[10px] text-slate-400">Mínimo 8 caracteres.</span>
-                  </label>
-                  <button
-                    type="submit" disabled={busy}
-                    className="w-full px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
-                  >
-                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                  <Field label="O seu nome">
+                    {(p) => (
+                      <Input {...p} required autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+                    )}
+                  </Field>
+                  <Field label="Palavra-passe" hint="Mínimo 8 caracteres.">
+                    {(p) => (
+                      <Input
+                        {...p}
+                        type="password"
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                    )}
+                  </Field>
+                  <Button type="submit" className="w-full" loading={busy} icon={<UserPlus />}>
                     Criar conta e entrar
-                  </button>
+                  </Button>
                 </form>
               )}
             </>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

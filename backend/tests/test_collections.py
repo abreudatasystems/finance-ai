@@ -296,8 +296,8 @@ def test_reminder_drafts_a_letter_without_sending_anything(tenant):
 
     assert draft["documentos"] == 2
     assert draft["total"] == 2000.0
-    assert "2026-06-30" in draft["corpo"]
-    assert "2 000.00 €" in draft["corpo"] or "2,000.00 €" in draft["corpo"]
+    assert "30/06/2026" in draft["corpo"]
+    assert "2 000,00 €" in draft["corpo"]
     assert "Cliente Esquecido" == draft["destinatario"]
 
 
