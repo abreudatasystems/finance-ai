@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from app.core.config import check_production_config, is_production, settings
+from app.core.observability import init_monitoring
 from app.api.v1.api import api_router
 from app.db.migrate import run_migrations
 from app.db.session import engine
@@ -19,6 +20,9 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
+# Monitorização de erros (Sentry): só liga com SENTRY_DSN definido.
+init_monitoring("api")
+
 # Refuse to start in production on a configuration that would lose sessions or
 # leave the API open. Failing here is cheaper than failing with customers on it.
 if is_production():
@@ -30,6 +34,14 @@ if is_production():
 
 # Bring the schema up to date (see app/db/migrate.py).
 run_migrations()
+
+# O fileConfig do Alembic (migrations/env.py) desliga os loggers que já
+# existiam — incluindo os nossos (financeai.*), e com eles o que iria para o
+# registo e para o Sentry. Volta a ligá-los.
+for _name, _logger in list(logging.root.manager.loggerDict.items()):
+    if isinstance(_logger, logging.Logger) and (
+            _name.startswith("financeai") or _name.startswith("app.")):
+        _logger.disabled = False
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -69,6 +81,9 @@ app.add_middleware(
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 @app.get("/health", include_in_schema=False)
+# Também em /api/v1/health: o Caddy só encaminha /api/* para o backend, e é
+# aí que um monitor externo (UptimeRobot, etc.) consegue chegar.
+@app.get(f"{settings.API_V1_STR}/health", include_in_schema=False)
 def health():
     """Para o Docker e para a monitorização: só diz que está bem se a base de
     dados responder — uma API de pé sem base de dados não serve ninguém."""

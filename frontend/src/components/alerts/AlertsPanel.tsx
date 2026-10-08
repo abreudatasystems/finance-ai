@@ -9,7 +9,7 @@
  * decoration, and people learn to ignore decoration.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle, AlertCircle, Info, Check, ArrowRight, RefreshCw, ChevronDown,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/format';
+import { useLoad } from '@/lib/use-load';
 import { Button, Card, ErrorState, IconButton, LoadingState } from '@/components/ui';
 import { Alert, AlertSeverity, AlertsPayload } from './types';
 import { fetchAlerts } from './api';
@@ -46,17 +47,8 @@ interface Props {
 
 export const AlertsPanel: React.FC<Props> = ({ limit }) => {
   const { formatMoney } = useApp();
-  const [data, setData] = useState<AlertsPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, reload: load } = useLoad<AlertsPayload | null>(fetchAlerts, []);
   const [expanded, setExpanded] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setData(await fetchAlerts());
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return (

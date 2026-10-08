@@ -14,13 +14,14 @@
  * stays undone.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Check, Circle, Rocket, Wallet, X } from 'lucide-react';
 import { Badge, Button, Card, IconButton, Input, LoadingState } from '@/components/ui';
 import { BankAccountRow, OnboardingStatus } from './types';
 import { fetchAccounts, fetchOnboarding, setOpeningBalance } from './api';
+import { useLoad } from '@/lib/use-load';
 
 /** Asked inline: the balance question is too important to be a link. */
 const OpeningBalanceField: React.FC<{ onDone: () => void }> = ({ onDone }) => {
@@ -77,16 +78,10 @@ const OpeningBalanceField: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 };
 
 export const FirstSteps: React.FC = () => {
-  const [data, setData] = useState<OnboardingStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Depois de gravar o saldo inicial volta a ler em silêncio: o cartão fica à
+  // vista em vez de piscar o "a verificar".
+  const { data, loading, refresh: load } = useLoad<OnboardingStatus | null>(fetchOnboarding, []);
   const [dismissed, setDismissed] = useState(false);
-
-  const load = useCallback(async () => {
-    setData(await fetchOnboarding());
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return (

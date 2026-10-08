@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { fetchCategories, fetchCategoryGroups, createCategory } from '@/services/data';
 import { Category, CategoryGroup } from '@/types';
 import { toast } from 'sonner';
+import { useLoad } from '@/lib/use-load';
 import {
   ArrowLeft, Check, Sparkles, CornerDownRight, FolderTree,
 } from 'lucide-react';
@@ -13,12 +14,18 @@ import {
   Button, Card, CardHeader, CardBody, Field, Input, Select, Textarea, LoadingState,
 } from '@/components/ui';
 
+const NO_GROUPS: CategoryGroup[] = [];
+const NO_CATEGORIES: Category[] = [];
+
 export default function CreateSubcategoryPage() {
   const { setPageHeader } = useApp();
 
-  const [groups, setGroups] = useState<CategoryGroup[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, reload: load } = useLoad(
+    () => Promise.all([fetchCategoryGroups(), fetchCategories()]),
+    [],
+  );
+  const groups: CategoryGroup[] = data?.[0] ?? NO_GROUPS;
+  const categories: Category[] = data?.[1] ?? NO_CATEGORIES;
 
   const [groupId, setGroupId] = useState('');
   const [parentId, setParentId] = useState('');
@@ -35,16 +42,6 @@ export default function CreateSubcategoryPage() {
     );
   }, [setPageHeader]);
 
-  const load = async () => {
-    setLoading(true);
-    const [g, c] = await Promise.all([fetchCategoryGroups(), fetchCategories()]);
-    setGroups(g);
-    setCategories(c);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, []);
-
   // Only top-level categories can take children — the tree stops at subcategory.
   const parentsForGroup = useMemo(() => {
     const roots = categories.filter((c) => !c.parent_id);
@@ -53,9 +50,9 @@ export default function CreateSubcategoryPage() {
     return roots.filter((c) => (c.group_id ? c.group_id === groupId : c.type === group?.kind));
   }, [categories, groups, groupId]);
 
-  useEffect(() => {
-    if (parentId && !parentsForGroup.some((c) => c.id === parentId)) setParentId('');
-  }, [parentsForGroup, parentId]);
+  // A categoria-mãe escolhida deixou de caber no grupo → limpa a escolha.
+  // Ajustado durante o render, não num efeito.
+  if (parentId && !parentsForGroup.some((c) => c.id === parentId)) setParentId('');
 
   const parent = categories.find((c) => c.id === parentId);
   const group = groups.find((g) => g.id === (parent?.group_id || groupId));

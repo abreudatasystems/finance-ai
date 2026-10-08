@@ -14,13 +14,14 @@
  * else sees the team read-only.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Users, UserPlus, Shield, Eye, Trash2, Copy, Check, Link2, X,
   Activity, ArrowUpRight, ArrowDownRight, Clock, Send, MailWarning,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useApp } from '@/context/AppContext';
+import { useLoad } from '@/lib/use-load';
 import { Invitation, MemberActivity, TeamMember, UserRole } from '@/types';
 import {
   fetchTeamMembers, fetchInvitations, createInvitation, revokeInvitation,
@@ -57,15 +58,29 @@ const inviteLink = (invitation: Pick<Invitation, 'token' | 'accept_url'>) => {
   return `${origin}/invite/${invitation.token}`;
 };
 
+const NO_MEMBERS: TeamMember[] = [];
+const NO_INVITES: Invitation[] = [];
+
 export const TeamPanel: React.FC = () => {
   const { currentCompany, userRole, formatMoney } = useApp();
   const confirm = useConfirm();
   const companyId = currentCompany?.id;
   const canManage = userRole === 'owner' || userRole === 'admin';
 
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [invites, setInvites] = useState<Invitation[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Sem empresa activa ainda não há o que pedir (fica a carregar).
+  const { data, loading, reload } = useLoad(
+    async () => {
+      const [m, i] = await Promise.all([
+        fetchTeamMembers(companyId!),
+        canManage ? fetchInvitations(companyId!) : Promise.resolve([] as Invitation[]),
+      ]);
+      return { members: m, invites: i.filter((x) => x.status === 'pending') };
+    },
+    [companyId, canManage],
+    { enabled: !!companyId },
+  );
+  const members: TeamMember[] = data?.members ?? NO_MEMBERS;
+  const invites: Invitation[] = data?.invites ?? NO_INVITES;
   const [copied, setCopied] = useState<string | null>(null);
   const [busyInvite, setBusyInvite] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -78,20 +93,6 @@ export const TeamPanel: React.FC = () => {
 
   const [activityFor, setActivityFor] = useState<string | null>(null);
   const [activity, setActivity] = useState<MemberActivity | null>(null);
-
-  const reload = useCallback(async () => {
-    if (!companyId) return;
-    setLoading(true);
-    const [m, i] = await Promise.all([
-      fetchTeamMembers(companyId),
-      canManage ? fetchInvitations(companyId) : Promise.resolve([] as Invitation[]),
-    ]);
-    setMembers(m);
-    setInvites(i.filter((x) => x.status === 'pending'));
-    setLoading(false);
-  }, [companyId, canManage]);
-
-  useEffect(() => { reload(); }, [reload]);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();

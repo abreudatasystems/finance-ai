@@ -24,5 +24,6 @@ const DOCUMENT_STATUS: Record<string, string> = {
 /** O estado do documento em português; um estado desconhecido não se esconde. */
 export function documentStatusLabel(status?: string | null): string {
   if (!status) return '—';
-  return DOCUMENT_STATUS[status] || status;
+  // Só chaves próprias: "toString" ou "constructor" devolviam uma função.
+  return Object.prototype.hasOwnProperty.call(DOCUMENT_STATUS, status) ? DOCUMENT_STATUS[status] : status;
 }

@@ -16,6 +16,29 @@ export interface AIMessage {
   timestamp: string;
   actionCard?: AIActionCard;
   actions?: AIActionItem[];
+  /** 'ia' quando respondeu o Claude; 'basico' no motor de palavras-chave. */
+  mode?: AIMode;
+  /** Nota curta do servidor (ex.: porque está em modo básico). */
+  notice?: string;
+}
+
+export type AIMode = 'ia' | 'basico';
+
+/** Uma mensagem anterior, enviada ao servidor para dar contexto à IA. */
+export interface AIHistoryItem {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+/** Quantas mensagens anteriores seguem com cada pergunta (≈ 10 trocas). */
+export const AI_HISTORY_LIMIT = 20;
+
+/** O histórico a enviar: só texto, sem a saudação inicial, as mais recentes. */
+export function buildHistory(messages: AIMessage[]): AIHistoryItem[] {
+  return messages
+    .filter(m => m.id !== INITIAL_AI_MESSAGES[0]?.id && m.text.trim())
+    .slice(-AI_HISTORY_LIMIT)
+    .map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', text: m.text }));
 }
 
 /** O cartão que uma resposta pode trazer, com a forma que cada tipo tem.
@@ -66,7 +89,12 @@ export const INITIAL_AI_MESSAGES: AIMessage[] = [
   },
 ];
 
-export async function processUserMessage(prompt: string, currency: Currency = 'EUR', pagePath: string = '/dashboard'): Promise<AIMessage> {
+export async function processUserMessage(
+  prompt: string,
+  currency: Currency = 'EUR',
+  pagePath: string = '/dashboard',
+  history: AIHistoryItem[] = [],
+): Promise<AIMessage> {
   const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   try {
@@ -77,6 +105,7 @@ export async function processUserMessage(prompt: string, currency: Currency = 'E
         message: prompt,
         prompt: prompt,
         currency,
+        history,
         context: {
           page: pagePath,
           period: new Date().toISOString().slice(0, 7),
@@ -92,7 +121,9 @@ export async function processUserMessage(prompt: string, currency: Currency = 'E
         text: data.text || 'Análise concluída.',
         timestamp: data.timestamp || timestamp,
         actionCard: data.actionCard,
-        actions: data.actions
+        actions: data.actions,
+        mode: data.mode === 'ia' ? 'ia' : data.mode === 'basico' ? 'basico' : undefined,
+        notice: typeof data.notice === 'string' ? data.notice : undefined,
       };
     }
   } catch {

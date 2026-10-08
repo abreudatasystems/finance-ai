@@ -9,7 +9,7 @@
  * the right, which is why they can never drift apart.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import {
   Scale, ArrowDownLeft, ArrowUpRight, FileText, Clock,
 } from 'lucide-react';
@@ -18,6 +18,7 @@ import { EntityStatement } from './types';
 import { fetchEntityStatement } from './api';
 import { Badge, BadgeTone, Card, CardHeader, CardBody, EmptyState, LoadingState } from '@/components/ui';
 import { formatDate } from '@/lib/format';
+import { useLoad } from '@/lib/use-load';
 
 interface Props {
   entityId: string;
@@ -36,16 +37,7 @@ const statusLabel = (status: string) =>
   ({ paid: 'Liquidado', partially_paid: 'Parcial', overdue: 'Vencido', pending: 'Em aberto', cancelled: 'Anulado' } as Record<string, string>)[status] || status;
 
 export const EntityAccount: React.FC<Props> = ({ entityId, formatMoney, focus = 'all' }) => {
-  const [data, setData] = useState<EntityStatement | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setData(await fetchEntityStatement(entityId));
-    setLoading(false);
-  }, [entityId]);
-
-  useEffect(() => { load(); }, [load]);
+  const { data, loading } = useLoad<EntityStatement | null>(() => fetchEntityStatement(entityId), [entityId]);
 
   if (loading) {
     return (

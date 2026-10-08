@@ -99,7 +99,7 @@ export const ChangePassword: React.FC = () => {
 
           {done && (
             <p role="status" className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-1.5">
-              <Check className="w-3.5 h-3.5" aria-hidden="true" /> Palavra-passe alterada. As sessões abertas continuam válidas.
+              <Check className="w-3.5 h-3.5" aria-hidden="true" /> Palavra-passe alterada. As sessões abertas noutros dispositivos foram terminadas.
             </p>
           )}
 

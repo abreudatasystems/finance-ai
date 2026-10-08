@@ -9,7 +9,8 @@
  *    "invited" one: it works inside this company and does not open its own.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useLoad } from '@/lib/use-load';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Zap, ShieldCheck, Check, LogIn, UserPlus, AlertCircle } from 'lucide-react';
@@ -22,9 +23,10 @@ export default function InvitePage() {
   const params = useParams<{ token: string }>();
   const token = String(params?.token || '');
 
-  const [preview, setPreview] = useState<InvitationPreview | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Sem token não há o que pedir (e a página fica a carregar, como antes).
+  const { data: res, loading } = useLoad(() => previewInvitation(token), [token], { enabled: !!token });
+  const preview: InvitationPreview | null = res?.data || null;
+  const loadError: string | null = res?.error || null;
 
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -33,16 +35,6 @@ export default function InvitePage() {
   const [done, setDone] = useState(false);
 
   const signedIn = isAuthenticated();
-
-  const load = useCallback(async () => {
-    if (!token) return;
-    const res = await previewInvitation(token);
-    setPreview(res.data || null);
-    setLoadError(res.error || null);
-    setLoading(false);
-  }, [token]);
-
-  useEffect(() => { load(); }, [load]);
 
   const finish = (companyId: string) => {
     setActiveCompany(companyId);   // land straight in the company that invited them

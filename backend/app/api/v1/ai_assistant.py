@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.schemas import AIChatRequest, AIChatResponse
 from app.services.ai_orchestrator import process_ai_intent_and_action
-from app.api.deps import get_current_company_id
+from app.api.deps import get_current_membership
 
 router = APIRouter()
 
@@ -13,8 +13,9 @@ router = APIRouter()
 async def ai_chat(
     request: AIChatRequest,
     db: Session = Depends(get_db),
-    company_id: str = Depends(get_current_company_id),
+    membership=Depends(get_current_membership),
 ):
     # Force the tenant from the authenticated session, never trust the body.
+    company_id = membership.company_id
     request.company_id = company_id
-    return await process_ai_intent_and_action(request, db, company_id)
+    return await process_ai_intent_and_action(request, db, company_id, user_id=membership.user_id)

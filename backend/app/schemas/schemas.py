@@ -224,12 +224,20 @@ class AIChatAction(BaseModel):
     action: str
     payload: Optional[dict] = None
 
+class AIChatHistoryItem(BaseModel):
+    """Uma mensagem anterior da conversa, como o painel a mostrou."""
+    role: str  # "user" | "assistant" (outros valores são ignorados)
+    text: str = ""
+
 class AIChatRequest(BaseModel):
     message: Optional[str] = None
     prompt: Optional[str] = None
     company_id: str = "COMP001"
     currency: str = "EUR"
     context: Optional[AIContext] = None
+    #: Mensagens anteriores (as mais recentes no fim). Opcional: clientes
+    #: antigos não a enviam e continuam a funcionar.
+    history: Optional[List[AIChatHistoryItem]] = None
 
 class AIChatResponse(BaseModel):
     id: str
@@ -239,6 +247,10 @@ class AIChatResponse(BaseModel):
     timestamp: str
     actionCard: Optional[dict] = None
     actions: Optional[List[AIChatAction]] = None
+    #: "ia" quando respondeu o Claude; "basico" no motor de palavras-chave.
+    mode: str = "basico"
+    #: Nota curta para o painel (porque está em modo básico, por exemplo).
+    notice: Optional[str] = None
 
 # Items (Products / Services)
 class ItemBase(BaseModel):

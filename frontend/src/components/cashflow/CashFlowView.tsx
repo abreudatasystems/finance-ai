@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { useLoad } from '@/lib/use-load';
 import { fetchTransactions } from '@/services/data';
 import { settleMany } from '@/components/cashflow/api';
 import { ForecastPanel } from '@/components/cashflow/ForecastPanel';
@@ -16,13 +17,19 @@ import {
   LoadingState, EmptyState, cn, useConfirm,
 } from '@/components/ui';
 
+const NO_TRANSACTIONS: Transaction[] = [];
+
 export interface CashFlowViewProps {
   mode?: 'cash-flow' | 'payables' | 'receivables';
 }
 export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
   const router = useRouter();
   const { formatMoney, setPageHeader } = useApp();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  // `data` fica `undefined` até à primeira resposta; depois de liquidar volta a
+  // ler sem esconder a tabela (por isso "carregado" = já houve uma resposta).
+  const { data: loadedTransactions, reload: reloadTransactions } = useLoad(fetchTransactions, []);
+  const transactions = loadedTransactions ?? NO_TRANSACTIONS;
+  const loaded = loadedTransactions !== undefined;
   const [activeTab, setActiveTab] = useState<'all' | 'income' | 'expense' | 'pending' | 'open'>(mode === 'cash-flow' ? 'all' : 'open');
   const [searchTerm, setSearchTerm] = useState('');
   // A list of every movement ever is unusable after two months. The period is
@@ -34,26 +41,20 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
 
   // As contas a pagar e a receber encaminham para aqui; um marcador antigo ou
   // um alerta tem de aterrar já no separador e no sentido certos.
-  useEffect(() => {
+  // Ajustado durante o render quando o URL muda, não num efeito.
+  const [seenParams, setSeenParams] = useState<typeof params | null>(null);
+  if (params !== seenParams) {
+    setSeenParams(params);
     const tab = params.get('tab');
     const dir = params.get('dir');
     if (tab === 'open') setActiveTab('open');
     if (dir === 'expense' || dir === 'income') setDirection(dir);
-  }, [params]);
+  }
   const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [settling, setSettling] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const confirm = useConfirm();
 
-  useEffect(() => {
-    async function load() {
-      const trxs = await fetchTransactions();
-      setTransactions(trxs);
-      setLoaded(true);
-    }
-    load();
-  }, []);
 
     useEffect(() => {
     if (mode === 'payables') {
@@ -78,7 +79,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
     return out;
   }, []);
 
-  const filteredTransactions = transactions.filter((t) => {
+  const filteredTransactions = React.useMemo(() => transactions.filter((t) => {
     const matchesPeriod = period === 'all' || activeTab === 'open' || (t.date || '').startsWith(period);
     const matchesTab =
       activeTab === 'all' ? true :
@@ -95,7 +96,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
     const matchesDirection =
       activeTab !== 'open' || direction === 'all' || t.type === direction;
     return matchesPeriod && matchesTab && matchesSearch && matchesOpen && matchesDirection;
-  });
+  }), [transactions, period, activeTab, searchTerm, direction]);
 
   /* What actually moves through the bank. Not the document total: any
      retention at source goes to the State, so a cash flow that sums the gross
@@ -145,14 +146,16 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
   /* Oldest first, carrying a running balance — how a cash flow is read. */
   const withRunning = React.useMemo(() => {
     const ordered = [...filteredTransactions].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    let running = 0;
-    const map = new Map<string, number>();
-    ordered.forEach((t) => {
+    const signed = ordered.map((t) => {
       const amount = Number(t.payable_amount ?? t.gross_amount ?? t.amount ?? 0);
-      running += t.type === 'income' ? amount : -amount;
-      map.set(t.id, running);
+      return t.type === 'income' ? amount : -amount;
     });
-    return map;
+    // Soma acumulada sem mutação: cada saldo é o anterior mais o movimento.
+    const balances = signed.reduce<number[]>(
+      (acc, v, i) => acc.concat((i === 0 ? 0 : acc[i - 1]) + v),
+      [],
+    );
+    return new Map(ordered.map((t, i) => [t.id, balances[i]] as const));
   }, [filteredTransactions]);
 
   const settleSelected = async () => {
@@ -173,7 +176,7 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
       toast.success(`${liquidados} lançamento(s) liquidado(s) — ${formatMoney(total)}.`);
     }
     setSelected(new Set());
-    setTransactions(await fetchTransactions());
+    await reloadTransactions();
   };
 
   const toggle = (id: string) =>

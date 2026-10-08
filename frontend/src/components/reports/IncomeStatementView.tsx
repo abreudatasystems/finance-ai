@@ -18,7 +18,8 @@
  * paired with a label and an arrow, never carrying meaning on its own.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
+import { useLoad } from '@/lib/use-load';
 import {
   FileText, CalendarRange, TrendingUp, TrendingDown, Minus, Info,
   ChevronDown, Landmark,
@@ -110,29 +111,12 @@ export const IncomeStatementView: React.FC = () => {
   const options = periodOptions();
 
   const [period, setPeriod] = useState(options.find((o) => o.value.includes('T')) ?.value || options[0].value);
-  const [data, setData] = useState<IncomeStatement | null>(null);
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  // Só a resposta mais recente escreve: trocar depressa de período deixava a
-  // demonstração do período anterior por baixo do rótulo novo.
-  const requestSeq = useRef(0);
-
-  const load = useCallback(async () => {
-    const mine = ++requestSeq.current;
-    setLoading(true);
-    const result = await fetchIncomeStatement(period);
-    if (mine !== requestSeq.current) return;
-    setData(result);
-    setLoading(false);
-  }, [period]);
-
-  useEffect(() => {
-    load();
-    // Ao desmontar, qualquer resposta ainda a caminho deixa de contar.
-    const seq = requestSeq;
-    return () => { seq.current++; };
-  }, [load]);
+  // Só a resposta mais recente escreve (o useLoad ignora as antigas): trocar
+  // depressa de período deixava a demonstração do período anterior por baixo
+  // do rótulo novo.
+  const { data, loading } = useLoad<IncomeStatement | null>(() => fetchIncomeStatement(period), [period]);
 
   const subtotal = (key: string): StatementSubtotal | undefined =>
     data?.subtotais.find((s) => s.key === key);

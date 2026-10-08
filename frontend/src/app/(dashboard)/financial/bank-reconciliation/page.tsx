@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useLoad } from '@/lib/use-load';
 import { fetchBankStatements, fetchBankStatementEntries } from '@/services/data';
 import { apiFetch } from '@/services/api';
 import { ReconciliationPanel } from '@/components/reconciliation/ReconciliationPanel';
@@ -65,7 +66,9 @@ interface UploadResult {
 
 export default function BankReconciliationPage() {
   const { formatMoney, setPageHeader } = useApp();
-  const [statements, setStatements] = useState<Statement[]>([]);
+  const { data: statements, reload: loadStatements } = useLoad(
+    () => fetchBankStatements<Statement>(), [], { initialData: [] as Statement[] },
+  );
   const [selectedStatement, setSelectedStatement] = useState<Statement | null>(null);
   const [entries, setEntries] = useState<StatementEntry[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -80,11 +83,6 @@ export default function BankReconciliationPage() {
     setPageHeader('Conciliação Bancária', 'Importe extratos e associe cada movimento do banco ao documento que liquida.');
   }, [setPageHeader]);
 
-  const loadStatements = async () => {
-    const data = await fetchBankStatements<Statement>();
-    setStatements(data);
-  };
-
   // "Sincronizar Banco" esperava 1,5 s e não fazia nada — não há ligação
   // directa ao banco. Agora volta a ler o que está importado.
   const handleSync = async () => {
@@ -93,8 +91,6 @@ export default function BankReconciliationPage() {
     setPanelVersion(v => v + 1);
     setIsSyncing(false);
   };
-
-  useEffect(() => { loadStatements(); }, []);
 
   const loadEntries = async (stmt: Statement) => {
     setSelectedStatement(stmt);
@@ -128,7 +124,7 @@ export default function BankReconciliationPage() {
     } finally {
       setIsUploading(false);
     }
-  }, []);
+  }, [loadStatements]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useApp } from '@/context/AppContext';
+import { useLoad } from '@/lib/use-load';
 import {
   fetchCategoryGroups, createCategoryGroup, deleteCategoryGroup,
 } from '@/services/data';
@@ -35,8 +36,7 @@ const accentOf = (g: CategoryGroup) => ACCENTS[g.color || ''] || ACCENTS.slate;
 export default function CategoryGroupsPage() {
   const { setPageHeader } = useApp();
   const confirm = useConfirm();
-  const [groups, setGroups] = useState<CategoryGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: groups, loading, reload: load } = useLoad(fetchCategoryGroups, [], { initialData: [] as CategoryGroup[] });
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // create form
@@ -53,14 +53,6 @@ export default function CategoryGroupsPage() {
       'Receita e Despesa são os grupos originais do sistema. Pode acrescentar os seus para organizar melhor o plano de contas.',
     );
   }, [setPageHeader]);
-
-  const load = async () => {
-    setLoading(true);
-    setGroups(await fetchCategoryGroups());
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, []);
 
   const resetForm = () => {
     setName(''); setKind('expense'); setIcon('📈'); setColor('indigo'); setDescription('');

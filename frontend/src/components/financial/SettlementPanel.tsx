@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Landmark, Plus, Check, Trash2, CalendarClock, ArrowDownLeft, ArrowUpRight,
 } from 'lucide-react';
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui';
 import type { BadgeTone } from '@/components/ui';
 import { formatDate } from '@/lib/format';
+import { useLoad } from '@/lib/use-load';
 import {
   fetchInstallments, fetchPayments, fetchBankAccounts,
   registerPayment, deletePayment, createInstallments,
@@ -32,6 +33,10 @@ const INST_STATUS: Record<string, { label: string; tone: BadgeTone }> = {
   pending: { label: 'Pendente', tone: 'neutral' },
 };
 
+const NO_INSTALLMENTS: Installment[] = [];
+const NO_PAYMENTS: PaymentRecord[] = [];
+const NO_ACCOUNTS: BankAccount[] = [];
+
 interface Props {
   transaction: Transaction;
   formatMoney: (n: number) => string;
@@ -43,10 +48,6 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
   const isIncome = transaction.type === 'income';
   const noun = isIncome ? 'Recebimento' : 'Pagamento';
 
-  const [installments, setInstallments] = useState<Installment[]>([]);
-  const [payments, setPayments] = useState<PaymentRecord[]>([]);
-  const [accounts, setAccounts] = useState<BankAccount[]>([]);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const confirm = useConfirm();
 
@@ -68,24 +69,26 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
   const settled = outstanding <= 0.004;
   const progress = gross > 0 ? Math.min(100, (paid / gross) * 100) : 0;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const [i, p, a] = await Promise.all([
+  // Ao chegar a lista de contas, pré-escolhe a conta por omissão (se ainda
+  // não houver uma escolhida). Antes, `accountId` estava nas dependências e
+  // escolher outra conta voltava a pedir tudo ao servidor.
+  const { data, loading, reload: load } = useLoad(
+    () => Promise.all([
       fetchInstallments(transaction.id),
       fetchPayments(transaction.id),
       fetchBankAccounts(),
-    ]);
-    setInstallments(i);
-    setPayments(p);
-    setAccounts(a);
-    if (!accountId) {
-      const def = a.find((x) => x.is_default) || a[0];
-      if (def) setAccountId(def.id);
-    }
-    setLoading(false);
-  }, [transaction.id, accountId]);
-
-  useEffect(() => { load(); }, [load]);
+    ]),
+    [transaction.id],
+    {
+      onSuccess: ([, , a]) => {
+        const def = a.find((x) => x.is_default) || a[0];
+        if (def) setAccountId((current) => current || def.id);
+      },
+    },
+  );
+  const installments: Installment[] = data?.[0] ?? NO_INSTALLMENTS;
+  const payments: PaymentRecord[] = data?.[1] ?? NO_PAYMENTS;
+  const accounts: BankAccount[] = data?.[2] ?? NO_ACCOUNTS;
 
   const openFor = (inst?: Installment) => {
     setTargetInstallment(inst?.id || '');

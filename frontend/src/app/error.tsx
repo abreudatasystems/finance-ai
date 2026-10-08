@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
+import { reportError } from '@/lib/report-error';
 
 export default function Error({
   error,
@@ -17,6 +18,7 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error(error);
+    reportError(error, 'route');
   }, [error]);
 
   return (

@@ -9,7 +9,8 @@
  * starts, and puts no friction in the way: it is the company's own data.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useLoad } from '@/lib/use-load';
 import { Download, ShieldCheck, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/services/api';
@@ -26,26 +27,21 @@ interface ExportSummary {
   total_tabelas: number;
 }
 
+/** O resumo do que há para exportar; `forbidden` quando o papel não o permite. */
+async function fetchSummary(): Promise<{ forbidden: boolean; summary: ExportSummary | null }> {
+  const res = await apiFetch('/companies/export/summary');
+  if (res.status === 403) return { forbidden: true, summary: null };
+  if (res.ok) return { forbidden: false, summary: (await res.json()) as ExportSummary };
+  return { forbidden: false, summary: null };
+}
+
 export const DataExport: React.FC = () => {
-  const [summary, setSummary] = useState<ExportSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Uma falha de rede chega como `loadError` (a promessa rejeita).
+  const { data: result, loading, error: loadError } = useLoad(fetchSummary, []);
   const [downloading, setDownloading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [forbidden, setForbidden] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch('/companies/export/summary');
-      if (res.status === 403) setForbidden(true);
-      else if (res.ok) setSummary((await res.json()) as ExportSummary);
-    } catch {
-      setError('Não foi possível saber o que há para exportar.');
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  const forbidden = result?.forbidden ?? false;
+  const summary = result?.summary ?? null;
+  const error = loadError ? 'Não foi possível saber o que há para exportar.' : null;
 
   const download = async () => {
     setDownloading(true);

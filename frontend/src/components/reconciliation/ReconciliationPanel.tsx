@@ -12,7 +12,8 @@
  * explanation is not something anyone should act on.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { useLoad } from '@/lib/use-load';
 import {
   Link2, Unlink, EyeOff, Eye, Loader2, Check, ArrowRight,
   ArrowDownLeft, ArrowUpRight, RefreshCw, Scale,
@@ -44,41 +45,30 @@ const PAYMENT_STATUS: Record<string, string> = {
 };
 const paymentStatusLabel = (s?: string | null) => (s ? PAYMENT_STATUS[s] || s : '—');
 
+const NO_ENTRIES: BankEntry[] = [];
+
 export const ReconciliationPanel: React.FC = () => {
   const { formatMoney } = useApp();
   const confirm = useConfirm();
 
   const [filter, setFilter] = useState<EntryFilter>('unmatched');
-  const [entries, setEntries] = useState<BankEntry[]>([]);
-  const [overview, setOverview] = useState<ReconciliationOverview | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Só a resposta mais recente escreve no ecrã (o useLoad ignora as antigas):
+  // sem isto, trocar depressa de filtro deixava a resposta antiga por baixo do
+  // rótulo novo.
+  const { data, loading, reload } = useLoad(
+    () => Promise.all([fetchEntries(filter), fetchOverview()]),
+    [filter],
+  );
+  const entries: BankEntry[] = data?.[0] ?? NO_ENTRIES;
+  const overview: ReconciliationOverview | null = data?.[1] ?? null;
   const [openEntry, setOpenEntry] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // Cada pedido leva um número; só o mais recente escreve no ecrã. Sem isto,
-  // trocar depressa de filtro deixava a resposta antiga por baixo do rótulo novo.
-  const requestSeq = useRef(0);
+  // Sugestões: cada pedido leva um número; só o mais recente escreve.
   const suggestionSeq = useRef(0);
-
-  const reload = useCallback(async () => {
-    const mine = ++requestSeq.current;
-    setLoading(true);
-    const [e, o] = await Promise.all([fetchEntries(filter), fetchOverview()]);
-    if (mine !== requestSeq.current) return;
-    setEntries(e);
-    setOverview(o);
-    setLoading(false);
-  }, [filter]);
-
-  useEffect(() => {
-    reload();
-    // Ao desmontar, qualquer resposta ainda a caminho deixa de contar.
-    const seq = requestSeq;
-    return () => { seq.current++; };
-  }, [reload]);
 
   const openCandidates = async (entry: BankEntry) => {
     if (openEntry === entry.id) { setOpenEntry(null); setSuggestions([]); return; }

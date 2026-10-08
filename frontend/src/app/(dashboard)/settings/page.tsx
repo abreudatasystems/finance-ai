@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useLoad } from '@/lib/use-load';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { fetchAIRules, fetchAuditLogs } from '@/services/data';
@@ -11,6 +12,7 @@ import Link from 'next/link';
 import { ChartOfAccounts } from '@/components/settings/ChartOfAccounts';
 import { TeamPanel } from '@/components/settings/TeamPanel';
 import { ChangePassword } from '@/components/settings/ChangePassword';
+import { TwoFactorSettings } from '@/components/settings/TwoFactorSettings';
 import { DataExport } from '@/components/settings/DataExport';
 import {
   Building2, Sparkles, User, Users, Save, Check, LogOut, ShieldCheck, BadgeCheck, History,
@@ -37,6 +39,17 @@ const DEFAULT_SETTINGS: StoredSettings = {
   confidenceThreshold: 85,
 };
 
+/** As preferências guardadas neste navegador (ou as de omissão). */
+function readStoredSettings(): StoredSettings {
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_KEY);
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_SETTINGS;
+}
+
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'company', label: 'Empresa', icon: <Building2 className="w-4 h-4" /> },
   { id: 'categories', label: 'Categorias', icon: <FolderTree className="w-4 h-4" /> },
@@ -51,8 +64,8 @@ export default function SettingsPage() {
   const { currentCompany, currency, setCurrency, currentUser, userRole, setPageHeader, refreshCompanies } = useApp();
 
   const [activeTab, setActiveTab] = useState<Tab>('company');
-  const [aiRules, setAiRules] = useState<AIRule[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const { data: aiRules } = useLoad(fetchAIRules, [], { initialData: [] as AIRule[] });
+  const { data: auditLogs } = useLoad(fetchAuditLogs, [], { initialData: [] as AuditLogItem[] });
   const [settings, setSettings] = useState<StoredSettings>(DEFAULT_SETTINGS);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [vatRegime, setVatRegime] = useState('normal');
@@ -62,30 +75,25 @@ export default function SettingsPage() {
   const [companyNif, setCompanyNif] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const comp = currentCompany as unknown as Record<string, string> | null;
-    if (!comp) return;
+  // O formulário da empresa parte dos dados da empresa activa e volta a
+  // partir deles sempre que ela muda (outra empresa, ou gravada de novo).
+  // Ajustado durante o render, não num efeito:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [formCompany, setFormCompany] = useState<typeof currentCompany>(null);
+  if (currentCompany && currentCompany !== formCompany) {
+    const comp = currentCompany as unknown as Record<string, string>;
+    setFormCompany(currentCompany);
     setVatRegime(comp.vat_regime || 'normal');
     setVatPeriodicity(comp.vat_periodicity || 'quarterly');
     setLegalForm(comp.legal_form || '');
     setCompanyName(comp.name || '');
     setCompanyNif(comp.nif || '');
-  }, [currentCompany]);
+  }
 
-  useEffect(() => {
-    async function load() {
-      setAiRules(await fetchAIRules());
-      setAuditLogs(await fetchAuditLogs());
-    }
-    load();
-
-    try {
-      const raw = window.localStorage.getItem(SETTINGS_KEY);
-      if (raw) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(raw) });
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  // As preferências da IA vivem no localStorage, que só existe no navegador:
+  // lidas depois de montar (o HTML do servidor usa as de omissão) e postas no
+  // formulário quando chegam.
+  useLoad(async () => readStoredSettings(), [], { onSuccess: setSettings });
 
   useEffect(() => {
     setPageHeader('Configurações', 'Gestão da empresa, preferências do motor de inteligência artificial e utilizadores');
@@ -382,6 +390,7 @@ export default function SettingsPage() {
             <div className="space-y-5 max-w-xl">
               {/* Alterar a palavra-passe exige saber a atual — ver ChangePassword. */}
               <ChangePassword />
+              <TwoFactorSettings />
 
               <Card>
                 <CardBody className="space-y-5 text-xs">

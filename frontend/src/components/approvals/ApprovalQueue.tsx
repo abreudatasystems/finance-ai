@@ -9,7 +9,7 @@
  * document and the numbers sit side by side.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Inbox, Sparkles, AlertTriangle, Check, X, RefreshCw, ChevronRight, Mail, Upload,
 } from 'lucide-react';
@@ -20,6 +20,9 @@ import { QueueFilter, fetchApproval, fetchQueue, fetchSummary, decideMany } from
 import { ApprovalInspector } from './ApprovalInspector';
 import { Badge, Button, Card, CardBody, EmptyState, IconButton, LoadingState, useConfirm } from '@/components/ui';
 import { formatDate } from '@/lib/format';
+import { useLoad } from '@/lib/use-load';
+
+const NO_ROWS: ApprovalRow[] = [];
 
 const FILTERS: { id: QueueFilter; label: string }[] = [
   { id: 'pending', label: 'Por aprovar' },
@@ -38,24 +41,18 @@ export const ApprovalQueue: React.FC = () => {
   const confirm = useConfirm();
 
   const [filter, setFilter] = useState<QueueFilter>('pending');
-  const [rows, setRows] = useState<ApprovalRow[]>([]);
-  const [summary, setSummary] = useState<ApprovalSummary | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  // Cada leitura (filtro novo ou depois de decidir) limpa a selecção.
+  const { data, loading, reload } = useLoad(
+    () => Promise.all([fetchQueue(filter), fetchSummary()]),
+    [filter],
+    { onSuccess: () => setSelected(new Set()) },
+  );
+  const rows: ApprovalRow[] = data?.[0] ?? NO_ROWS;
+  const summary: ApprovalSummary | null = data?.[1] ?? null;
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [detail, setDetail] = useState<ApprovalDetail | null>(null);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    const [q, s] = await Promise.all([fetchQueue(filter), fetchSummary()]);
-    setRows(q);
-    setSummary(s);
-    setSelected(new Set());
-    setLoading(false);
-  }, [filter]);
-
-  useEffect(() => { reload(); }, [reload]);
 
   const open = async (id: string) => {
     const d = await fetchApproval(id);

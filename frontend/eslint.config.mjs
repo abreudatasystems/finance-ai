@@ -7,43 +7,39 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     /**
-     * Duas regras do **compilador do React**, que este projeto não tem ligado
-     * (não há `reactCompiler` no next.config.ts). Reportam o que aconteceria
-     * se estivesse — informação útil, mas não defeitos no código que corre.
-     * Ficam como avisos: continuam visíveis sem parar a CI por uma
-     * hipótese. Tudo o resto — código morto, `any`, impurezas, estado
-     * derivado escrito em efeitos — foi corrigido e continua a ser erro.
+     * Duas regras do **compilador do React** que este projeto faz cumprir como
+     * erro, para que os padrões que elas apanham não voltem.
      */
     rules: {
       /**
-       * `preserve-manual-memoization`: o `useMemo` que constrói o saldo
-       * acumulado do fluxo de caixa fá-lo por mutação, e o compilador não
-       * consegue provar que a memoização se mantém. Sem compilador ligado
-       * não se perde nada — e o memo é correcto e necessário, porque isto
-       * corre sobre centenas de lançamentos a cada render.
+       * `preserve-manual-memoization`: um `useMemo`/`useCallback` cujas
+       * dependências o compilador não consegue provar estáveis (p. ex. porque
+       * o valor é construído por mutação, ou depende de um array recriado a
+       * cada render). O saldo acumulado do fluxo de caixa era assim; foi
+       * reescrito sem mutação e com a lista filtrada também memoizada.
        */
-      'react-hooks/preserve-manual-memoization': 'warn',
+      'react-hooks/preserve-manual-memoization': 'error',
 
       /**
-       * Carregar dados num efeito.
-       *
-       * A regra está certa em geral, e errada para o padrão que este projeto
-       * usa de propósito em 23 componentes:
+       * `set-state-in-effect`: escrever estado de forma síncrona no corpo de
+       * um efeito (directamente ou por uma função chamada dele, como o antigo
        *
        *     const load = useCallback(async () => { setLoading(true); … }, [x]);
        *     useEffect(() => { load(); }, [load]);
        *
-       * Dispara porque o `setLoading(true)` acontece antes do primeiro
-       * `await`. Não é um defeito: é o que a documentação do React descreve
-       * para ir buscar dados sem uma biblioteca. O que a removeria de vez é
-       * mover as leituras para uma camada própria — o React Query, ou Server
-       * Components a carregar antes de renderizar — e isso é uma decisão de
-       * arquitetura, não uma limpeza de lint.
+       * que existia em ~20 componentes). Causa renders em cascata.
        *
-       * Fica como aviso para continuar visível sem parar a CI por algo que
-       * ninguém deve "corrigir" ficheiro a ficheiro.
+       * Hoje há sítios próprios para cada caso:
+       *  • ler dados da API → `useLoad` (src/lib/use-load.ts): o efeito só
+       *    arranca o pedido e o estado só muda quando a resposta chega;
+       *    `loading`, respostas antigas e `reload()` ficam tratados ali;
+       *  • estado de formulário que parte dos dados lidos → pô-lo no
+       *    `onSuccess` do `useLoad`;
+       *  • estado que muda quando uma prop/URL muda → ajustá-lo durante o
+       *    render (https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+       *    ou remontar o componente com uma `key`.
        */
-      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/set-state-in-effect': 'error',
     },
   },
   // Override default ignores of eslint-config-next.

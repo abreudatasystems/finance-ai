@@ -23,7 +23,9 @@ config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Sem disable_existing_loggers=False, migrar ao arrancar desligava os
+    # loggers da aplicação (financeai.*) e os erros deixavam de aparecer.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

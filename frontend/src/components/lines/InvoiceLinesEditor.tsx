@@ -12,7 +12,7 @@
  * header back its own single rate.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Plus, Trash2, Save, Rows3, Info, X,
 } from 'lucide-react';
@@ -25,6 +25,12 @@ import {
   fetchLines, replaceLines, clearLines, fetchCatalogue, fetchVatRates, LinePayload,
 } from './api';
 import { ItemPicker } from './ItemPicker';
+import { useLoad } from '@/lib/use-load';
+
+const NO_LINES: InvoiceLine[] = [];
+const NO_RATES: RateBreakdown[] = [];
+const NO_ITEMS: CatalogueItem[] = [];
+const NO_RATE_TABLE: Record<string, number> = {};
 
 interface Props {
   transactionId: string;
@@ -60,41 +66,28 @@ const toDraft = (line: InvoiceLine): LineDraft => ({
 export const InvoiceLinesEditor: React.FC<Props> = ({
   transactionId, formatMoney, onChanged, readOnly = false,
 }) => {
+  // As linhas editáveis partem das gravadas: postas no formulário quando a
+  // leitura chega (e de novo depois de gravar ou limpar).
   const [rows, setRows] = useState<LineDraft[]>([]);
-  const [saved, setSaved] = useState<InvoiceLine[]>([]);
-  const [byRate, setByRate] = useState<RateBreakdown[]>([]);
+  const { data, loading, reload: load } = useLoad(
+    () => fetchLines(transactionId),
+    [transactionId],
+    { onSuccess: (d) => setRows((d?.linhas || []).map(toDraft)) },
+  );
+  const saved: InvoiceLine[] = data?.linhas || NO_LINES;
+  const byRate: RateBreakdown[] = data?.por_taxa || NO_RATES;
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
-  const [rateTable, setRateTable] = useState<Record<string, number>>({});
-  const [loadingCatalogue, setLoadingCatalogue] = useState(true);
   const confirm = useConfirm();
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const data = await fetchLines(transactionId);
-    setSaved(data?.linhas || []);
-    setByRate(data?.por_taxa || []);
-    setRows((data?.linhas || []).map(toDraft));
-    setLoading(false);
-  }, [transactionId]);
-
-  useEffect(() => { load(); }, [load]);
 
   // O catálogo e a tabela de taxas são da empresa, não do documento: carregam
   // uma vez e servem todas as linhas.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const [items, rates] = await Promise.all([fetchCatalogue(), fetchVatRates()]);
-      if (!alive) return;
-      setCatalogue(items);
-      setRateTable(rates);
-      setLoadingCatalogue(false);
-    })();
-    return () => { alive = false; };
-  }, []);
+  const { data: companyData, loading: loadingCatalogue } = useLoad(
+    () => Promise.all([fetchCatalogue(), fetchVatRates()]),
+    [],
+  );
+  const catalogue: CatalogueItem[] = companyData?.[0] ?? NO_ITEMS;
+  const rateTable: Record<string, number> = companyData?.[1] ?? NO_RATE_TABLE;
 
   /** Live arithmetic while typing — the same rule the server applies. */
   const preview = useMemo(() => {

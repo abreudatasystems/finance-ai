@@ -126,3 +126,24 @@ def test_cost_centres_lose_the_stored_spent_column(scratch_db):
     assert "spent" not in columns
     for expected in ("budget", "contract_value", "entity_name", "status", "description"):
         assert expected in columns
+
+
+def test_legacy_registry_tables_are_dropped_without_losing_rows(scratch_db):
+    """A 0013 apaga as tabelas antigas, mas só depois de copiar para as
+    entidades qualquer linha que ainda lá não estivesse."""
+    config, engine = scratch_db
+    command.upgrade(config, "0012_auth_recovery_2fa")
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO companies (id,name,nif) VALUES ('C1','X','PT1')"))
+        # Escrita depois da 0005: a tabela antiga tem-na, as entidades não.
+        conn.execute(text(
+            "INSERT INTO suppliers (id,company_id,name,nif) "
+            "VALUES ('S9','C1','Esquecido Lda','509999999')"))
+    command.upgrade(config, "head")
+    tables = inspect(engine).get_table_names()
+    assert "suppliers" not in tables and "customers" not in tables
+    with engine.connect() as conn:
+        row = conn.execute(text(
+            "SELECT name, is_supplier FROM entities WHERE source_ref = 'supplier:S9'"
+        )).first()
+    assert row is not None and row[0] == "Esquecido Lda" and bool(row[1])

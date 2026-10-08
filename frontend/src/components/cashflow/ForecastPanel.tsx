@@ -13,7 +13,7 @@
  * weeks that go negative are marked in the table with a word as well as a tone.
  */
 
-import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   TrendingDown, AlertCircle, Check, ChevronDown, RefreshCw, Wallet,
   FileText, Repeat, Landmark, CalendarClock,
@@ -25,6 +25,7 @@ import {
   Badge, Button, IconButton, Card, CardHeader, CardBody, LoadingState, ErrorState, cn,
 } from '@/components/ui';
 import { formatDate } from '@/lib/format';
+import { useLoad } from '@/lib/use-load';
 
 const HORIZONS = [
   { weeks: 4, label: '4 semanas' },
@@ -135,29 +136,11 @@ const BalanceChart: React.FC<{
 export const ForecastPanel: React.FC = () => {
   const { formatMoney } = useApp();
   const [weeks, setWeeks] = useState(13);
-  const [data, setData] = useState<CashForecast | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Só a resposta mais recente conta (o useLoad ignora as antigas): trocar
+  // depressa o horizonte deixava a projecção antiga por baixo do número de
+  // semanas novo.
+  const { data, loading, reload: load } = useLoad<CashForecast | null>(() => fetchForecast(weeks), [weeks]);
   const [open, setOpen] = useState<number | null>(null);
-
-  // Só a resposta mais recente escreve: trocar depressa o horizonte deixava
-  // a projecção antiga por baixo do número de semanas novo.
-  const requestSeq = useRef(0);
-
-  const load = useCallback(async () => {
-    const mine = ++requestSeq.current;
-    setLoading(true);
-    const result = await fetchForecast(weeks);
-    if (mine !== requestSeq.current) return;
-    setData(result);
-    setLoading(false);
-  }, [weeks]);
-
-  useEffect(() => {
-    load();
-    // Ao desmontar, qualquer resposta ainda a caminho deixa de contar.
-    const seq = requestSeq;
-    return () => { seq.current++; };
-  }, [load]);
 
   if (loading) {
     return (

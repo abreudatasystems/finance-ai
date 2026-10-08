@@ -6,6 +6,7 @@
 import { useEffect } from 'react';
 import './globals.css';
 import { Button, Card } from '@/components/ui';
+import { reportError } from '@/lib/report-error';
 
 export default function GlobalError({
   error,
@@ -16,6 +17,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error(error);
+    reportError(error, 'global');
   }, [error]);
 
   return (

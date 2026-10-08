@@ -15,6 +15,7 @@ import logging
 import smtplib
 import ssl
 from email.message import EmailMessage
+from html import escape
 from typing import Optional
 
 from app.core.config import settings
@@ -129,6 +130,37 @@ def invitation_message(company_name: str, role_label: str, inviter: Optional[str
   <p style="color:#64748b;font-size:12px">
     O convite é pessoal e expira dentro de 14 dias.<br>
     Se não estava à espera deste convite, ignore este email.
+  </p>
+</div>"""
+    return subject, text, html
+
+
+def password_reset_message(name: Optional[str], link: str,
+                           minutes: int = 60) -> tuple[str, str, str]:
+    """Subject, plain text and HTML for a password-reset email."""
+    subject = "Recuperar a palavra-passe — Finance AI"
+    greeting = f"Olá {name}," if name else "Olá,"
+    text = "\n".join([
+        greeting,
+        "",
+        "Recebemos um pedido para definir uma nova palavra-passe na sua conta do Finance AI.",
+        "Para escolher uma nova, abra este link:",
+        link,
+        "",
+        f"O link só pode ser usado uma vez e expira dentro de {minutes} minutos.",
+        "Se não foi você que pediu, ignore este email — a palavra-passe atual continua a valer.",
+    ])
+    html = f"""\
+<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;color:#0f172a">
+  <p>{escape(greeting)}</p>
+  <p>Recebemos um pedido para definir uma nova palavra-passe na sua conta do Finance AI.</p>
+  <p><a href="{escape(link)}"
+        style="display:inline-block;padding:10px 16px;border-radius:10px;
+               background:#4f46e5;color:#fff;text-decoration:none;font-weight:700">
+     Definir nova palavra-passe</a></p>
+  <p style="color:#64748b;font-size:12px">
+    O link só pode ser usado uma vez e expira dentro de {minutes} minutos.<br>
+    Se não foi você que pediu, ignore este email — a palavra-passe atual continua a valer.
   </p>
 </div>"""
     return subject, text, html

@@ -21,12 +21,15 @@ logging.basicConfig(
 os.environ.setdefault("AUTO_MIGRATE", "0")
 
 from app.core.config import settings  # noqa: E402
+from app.core.observability import init_monitoring  # noqa: E402
 from app.services.scheduler import sweep  # noqa: E402
 
 logger = logging.getLogger("financeai.scheduler")
 
 
 def main() -> None:
+    # Os varrimentos que falham (logger.exception) chegam ao Sentry, se ligado.
+    init_monitoring("scheduler")
     interval = settings.SCHEDULER_INTERVAL_HOURS * 3600
     logger.info("Agendador dedicado: varrimento de %s em %s hora(s).",
                 settings.SCHEDULER_INTERVAL_HOURS, settings.SCHEDULER_INTERVAL_HOURS)

@@ -14,8 +14,9 @@
  * Kept in its own module so the Settings page stays a thin shell.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
+import { useLoad } from '@/lib/use-load';
 import {
   FolderTree, Plus, CornerDownRight, Lock, Layers, Pencil, Trash2, Check, X,
   RotateCcw, Loader2,
@@ -144,19 +145,15 @@ const CategoryRow: React.FC<RowProps> = ({ cat, depth, onChanged }) => {
   );
 };
 
+const NO_GROUPS: CategoryGroup[] = [];
+const NO_CATEGORIES: Category[] = [];
+
 export const ChartOfAccounts: React.FC = () => {
-  const [groups, setGroups] = useState<CategoryGroup[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { data, reload } = useLoad(() => Promise.all([fetchCategoryGroups(), fetchCategories()]), []);
+  const groups: CategoryGroup[] = data?.[0] ?? NO_GROUPS;
+  const categories: Category[] = data?.[1] ?? NO_CATEGORIES;
   const [modalOpen, setModalOpen] = useState(false);
   const [restoring, setRestoring] = useState(false);
-
-  const reload = useCallback(async () => {
-    const [g, c] = await Promise.all([fetchCategoryGroups(), fetchCategories()]);
-    setGroups(g);
-    setCategories(c);
-  }, []);
-
-  useEffect(() => { reload(); }, [reload]);
 
   const restore = async () => {
     setRestoring(true);
