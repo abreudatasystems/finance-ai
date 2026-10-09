@@ -15,7 +15,7 @@ export function Table({ className, ...rest }: React.TableHTMLAttributes<HTMLTabl
 }
 
 export function THead({ className, ...rest }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn('bg-neutral-50 border-b border-neutral-200', className)} {...rest} />;
+  return <thead className={cn('bg-neutral-50/80 border-b border-neutral-200', className)} {...rest} />;
 }
 
 export function TBody({ className, ...rest }: React.HTMLAttributes<HTMLTableSectionElement>) {
@@ -33,7 +33,7 @@ export function Th({ numeric, align, className, ...rest }: React.ThHTMLAttribute
     <th
       scope="col"
       className={cn(
-        'px-4 py-2.5 text-2xs font-bold uppercase tracking-wider text-neutral-500 whitespace-nowrap',
+        'h-8 px-3 text-2xs font-medium text-neutral-500 whitespace-nowrap',
         (numeric || align === 'right') && 'text-right',
         align === 'center' && 'text-center',
         className,
@@ -47,7 +47,7 @@ export function Tr({ className, onClick, ...rest }: React.HTMLAttributes<HTMLTab
   return (
     <tr
       onClick={onClick}
-      className={cn('transition-colors hover:bg-neutral-50', onClick && 'cursor-pointer', className)}
+      className={cn('transition-colors hover:bg-neutral-50/80', onClick && 'cursor-pointer', className)}
       {...rest}
     />
   );
@@ -57,7 +57,7 @@ export function Td({ numeric, align, className, ...rest }: React.TdHTMLAttribute
   return (
     <td
       className={cn(
-        'px-4 py-3 align-middle',
+        'px-3 py-2 h-10 align-middle',
         (numeric || align === 'right') && 'text-right tabular-nums whitespace-nowrap',
         align === 'center' && 'text-center',
         className,
@@ -71,7 +71,7 @@ export function Td({ numeric, align, className, ...rest }: React.TdHTMLAttribute
 export function TableMessage({ colSpan, children }: { colSpan: number; children: React.ReactNode }) {
   return (
     <tr>
-      <td colSpan={colSpan} className="px-4 py-2">
+      <td colSpan={colSpan} className="px-3 py-2">
         {children}
       </td>
     </tr>

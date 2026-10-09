@@ -29,10 +29,36 @@ class Company(Base):
     # Regime normal: mensal (volume ≥ 650k€) ou trimestral (< 650k€)
     vat_periodicity = Column(String, default="quarterly")
     cae = Column(String, nullable=True)               # código de atividade económica
+    irc_regime = Column(String, nullable=True)        # geral | simplificado | isento | nao_aplicavel
+    niss = Column(String, nullable=True)              # número de identificação da Segurança Social
+
+    # --- Ficha da empresa ---
+    trade_name = Column(String, nullable=True)        # nome comercial, quando difere da denominação
+    share_capital = Column(Numeric(14, 2), nullable=True)
+    incorporation_date = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    postal_code = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+
+    # --- Contabilista certificado ---
+    accountant_name = Column(String, nullable=True)
+    accountant_nif = Column(String, nullable=True)
+    accountant_email = Column(String, nullable=True)
+
+    #: Prazos habituais, em dias. Um documento sem vencimento vence a data
+    #: do documento mais este prazo (ver transactions.create_transaction).
+    customer_terms_days = Column(Integer, nullable=True)
+    supplier_terms_days = Column(Integer, nullable=True)
 
     # Chart of accounts provisioning
     chart_template = Column(String, nullable=True)
     chart_provisioned = Column(Boolean, default=False)
+
+    #: Política de segurança: todos os membros têm de usar 2FA (TOTP).
+    require_two_factor = Column(Boolean, default=False, nullable=False)
 
     created_at = Column(DateTime, default=utcnow)
 
@@ -59,6 +85,46 @@ class User(Base):
     active = Column(Boolean, default=True)
     last_login_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utcnow)
+
+    # --- Verificação em dois passos (TOTP) ---
+    two_factor_enabled = Column(Boolean, default=False, nullable=False)
+    #: O segredo em uso — só existe enquanto a 2FA está ativa.
+    totp_secret = Column(String, nullable=True)
+    #: Segredo gerado em /2fa/setup, à espera de ser confirmado com um código.
+    totp_pending_secret = Column(String, nullable=True)
+    #: Último passo de 30 s aceite — o mesmo código não serve duas vezes.
+    totp_last_step = Column(Integer, nullable=True)
+    two_factor_enabled_at = Column(DateTime, nullable=True)
+
+
+class PasswordResetToken(Base):
+    """Um pedido de recuperação de palavra-passe.
+
+    Só se guarda o SHA-256 do token: quem lê a base de dados não consegue
+    usar os links que estão por usar. Uso único e com prazo.
+    """
+
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String, nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, default=utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    requested_ip = Column(String, nullable=True)
+
+
+class TwoFactorRecoveryCode(Base):
+    """Códigos de recuperação da 2FA — guardados com hash, cada um de uso único."""
+
+    __tablename__ = "two_factor_recovery_codes"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    code_hash = Column(String, nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+    used_at = Column(DateTime, nullable=True)
 
 
 class UserMembership(Base):
@@ -209,39 +275,6 @@ class Entity(Base):
     source_ref = Column(String, nullable=True)
     created_at = Column(DateTime, default=utcnow)
 
-
-class Supplier(Base):
-    """Legacy table, superseded by Entity. Kept so migration 0005 stays
-    reversible; nothing reads it any more."""
-
-    __tablename__ = "suppliers"
-
-    id = Column(String, primary_key=True, index=True)
-    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
-    name = Column(String, nullable=False)
-    nif = Column(String, nullable=False)
-    email = Column(String, nullable=True)
-    phone = Column(String, nullable=True)
-    address = Column(String, nullable=True)
-    default_category_id = Column(String, nullable=True)
-    default_category_name = Column(String, nullable=True)
-    total_spent = Column(Float, default=0.0)
-    last_transaction_date = Column(String, nullable=True)
-
-class Customer(Base):
-    """Legacy table, superseded by Entity (see Supplier above)."""
-
-    __tablename__ = "customers"
-
-    id = Column(String, primary_key=True, index=True)
-    company_id = Column(String, ForeignKey("companies.id"), nullable=False)
-    name = Column(String, nullable=False)
-    nif = Column(String, nullable=False)
-    email = Column(String, nullable=True)
-    phone = Column(String, nullable=True)
-    default_category_id = Column(String, nullable=True)
-    default_category_name = Column(String, nullable=True)
-    total_revenue = Column(Float, default=0.0)
 
 class CostCenter(Base):
     """A project, a client engagement, a branch — whatever the work is split by.

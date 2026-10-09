@@ -16,7 +16,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Package, Briefcase, Search, X } from 'lucide-react';
 import { CatalogueItem } from './types';
-import { IconButton, LoadingState, cn, inputClass } from '@/components/ui';
+import { Button, IconButton, Input, LoadingState } from '@/components/ui';
 
 interface Props {
   items: CatalogueItem[];
@@ -64,7 +64,7 @@ export const ItemPicker: React.FC<Props> = ({
   return (
     <div className="relative" ref={box}>
       {selected ? (
-        <span className="inline-flex items-center gap-0.5 pl-2 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-800 font-mono text-2xs">
+        <span className="inline-flex items-center gap-0.5 h-7 pl-2 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono text-2xs">
           {selected.code}
           <IconButton
             label="Desligar do artigo (a linha fica como está)"
@@ -75,26 +75,27 @@ export const ItemPicker: React.FC<Props> = ({
           </IconButton>
         </span>
       ) : (
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-neutral-200 text-neutral-500 hover:text-emerald-700 hover:border-emerald-200 text-2xs font-bold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          icon={<Search />}
         >
-          <Search className="w-3 h-3" /> Catálogo
-        </button>
+          Catálogo
+        </Button>
       )}
 
       {open && (
-        <div className="absolute z-30 mt-1 left-0 w-72 max-w-[80vw] rounded-xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
+        <div className="absolute z-30 mt-1 left-0 w-72 max-w-[80vw] rounded-lg border border-neutral-200 bg-white shadow-lg overflow-hidden">
           <div className="p-2 border-b border-neutral-100">
-            <input
+            <Input
               autoFocus
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               placeholder="Código, descrição ou família…"
               aria-label="Procurar no catálogo"
-              className={cn(inputClass, 'h-8 px-2.5 text-xs')}
+              className="text-xs"
             />
           </div>
 
@@ -115,11 +116,11 @@ export const ItemPicker: React.FC<Props> = ({
                     type="button"
                     key={item.id}
                     onClick={() => { onPick(item); setOpen(false); setTerm(''); }}
-                    className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-emerald-50/60 border-b border-neutral-50 last:border-0 cursor-pointer focus-visible:outline-none focus-visible:bg-emerald-50"
+                    className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-neutral-50 border-b border-neutral-100 last:border-0 cursor-pointer focus-visible:outline-none focus-visible:bg-neutral-100"
                   >
-                    <Icon className="w-3.5 h-3.5 text-neutral-400 shrink-0" aria-hidden="true" />
+                    <Icon className="size-3.5 text-neutral-400 shrink-0" aria-hidden="true" />
                     <span className="flex-1 min-w-0">
-                      <span className="block font-semibold text-neutral-800 text-xs truncate">
+                      <span className="block font-medium text-neutral-800 text-xs truncate">
                         {item.description}
                       </span>
                       <span className="block text-2xs text-neutral-500 font-mono">

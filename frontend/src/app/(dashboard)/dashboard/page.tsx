@@ -9,7 +9,7 @@ import { fetchHealthScore, fetchTransactions, fetchFinancialEvents, fetchDashboa
 import { FinancialHealthScore, Transaction } from '@/types';
 import { formatDate, documentStatusLabel } from '@/lib/format';
 import { TrendingUp, TrendingDown, Clock, Activity, Wallet, PieChart as PieIcon, Bot, User, ArrowRight } from 'lucide-react';
-import { Badge, Card, CardHeader, EmptyState, Table, THead, TBody, Th, Tr, Td } from '@/components/ui';
+import { Badge, Card, CardHeader, EmptyState, Stat, Table, THead, TBody, Th, Tr, Td } from '@/components/ui';
 import type { BadgeTone } from '@/components/ui';
 import {
   AreaChart,
@@ -36,34 +36,6 @@ interface PieDataItem {
   value: number;
   amount?: number;
   color: string;
-}
-
-/** Um indicador do topo do painel. */
-function KpiCard({
-  label,
-  icon,
-  iconClass,
-  value,
-  valueClass = 'text-neutral-900',
-  footer,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  iconClass: string;
-  value: React.ReactNode;
-  valueClass?: string;
-  footer: React.ReactNode;
-}) {
-  return (
-    <Card className="p-4 hover:shadow-sm transition-shadow overflow-hidden">
-      <div className="flex items-center justify-between gap-2 text-neutral-500 text-2xs font-bold uppercase tracking-wider">
-        <span className="truncate">{label}</span>
-        <span className={`size-6 rounded-md flex items-center justify-center shrink-0 [&_svg]:size-3.5 ${iconClass}`}>{icon}</span>
-      </div>
-      <div className={`mt-2 text-lg font-bold tracking-tight tabular-nums ${valueClass}`}>{value}</div>
-      <div className="mt-1 flex items-center gap-1 text-2xs font-semibold truncate">{footer}</div>
-    </Card>
-  );
 }
 
 const STATUS_TONE: Record<string, BadgeTone> = { paid: 'success', received: 'success', approved: 'neutral' };
@@ -135,20 +107,19 @@ export default function DashboardPage() {
       </div>
 
       {loadFailed && (
-        <div role="alert" className="shrink-0 p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold">
+        <div role="alert" className="shrink-0 px-3 py-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-900 text-xs">
           Não foi possível carregar os indicadores. Os valores abaixo não estão actualizados — verifique a ligação e recarregue a página.
         </div>
       )}
 
       {/* Indicadores principais */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <KpiCard
+        <Stat
           label="Saldo disponível"
           icon={<Wallet />}
-          iconClass="bg-neutral-100 text-neutral-700"
           value={formatMoney(healthScore?.current_balance || 0)}
-          footer={
-            <span className={`flex items-center gap-1 ${balanceTrend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          hint={
+            <span className={`inline-flex items-center gap-1 ${balanceTrend >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {balanceTrend >= 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
               {balanceTrend >= 0 ? '+' : ''}{balanceTrend}% vs. mês anterior
             </span>
@@ -157,62 +128,49 @@ export default function DashboardPage() {
 
         {/* 99 é o valor-sentinela do servidor para "sem gastos": não há fim de
             caixa para calcular, e "99 meses" seria uma previsão falsa. */}
-        <KpiCard
+        <Stat
           label="Autonomia de caixa"
           icon={<Clock />}
-          iconClass="bg-emerald-50 text-emerald-600"
           value={
             healthScore == null ? '—'
               : (healthScore.runway_months ?? 0) >= 99 ? 'Sem gastos'
               : `${healthScore.runway_months} meses`
           }
-          footer={
-            <span className="text-neutral-500 font-medium truncate">
-              {burnRate ? `Gasto médio: ${formatMoney(burnRate)}/mês` : 'Cobertura segura'}
-            </span>
-          }
+          hint={burnRate ? `Gasto médio: ${formatMoney(burnRate)}/mês` : 'Cobertura segura'}
         />
 
-        <KpiCard
+        <Stat
           label="Margem"
           icon={<Activity />}
-          iconClass="bg-neutral-100 text-neutral-700"
           value={`${margin}%`}
-          footer={
-            <span className={`flex items-center gap-1 ${margin > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          hint={
+            <span className={`inline-flex items-center gap-1 ${margin > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {margin > 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
               Tempo real
             </span>
           }
         />
 
-        <KpiCard
+        <Stat
           label="Resultado do mês"
           icon={<TrendingUp />}
-          iconClass="bg-neutral-100 text-neutral-700"
           value={`${monthlyResult >= 0 ? '+' : ''}${formatMoney(monthlyResult)}`}
-          valueClass={monthlyResult >= 0 ? 'text-emerald-600' : 'text-rose-600'}
-          footer={
-            <span className={monthlyResult >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-              {monthlyResult >= 0 ? 'Lucro' : 'Prejuízo'}
-            </span>
-          }
+          tone={monthlyResult >= 0 ? 'positive' : 'negative'}
+          hint={monthlyResult >= 0 ? 'Lucro' : 'Prejuízo'}
         />
 
-        <KpiCard
+        <Stat
           label="A receber (30d)"
           icon={<TrendingUp />}
-          iconClass="bg-emerald-50 text-emerald-600"
           value={formatMoney(healthScore?.upcoming_receivables || 0)}
-          footer={<span className="text-emerald-600">Entrada pendente</span>}
+          hint="Entrada pendente"
         />
 
-        <KpiCard
+        <Stat
           label="A pagar (30d)"
           icon={<TrendingDown />}
-          iconClass="bg-rose-50 text-rose-600"
           value={formatMoney(healthScore?.upcoming_payables || 0)}
-          footer={<span className="text-rose-600">Saída pendente</span>}
+          hint="Saída pendente"
         />
       </div>
 
@@ -223,10 +181,10 @@ export default function DashboardPage() {
         <Card className="lg:col-span-2 p-4 flex flex-col space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="font-bold text-sm text-neutral-900">Fluxo financeiro (últimos 6 meses)</h2>
+              <h2 className="font-semibold text-13 text-neutral-900">Fluxo financeiro (últimos 6 meses)</h2>
               <p className="text-xs text-neutral-500">Comparativo de entradas, saídas e resultado acumulado</p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-semibold shrink-0">
+            <div className="flex items-center gap-3 text-xs font-medium shrink-0">
               <span className="flex items-center gap-1 text-emerald-600">● Entradas</span>
               <span className="flex items-center gap-1 text-rose-500">● Saídas</span>
             </div>
@@ -259,7 +217,7 @@ export default function DashboardPage() {
         {/* Despesas por categoria (1 coluna) */}
         <Card className="p-4 flex flex-col space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-sm text-neutral-900">Despesas por categoria</h2>
+            <h2 className="font-semibold text-13 text-neutral-900">Despesas por categoria</h2>
             <PieIcon className="size-4 text-neutral-400" aria-hidden="true" />
           </div>
 
@@ -291,7 +249,7 @@ export default function DashboardPage() {
                   <span className="size-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                   <span>{item.name}</span>
                 </div>
-                <span className="font-bold text-neutral-800 tabular-nums">{item.value}%</span>
+                <span className="font-semibold text-neutral-800 tabular-nums">{item.value}%</span>
               </div>
             ))}
           </div>
@@ -307,7 +265,7 @@ export default function DashboardPage() {
           actions={
             <Link
               href="/financial/cash-flow"
-              className="inline-flex items-center gap-1 text-xs text-emerald-700 font-bold hover:underline"
+              className="inline-flex items-center gap-1 text-xs text-emerald-700 font-medium hover:underline"
             >
               Ver fluxo completo <ArrowRight className="size-3.5" aria-hidden="true" />
             </Link>
@@ -337,10 +295,10 @@ export default function DashboardPage() {
               {recent.map((trx) => (
                 <Tr key={trx.id}>
                   <Td className="text-neutral-500 whitespace-nowrap">{formatDate(trx.date)}</Td>
-                  <Td className="font-semibold">{trx.description}</Td>
+                  <Td className="font-medium">{trx.description}</Td>
                   <Td className="text-neutral-600 hidden sm:table-cell">{trx.entity_name}</Td>
                   <Td className="text-neutral-600 hidden md:table-cell">{trx.category_name}</Td>
-                  <Td numeric className={`font-bold ${trx.type === 'income' ? 'text-emerald-600' : 'text-neutral-900'}`}>
+                  <Td numeric className={`font-semibold ${trx.type === 'income' ? 'text-emerald-600' : 'text-neutral-900'}`}>
                     {trx.type === 'income' ? '+' : '-'}{formatMoney(trx.amount)}
                   </Td>
                   <Td>

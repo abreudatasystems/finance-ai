@@ -58,10 +58,17 @@ Entrar com `demo@finance-ai.pt` / `Tesouraria!Atlantico26`.
 
 ```bash
 cd backend && python -m pytest -q            # backend
-cd frontend && npx eslint src && npx tsc --noEmit && npx next build
+cd frontend && npx eslint src && npx tsc --noEmit && npm test   # frontend (Vitest)
+cd frontend && npm run test:e2e              # ponta a ponta (Playwright: arranca API + site)
 ```
 
 A CI (`.github/workflows/ci.yml`) corre tudo isto em cada push e pull request.
+
+**Proteger o `main` no GitHub** (uma vez, por quem administra o repositório):
+Settings → Branches → *Add branch protection rule* → *Branch name pattern*
+`main` → marcar *Require a pull request before merging* e *Require status
+checks to pass before merging*, escolhendo os três trabalhos da CI (Backend,
+Frontend, E2E). A partir daí nada entra no `main` sem a CI passar.
 
 ### Base de dados e migrações
 
@@ -97,18 +104,22 @@ abertas. O que o `docker-compose.prod.yml` monta:
 | `scheduler` | Gera as recorrências (rendas, avenças) num processo só |
 | `frontend` | A aplicação web |
 | `postgres` | Base de dados, sem porta exposta |
-| `backup` | Cópia diária da base de dados e das faturas em disco para `./backups` |
+| `backup` | Cópia diária da base de dados e das faturas para `./backups` e, se configurado, para um bucket fora do servidor (cifrada) |
 
 Com `ENVIRONMENT=production` (já definido no compose) a API **recusa arrancar**
 sem `SECRET_KEY`, com CORS a apontar para localhost ou com SQLite.
 
 **Cópias de segurança:** ficam em `./backups` no servidor, durante
-`BACKUP_KEEP_DAYS` dias. Copie essa pasta para fora do servidor com
-regularidade (outro disco, outro serviço). Para repor a base de dados:
+`BACKUP_KEEP_DAYS` dias. Com `BACKUP_S3_*` definido (o Cloudflare R2 serve),
+cada cópia segue também para um bucket fora do servidor, cifrada com
+`BACKUP_ENCRYPTION_PASSPHRASE` — guarde essa frase noutro sítio, sem ela não há
+restauro. Como repor, passo a passo: [`deploy/RESTORE.md`](deploy/RESTORE.md).
 
-```bash
-gunzip -c backups/db_AAAA-MM-DD_HHMM.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U financeuser financedb
-```
+**Monitorização:** com `SENTRY_DSN` os erros do servidor e do navegador chegam
+ao Sentry, sem cabeçalhos de sessão nem corpos de pedidos (os dados financeiros
+não saem). Para saber se o site está no ar, aponte um monitor externo (ex.:
+UptimeRobot) a `https://DOMINIO/api/v1/health`, que só responde 200 com a base
+de dados a funcionar.
 
 ### Documentos: OCR e armazenamento
 
@@ -141,10 +152,20 @@ lançar o mesmo mês duas vezes. Em desenvolvimento corre dentro da API;
 até haver `WEBHOOK_SECRET`. Quem os chama envia o segredo no cabeçalho
 `X-Webhook-Secret` e o `company_id` de uma empresa que exista.
 
-### Email dos convites
+### Email
 
-Com `SMTP_*` definido, os convites seguem por email; sem isso o convite é
-criado e o link é devolvido para enviar à mão.
+Com `SMTP_*` definido, seguem por email os convites e os links de recuperação
+de palavra-passe. Sem SMTP o convite é criado e o link é devolvido para enviar
+à mão; a recuperação de palavra-passe precisa de SMTP.
+
+### Assistente com IA
+
+Com `ANTHROPIC_API_KEY` o Assistente responde com o Claude (`ANTHROPIC_MODEL`),
+consultando só os dados da empresa da sessão, apenas para leitura — não cria
+nem altera nada. Sem chave, ou se a IA falhar, responde em modo básico (por
+palavras-chave). `ASSISTANT_RATE_LIMIT` pedidos por utilizador em cada
+`ASSISTANT_RATE_WINDOW_SECONDS` segundos limitam o custo (na ordem de 1 a 2
+cêntimos por pergunta).
 
 ### Segurança
 
@@ -152,7 +173,20 @@ criado e o link é devolvido para enviar à mão.
   aceite depois de verificar que o utilizador pertence a ela.
 - Papéis: proprietário, administrador, gestor financeiro, consulta.
 - Login: bloqueio temporário após 5 falhas por conta e 30 por endereço IP.
-- Palavras-passe: mínimo 10 caracteres, sem as mais comuns.
+- Palavras-passe: mínimo 10 caracteres, sem as mais comuns. Recuperação por
+  email com link de uso único válido 1 hora.
+- Verificação em dois passos (TOTP — Google Authenticator, Microsoft
+  Authenticator, 1Password…), opcional por utilizador, com códigos de
+  recuperação. Em Configurações o proprietário pode torná-la obrigatória para
+  toda a equipa da empresa.
+
+### Nota legal
+
+Esta aplicação **regista e gere** faturas; não as **emite**. Para emitir
+faturas a clientes a partir dela, o software teria de ser certificado pela
+Autoridade Tributária (Portaria n.º 363/2010). Se for disponibilizada a outras
+empresas, são precisos também termos de utilização, política de privacidade e
+um acordo de tratamento de dados (RGPD, art.º 28.º).
 
 ---
 

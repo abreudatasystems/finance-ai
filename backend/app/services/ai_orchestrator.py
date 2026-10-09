@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from app.core import fmt
 from app.core.clock import utcnow
@@ -8,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.schemas.schemas import AIChatRequest, AIChatResponse, AIChatAction
 from app.models.models import Transaction, Category, Entity
+
+logger = logging.getLogger("app.assistant")
 
 
 def _to_float(val) -> float:
@@ -20,11 +23,49 @@ def _currency_symbol(currency: str) -> str:
     return {"EUR": "€", "USD": "$", "BRL": "R$", "GBP": "£"}.get(currency, "€")
 
 
+NOTICE_NOT_CONFIGURED = "Modo básico — configure a IA nas definições para respostas completas."
+NOTICE_FAILED = "Modo básico — a IA não respondeu desta vez; resposta simplificada."
+NOTICE_RATE_LIMITED = "Modo básico — atingiu o limite de perguntas à IA. Tente de novo daqui a alguns minutos."
+
+
 async def process_ai_intent_and_action(
     request: AIChatRequest,
     db: Session,
     company_id: str,
+    user_id: Optional[str] = None,
 ) -> AIChatResponse:
+    """Responde com o Claude quando está configurado; senão, ou se falhar,
+    com o motor de palavras-chave. A resposta diz qual foi (``mode``)."""
+    from app.core.config import settings
+    from app.services.assistant import claude, rate_limit
+
+    if not claude.is_configured():
+        return _basic(await answer_basic(request, db, company_id), NOTICE_NOT_CONFIGURED)
+
+    if not rate_limit.allow(company_id, user_id or "", settings.ASSISTANT_RATE_LIMIT,
+                            settings.ASSISTANT_RATE_WINDOW_SECONDS):
+        return _basic(await answer_basic(request, db, company_id), NOTICE_RATE_LIMITED)
+
+    try:
+        return await claude.answer(request, db, company_id)
+    except claude.AssistantUnavailable as exc:
+        # Só o motivo curto (tipo de erro / estado HTTP) — nunca a pergunta nem dados.
+        logger.warning("assistente: IA indisponível (%s); a usar o modo básico", exc)
+        return _basic(await answer_basic(request, db, company_id), NOTICE_FAILED)
+
+
+def _basic(response: AIChatResponse, notice: str) -> AIChatResponse:
+    response.mode = "basico"
+    response.notice = notice
+    return response
+
+
+async def answer_basic(
+    request: AIChatRequest,
+    db: Session,
+    company_id: str,
+) -> AIChatResponse:
+    """O motor de palavras-chave (modo básico) — sem IA, sem custo."""
     prompt = (request.message or request.prompt or "").strip()
     lower = prompt.lower()
     timestamp = utcnow().strftime("%H:%M")

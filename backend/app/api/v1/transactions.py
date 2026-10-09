@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 from app.db.session import get_db
 from app.api.deps import get_current_company_id, get_current_user, require_write
-from app.models.models import Category, CostCenter, Entity, Transaction, User
+from app.models.models import Category, Company, CostCenter, Entity, Payment, Transaction, User
 from app.schemas.schemas import TransactionCreate, TransactionUpdate, TransactionOut
 from app.services import cash_forecast as forecast_service, retentions as retention_service
 from app.api.v1.settlements import (
@@ -27,6 +28,17 @@ VALID_STATUSES = {
 
 
 _REQUIRED_ON_PATCH = ("description", "entity_name", "category_id", "category_name", "amount", "date")
+
+
+def _default_due_date(db: Session, company_id: str, kind: str, booking_date: str) -> str:
+    """Sem vencimento indicado, vale o prazo habitual da empresa (ficha da empresa)."""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    days = None
+    if company:
+        days = company.customer_terms_days if kind == "income" else company.supplier_terms_days
+    if not days:
+        return booking_date
+    return (date.fromisoformat(booking_date) + timedelta(days=int(days))).isoformat()
 
 
 def _valid_date(value: Optional[str]) -> Optional[str]:
@@ -167,7 +179,7 @@ def get_transactions(
     query = db.query(Transaction).filter(Transaction.company_id == company_id)
     if type:
         query = query.filter(Transaction.type == type)
-    return query.order_by(Transaction.date.desc()).all()
+    return _with_bank_status(db, company_id, query.order_by(Transaction.date.desc()).all())
 
 
 @router.get("/{trx_id}", response_model=TransactionOut)
@@ -176,7 +188,36 @@ def get_transaction(
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
 ):
-    return _scoped(db, company_id, trx_id)
+    return _with_bank_status(db, company_id, [_scoped(db, company_id, trx_id)])[0]
+
+
+def _with_bank_status(db: Session, company_id: str, rows: list) -> list:
+    """Diz, para cada lançamento, se o banco já confirma os pagamentos dele.
+
+    Um pagamento registado à mão é uma afirmação; a linha do extrato ligada a
+    ele (``Payment.bank_entry_id``) é a prova. Contas a pagar e a receber
+    mostram a diferença sem ter de abrir a conciliação.
+    """
+    counts = dict(
+        (trx_id, (total, confirmed))
+        for trx_id, total, confirmed in db.query(
+            Payment.transaction_id,
+            func.count(Payment.id),
+            func.count(Payment.bank_entry_id),
+        )
+        .filter(Payment.company_id == company_id)
+        .group_by(Payment.transaction_id)
+        .all()
+    )
+    for trx in rows:
+        total, confirmed = counts.get(trx.id, (0, 0))
+        trx.bank_status = (
+            None if total == 0
+            else "confirmed" if confirmed == total
+            else "partial" if confirmed
+            else "unconfirmed"
+        )
+    return rows
 
 
 def _check_references(db: Session, company_id: str, data: dict) -> None:
@@ -223,7 +264,7 @@ def create_transaction(
         id=trx_id,
         company_id=company_id,
         date=booking_date,
-        due_date=_valid_date(item.due_date) or booking_date,
+        due_date=_valid_date(item.due_date) or _default_due_date(db, company_id, item.type, booking_date),
         type=item.type,
         description=item.description,
         entity_name=item.entity_name,

@@ -62,3 +62,38 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(_prepare(plain_password), hashed_password.encode("utf-8"))
     except (ValueError, TypeError):
         return False
+
+
+# --------------------------------------------------------------------------
+# Tokens de uso único (recuperação de palavra-passe) e desafio da 2FA
+# --------------------------------------------------------------------------
+
+#: Quanto tempo vale o desafio entre a palavra-passe e o código de 2FA.
+TWO_FACTOR_CHALLENGE_MINUTES = 5
+
+
+def hash_token(token: str) -> str:
+    """SHA-256 de um token aleatório — é isto que se guarda, nunca o token."""
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+
+
+def _challenge_key() -> str:
+    # Chave derivada e diferente da das sessões: um token de desafio nunca
+    # pode ser aceite como token de acesso (a assinatura simplesmente falha).
+    return hashlib.sha256((settings.SECRET_KEY + ":2fa-challenge").encode("utf-8")).hexdigest()
+
+
+def create_two_factor_challenge(user_id: str, password_hash: Optional[str]) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=TWO_FACTOR_CHALLENGE_MINUTES)
+    claims = {"exp": expire, "sub": str(user_id), "typ": "2fa",
+              "pwd": password_fingerprint(password_hash)}
+    return jwt.encode(claims, _challenge_key(), algorithm=ALGORITHM)
+
+
+def decode_two_factor_challenge(token: str) -> Optional[dict]:
+    """As claims do desafio, ou None se for inválido, expirado ou de outro tipo."""
+    try:
+        payload = jwt.decode(token or "", _challenge_key(), algorithms=[ALGORITHM])
+    except JWTError:
+        return None
+    return payload if payload.get("typ") == "2fa" and payload.get("sub") else None

@@ -41,6 +41,15 @@ services:
       SCHEDULER_INTERVAL_HOURS: ${SCHEDULER_INTERVAL_HOURS:-6}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Monitorização de erros (opcional): sem SENTRY_DSN fica desligada.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+      # Assistente com IA (opcional): sem ANTHROPIC_API_KEY responde em modo básico.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
+      ASSISTANT_ENABLED: ${ASSISTANT_ENABLED:-1}
+      ASSISTANT_RATE_LIMIT: ${ASSISTANT_RATE_LIMIT:-20}
+      ASSISTANT_RATE_WINDOW_SECONDS: ${ASSISTANT_RATE_WINDOW_SECONDS:-600}
       # Onde ficam as faturas. Sem estas, ficam no volume "uploads" — que entra
       # na cópia de segurança diária, mas vive no mesmo servidor.
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
@@ -115,11 +124,15 @@ services:
       - frontend
 
   # Cópia de segurança diária da base de dados e das faturas guardadas em
-  # disco, para ./backups. Guarda BACKUP_KEEP_DAYS dias. Copie essa pasta
-  # para fora do servidor com regularidade: um backup no mesmo disco não
-  # sobrevive à perda do disco.
+  # disco, para ./backups, BACKUP_KEEP_DAYS dias (script: deploy/backup/backup.sh).
+  # Com BACKUP_S3_BUCKET (+ endpoint e chaves), cada cópia segue também para um
+  # bucket S3 compatível (ex. Cloudflare R2) — um backup no mesmo disco não
+  # sobrevive à perda do disco. Com BACKUP_ENCRYPTION_PASSPHRASE, vai cifrada.
+  # Restaurar: deploy/RESTORE.md. Testar à mão:
+  #   docker compose -f docker-compose.prod.yml run --rm -e BACKUP_RUN_ONCE=1 backup
   backup:
-    image: postgres:16-alpine
+    build:
+      context: ./deploy/backup
     restart: always
     environment:
       PGHOST: postgres
@@ -127,24 +140,17 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB:-financedb}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-finance-ai}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-auto}
+      BACKUP_S3_KEEP_DAYS: ${BACKUP_S3_KEEP_DAYS:-}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${BACKUP_ENCRYPTION_PASSPHRASE:-}
     volumes:
       - ./backups:/backups
       - uploads:/uploads:ro
-    entrypoint: ["sh", "-c"]
-    command:
-      - |
-        while true; do
-          stamp=$$(date +%Y-%m-%d_%H%M)
-          if pg_dump --no-owner | gzip > /backups/db_$$stamp.sql.gz; then
-            echo "backup da base de dados: db_$$stamp.sql.gz"
-          else
-            echo "ERRO: o backup da base de dados falhou" >&2
-            rm -f /backups/db_$$stamp.sql.gz
-          fi
-          tar -czf /backups/uploads_$$stamp.tar.gz -C /uploads . 2>/dev/null || true
-          find /backups -name '*.gz' -mtime +$$BACKUP_KEEP_DAYS -delete
-          sleep 86400
-        done
     depends_on:
       postgres:
         condition: service_healthy

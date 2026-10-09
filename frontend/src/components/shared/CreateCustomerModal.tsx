@@ -6,7 +6,7 @@ import { Customer } from '@/types';
 import { apiPost } from '@/services/api';
 import { SideDrawer } from './SideDrawer';
 import { toast } from 'sonner';
-import { Button, Field, Input, Select, Textarea } from '@/components/ui';
+import { Button, Field, Input, Segmented, Select, Textarea } from '@/components/ui';
 
 interface CreateCustomerModalProps {
   onClose: () => void;
@@ -87,43 +87,18 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClos
   };
 
   const renderTabs = () => (
-    <div className="flex space-x-1 bg-neutral-100 p-1 rounded-xl mb-6 overflow-x-auto">
-      <button
-        type="button"
-        onClick={() => setActiveTab('geral')}
-        aria-pressed={activeTab === 'geral'}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'geral' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
-      >
-        <User className="w-3.5 h-3.5" />
-        Geral
-      </button>
-      <button
-        type="button"
-        onClick={() => setActiveTab('endereco')}
-        aria-pressed={activeTab === 'endereco'}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'endereco' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
-      >
-        <MapPin className="w-3.5 h-3.5" />
-        Endereço
-      </button>
-      <button
-        type="button"
-        onClick={() => setActiveTab('faturacao')}
-        aria-pressed={activeTab === 'faturacao'}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'faturacao' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
-      >
-        <FileText className="w-3.5 h-3.5" />
-        Faturação & IVA
-      </button>
-      <button
-        type="button"
-        onClick={() => setActiveTab('avancado')}
-        aria-pressed={activeTab === 'avancado'}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'avancado' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
-      >
-        <Settings className="w-3.5 h-3.5" />
-        Avançado
-      </button>
+    <div className="mb-3 max-w-full overflow-x-auto">
+      <Segmented<Tab>
+        aria-label="Secções do formulário"
+        value={activeTab}
+        onChange={setActiveTab}
+        options={[
+          { value: 'geral', label: <span className="inline-flex items-center gap-1.5"><User className="size-3.5" />Geral</span> },
+          { value: 'endereco', label: <span className="inline-flex items-center gap-1.5"><MapPin className="size-3.5" />Endereço</span> },
+          { value: 'faturacao', label: <span className="inline-flex items-center gap-1.5"><FileText className="size-3.5" />Faturação & IVA</span> },
+          { value: 'avancado', label: <span className="inline-flex items-center gap-1.5"><Settings className="size-3.5" />Avançado</span> },
+        ]}
+      />
     </div>
   );
 
@@ -134,10 +109,10 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClos
       onClose={onClose}
       footer={
         <>
-          <Button variant="secondary" className="flex-1" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" form={FORM_ID} loading={submitting} className="flex-1">
+          <Button type="submit" form={FORM_ID} loading={submitting}>
             Guardar Cliente
           </Button>
         </>
@@ -145,9 +120,9 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClos
     >
       {renderTabs()}
 
-      <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+      <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-3">
         <div className={activeTab === 'geral' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <Field label="Nome do Cliente" required>
               {(p) => (
                 <Input
@@ -238,7 +213,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClos
         </div>
 
         <div className={activeTab === 'endereco' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
-           <div className="space-y-4">
+           <div className="space-y-3">
             <Field label="Nome do Endereço (ex: Sede, Armazém)">
               {(p) => (
                 <Input
@@ -305,7 +280,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClos
         </div>
 
         <div className={activeTab === 'faturacao' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
-           <div className="space-y-4">
+           <div className="space-y-3">
             <Field label="Sub-conta (Plano de Contas)">
               {(p) => (
                 <Input
@@ -363,7 +338,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({ onClos
         </div>
 
         <div className={activeTab === 'avancado' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
-           <div className="space-y-4">
+           <div className="space-y-3">
             <Field label="Observações em Documentos">
               {(p) => (
                 <Textarea

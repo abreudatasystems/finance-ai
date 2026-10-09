@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { fetchCategories, fetchCategoryGroups, createCategory } from '@/services/data';
 import { Category, CategoryGroup } from '@/types';
 import { toast } from 'sonner';
+import { useLoad } from '@/lib/use-load';
 import {
   ArrowLeft, Check, Sparkles, CornerDownRight, FolderTree,
 } from 'lucide-react';
@@ -13,12 +14,18 @@ import {
   Button, Card, CardHeader, CardBody, Field, Input, Select, Textarea, LoadingState,
 } from '@/components/ui';
 
+const NO_GROUPS: CategoryGroup[] = [];
+const NO_CATEGORIES: Category[] = [];
+
 export default function CreateSubcategoryPage() {
   const { setPageHeader } = useApp();
 
-  const [groups, setGroups] = useState<CategoryGroup[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, reload: load } = useLoad(
+    () => Promise.all([fetchCategoryGroups(), fetchCategories()]),
+    [],
+  );
+  const groups: CategoryGroup[] = data?.[0] ?? NO_GROUPS;
+  const categories: Category[] = data?.[1] ?? NO_CATEGORIES;
 
   const [groupId, setGroupId] = useState('');
   const [parentId, setParentId] = useState('');
@@ -35,16 +42,6 @@ export default function CreateSubcategoryPage() {
     );
   }, [setPageHeader]);
 
-  const load = async () => {
-    setLoading(true);
-    const [g, c] = await Promise.all([fetchCategoryGroups(), fetchCategories()]);
-    setGroups(g);
-    setCategories(c);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, []);
-
   // Only top-level categories can take children — the tree stops at subcategory.
   const parentsForGroup = useMemo(() => {
     const roots = categories.filter((c) => !c.parent_id);
@@ -53,9 +50,9 @@ export default function CreateSubcategoryPage() {
     return roots.filter((c) => (c.group_id ? c.group_id === groupId : c.type === group?.kind));
   }, [categories, groups, groupId]);
 
-  useEffect(() => {
-    if (parentId && !parentsForGroup.some((c) => c.id === parentId)) setParentId('');
-  }, [parentsForGroup, parentId]);
+  // A categoria-mãe escolhida deixou de caber no grupo → limpa a escolha.
+  // Ajustado durante o render, não num efeito.
+  if (parentId && !parentsForGroup.some((c) => c.id === parentId)) setParentId('');
 
   const parent = categories.find((c) => c.id === parentId);
   const group = groups.find((g) => g.id === (parent?.group_id || groupId));
@@ -85,30 +82,30 @@ export default function CreateSubcategoryPage() {
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-300 pb-6">
-      <div className="flex items-center justify-between gap-3 border-b border-neutral-200/80 pb-4">
-        <Link href="/settings" className="flex items-center gap-2 text-xs font-semibold text-neutral-500 hover:text-neutral-900">
-          <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Voltar às Configurações
+    <div className="space-y-4 animate-in fade-in duration-300 pb-6">
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/settings" className="flex items-center gap-1.5 text-13 font-medium text-neutral-500 hover:text-neutral-900">
+          <ArrowLeft className="size-4" aria-hidden="true" /> Voltar às Configurações
         </Link>
-        <Link href="/settings/groups" className="text-xs font-semibold text-emerald-700 hover:text-emerald-900">
+        <Link href="/settings/groups" className="text-13 font-medium text-emerald-700 hover:text-emerald-900">
           Gerir grupos →
         </Link>
       </div>
 
       {created && (
-        <div role="status" className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
-          <Check className="w-4 h-4" aria-hidden="true" /> Subcategoria &ldquo;{created}&rdquo; criada com sucesso.
+        <div role="status" className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium bg-emerald-50 border-emerald-200 text-emerald-900">
+          <Check className="size-3.5" aria-hidden="true" /> Subcategoria &ldquo;{created}&rdquo; criada com sucesso.
         </div>
       )}
 
       {loading ? (
         <LoadingState label="A carregar plano de contas…" />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Form */}
           <Card className="lg:col-span-2">
             <CardHeader icon={<FolderTree />} title="Onde encaixa a subcategoria" />
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="1. Grupo">
                   {(p) => (
@@ -210,10 +207,10 @@ export default function CreateSubcategoryPage() {
                 <p className="text-xs text-neutral-500">Escolha a categoria-mãe para ver onde a subcategoria vai ficar.</p>
               ) : (
                 <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-neutral-800">
+                  <div className="flex items-center gap-1.5 font-semibold text-neutral-800">
                     <span aria-hidden="true">{group?.icon || '📁'}</span> {group?.name || 'Grupo'}
                   </div>
-                  <div className="pl-4 flex items-center gap-1.5 font-semibold text-neutral-700">
+                  <div className="pl-4 flex items-center gap-1.5 font-medium text-neutral-700">
                     <CornerDownRight className="w-3 h-3 text-neutral-300" aria-hidden="true" /> {parent?.name}
                   </div>
                   {siblings.map((s) => (
@@ -221,12 +218,12 @@ export default function CreateSubcategoryPage() {
                       <CornerDownRight className="w-3 h-3 text-neutral-200" aria-hidden="true" /> {s.name}
                     </div>
                   ))}
-                  <div className="pl-9 flex items-center gap-1.5 text-emerald-700 font-bold">
+                  <div className="pl-9 flex items-center gap-1.5 text-emerald-700 font-semibold">
                     <CornerDownRight className="w-3 h-3 text-emerald-300" aria-hidden="true" />
                     {name.trim() || 'nova subcategoria'}
                   </div>
                   <p className="text-2xs text-neutral-500 pt-3 border-t border-neutral-100 mt-3">
-                    Natureza herdada do grupo: <b>{group?.kind === 'income' ? 'receita (entra)' : 'despesa (sai)'}</b>.
+                    Natureza herdada do grupo: <span className="font-semibold">{group?.kind === 'income' ? 'receita (entra)' : 'despesa (sai)'}</span>.
                   </p>
                 </div>
               )}

@@ -9,15 +9,16 @@
  * the right, which is why they can never drift apart.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import {
   Scale, ArrowDownLeft, ArrowUpRight, FileText, Clock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { EntityStatement } from './types';
 import { fetchEntityStatement } from './api';
-import { Badge, BadgeTone, Card, CardHeader, CardBody, EmptyState, LoadingState } from '@/components/ui';
+import { Badge, BadgeTone, Card, CardHeader, CardBody, EmptyState, LoadingState, Stat } from '@/components/ui';
 import { formatDate } from '@/lib/format';
+import { useLoad } from '@/lib/use-load';
 
 interface Props {
   entityId: string;
@@ -36,16 +37,7 @@ const statusLabel = (status: string) =>
   ({ paid: 'Liquidado', partially_paid: 'Parcial', overdue: 'Vencido', pending: 'Em aberto', cancelled: 'Anulado' } as Record<string, string>)[status] || status;
 
 export const EntityAccount: React.FC<Props> = ({ entityId, formatMoney, focus = 'all' }) => {
-  const [data, setData] = useState<EntityStatement | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setData(await fetchEntityStatement(entityId));
-    setLoading(false);
-  }, [entityId]);
-
-  useEffect(() => { load(); }, [load]);
+  const { data, loading } = useLoad<EntityStatement | null>(() => fetchEntityStatement(entityId), [entityId]);
 
   if (loading) {
     return (
@@ -73,7 +65,7 @@ export const EntityAccount: React.FC<Props> = ({ entityId, formatMoney, focus = 
         icon={<Scale />}
         title={
           <span className="flex items-center gap-2">
-            Conta-corrente <Badge className="uppercase">{e.papel}</Badge>
+            Conta-corrente <Badge>{e.papel}</Badge>
           </span>
         }
         actions={e.ultimo_movimento ? (
@@ -83,47 +75,38 @@ export const EntityAccount: React.FC<Props> = ({ entityId, formatMoney, focus = 
         ) : undefined}
       />
 
-      <CardBody className="space-y-4">
+      <CardBody className="space-y-3">
         <div className="grid sm:grid-cols-3 gap-3">
           {showBuy && (
-            <div className="p-3 rounded-xl border border-rose-100 bg-rose-50/40">
-              <p className="text-2xs uppercase font-bold text-rose-600 flex items-center gap-1">
-                <ArrowDownLeft className="w-3 h-3" aria-hidden="true" /> Compras
-              </p>
-              <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(e.compras.faturado)}</p>
-              <p className="text-2xs text-neutral-600 mt-1">
-                pago {formatMoney(e.compras.pago)} · <b className="text-rose-700">em dívida {formatMoney(e.compras.em_divida)}</b>
-              </p>
-            </div>
+            <Stat
+              label="Compras"
+              icon={<ArrowDownLeft />}
+              value={formatMoney(e.compras.faturado)}
+              hint={<>pago {formatMoney(e.compras.pago)} · <span className="font-medium text-rose-700">em dívida {formatMoney(e.compras.em_divida)}</span></>}
+            />
           )}
           {showSell && (
-            <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
-              <p className="text-2xs uppercase font-bold text-emerald-600 flex items-center gap-1">
-                <ArrowUpRight className="w-3 h-3" aria-hidden="true" /> Vendas
-              </p>
-              <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(e.vendas.faturado)}</p>
-              <p className="text-2xs text-neutral-600 mt-1">
-                recebido {formatMoney(e.vendas.recebido)} · <b className="text-emerald-700">por receber {formatMoney(e.vendas.por_receber)}</b>
-              </p>
-            </div>
+            <Stat
+              label="Vendas"
+              icon={<ArrowUpRight />}
+              value={formatMoney(e.vendas.faturado)}
+              hint={<>recebido {formatMoney(e.vendas.recebido)} · <span className="font-medium text-emerald-700">por receber {formatMoney(e.vendas.por_receber)}</span></>}
+            />
           )}
-          <div className="p-3 rounded-xl border border-neutral-200 bg-neutral-50">
-            <p className="text-2xs uppercase font-bold text-neutral-500">Saldo</p>
-            <p className={`font-bold text-sm mt-0.5 tabular-nums ${e.saldo > 0 ? 'text-rose-700' : e.saldo < 0 ? 'text-emerald-700' : 'text-neutral-700'}`}>
-              {formatMoney(Math.abs(e.saldo))}
-            </p>
-            <p className="text-2xs text-neutral-600 mt-1">
-              {e.saldo > 0 ? 'a nosso débito — devemos-lhe'
-                : e.saldo < 0 ? 'a nosso crédito — devem-nos'
-                : 'contas saldadas'}
-            </p>
-          </div>
+          <Stat
+            label="Saldo"
+            tone={e.saldo > 0 ? 'negative' : e.saldo < 0 ? 'positive' : 'neutral'}
+            value={formatMoney(Math.abs(e.saldo))}
+            hint={e.saldo > 0 ? 'a nosso débito — devemos-lhe'
+              : e.saldo < 0 ? 'a nosso crédito — devem-nos'
+              : 'contas saldadas'}
+          />
         </div>
 
         {data.movimentos.length === 0 ? (
           <EmptyState title="Ainda não há movimentos com esta entidade." className="py-6" />
         ) : (
-          <div className="border border-neutral-200 rounded-xl divide-y divide-neutral-100 overflow-hidden max-h-80 overflow-y-auto">
+          <div className="border border-neutral-200 rounded-lg divide-y divide-neutral-100 overflow-hidden max-h-80 overflow-y-auto">
             {data.movimentos.map((m) => (
               <Link
                 key={m.id}
@@ -140,7 +123,7 @@ export const EntityAccount: React.FC<Props> = ({ entityId, formatMoney, focus = 
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className={`font-bold tabular-nums ${m.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  <p className={`font-semibold tabular-nums ${m.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
                     {m.type === 'income' ? '+' : '−'}{formatMoney(m.amount)}
                   </p>
                   {m.outstanding_amount > 0 && (

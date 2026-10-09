@@ -12,19 +12,25 @@
  * header back its own single rate.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Plus, Trash2, Save, Rows3, Info, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  Button, IconButton, Card, CardHeader, CardBody, EmptyState, LoadingState, cn, inputClass, useConfirm,
+  Button, IconButton, Card, CardHeader, CardBody, EmptyState, Input, LoadingState, cn, useConfirm,
 } from '@/components/ui';
 import { CatalogueItem, InvoiceLine, LineDraft, RateBreakdown } from './types';
 import {
   fetchLines, replaceLines, clearLines, fetchCatalogue, fetchVatRates, LinePayload,
 } from './api';
 import { ItemPicker } from './ItemPicker';
+import { useLoad } from '@/lib/use-load';
+
+const NO_LINES: InvoiceLine[] = [];
+const NO_RATES: RateBreakdown[] = [];
+const NO_ITEMS: CatalogueItem[] = [];
+const NO_RATE_TABLE: Record<string, number> = {};
 
 interface Props {
   transactionId: string;
@@ -60,41 +66,28 @@ const toDraft = (line: InvoiceLine): LineDraft => ({
 export const InvoiceLinesEditor: React.FC<Props> = ({
   transactionId, formatMoney, onChanged, readOnly = false,
 }) => {
+  // As linhas editáveis partem das gravadas: postas no formulário quando a
+  // leitura chega (e de novo depois de gravar ou limpar).
   const [rows, setRows] = useState<LineDraft[]>([]);
-  const [saved, setSaved] = useState<InvoiceLine[]>([]);
-  const [byRate, setByRate] = useState<RateBreakdown[]>([]);
+  const { data, loading, reload: load } = useLoad(
+    () => fetchLines(transactionId),
+    [transactionId],
+    { onSuccess: (d) => setRows((d?.linhas || []).map(toDraft)) },
+  );
+  const saved: InvoiceLine[] = data?.linhas || NO_LINES;
+  const byRate: RateBreakdown[] = data?.por_taxa || NO_RATES;
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
-  const [rateTable, setRateTable] = useState<Record<string, number>>({});
-  const [loadingCatalogue, setLoadingCatalogue] = useState(true);
   const confirm = useConfirm();
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const data = await fetchLines(transactionId);
-    setSaved(data?.linhas || []);
-    setByRate(data?.por_taxa || []);
-    setRows((data?.linhas || []).map(toDraft));
-    setLoading(false);
-  }, [transactionId]);
-
-  useEffect(() => { load(); }, [load]);
 
   // O catálogo e a tabela de taxas são da empresa, não do documento: carregam
   // uma vez e servem todas as linhas.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const [items, rates] = await Promise.all([fetchCatalogue(), fetchVatRates()]);
-      if (!alive) return;
-      setCatalogue(items);
-      setRateTable(rates);
-      setLoadingCatalogue(false);
-    })();
-    return () => { alive = false; };
-  }, []);
+  const { data: companyData, loading: loadingCatalogue } = useLoad(
+    () => Promise.all([fetchCatalogue(), fetchVatRates()]),
+    [],
+  );
+  const catalogue: CatalogueItem[] = companyData?.[0] ?? NO_ITEMS;
+  const rateTable: Record<string, number> = companyData?.[1] ?? NO_RATE_TABLE;
 
   /** Live arithmetic while typing — the same rule the server applies. */
   const preview = useMemo(() => {
@@ -188,7 +181,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
     );
   }
 
-  const cell = cn(inputClass, 'px-2.5 font-mono tabular-nums');
+  const cell = 'font-mono tabular-nums';
 
   return (
     <Card className="text-xs">
@@ -217,8 +210,8 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
       />
 
       <CardBody className="space-y-3">
-        <p className="flex items-start gap-2 px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-700 text-xs">
-          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-neutral-500" aria-hidden="true" />
+        <p className="flex items-start gap-2 px-3 py-2 rounded-lg bg-sky-50 border border-sky-200 text-sky-900 text-xs">
+          <Info className="size-3.5 shrink-0 mt-0.5 text-sky-600" aria-hidden="true" />
           <span>
             Uma fatura pode ter 6%, 13% e 23% ao mesmo tempo. Ao detalhar por linhas, o total do
             lançamento passa a ser a <b>soma das linhas</b> e o apuramento do IVA lê cada taxa
@@ -229,7 +222,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
         {/* --------------------------------------------------------- editing */}
         {editing ? (
           <div className="space-y-2">
-            <div className="hidden sm:grid grid-cols-12 gap-2 px-1 text-2xs uppercase font-bold tracking-wider text-neutral-500" aria-hidden="true">
+            <div className="hidden sm:grid grid-cols-12 gap-2 px-1 text-2xs font-medium text-neutral-500" aria-hidden="true">
               <span className="col-span-5">Artigo e descrição</span>
               <span className="col-span-2">Qtd.</span>
               <span className="col-span-2">Preço unit.</span>
@@ -249,27 +242,27 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
                       onClear={() => update(index, { item_id: null, item_code: null })}
                       formatMoney={formatMoney}
                     />
-                    <input
+                    <Input
                       value={row.description} onChange={(e) => update(index, { description: e.target.value })}
                       placeholder="Ex.: Pão e leite"
                       aria-label={`Descrição da linha ${index + 1}`}
-                      className={cn(inputClass, 'flex-1 min-w-0 px-2.5')}
+                      className="flex-1 min-w-0"
                     />
                   </div>
-                  <input
+                  <Input
                     value={row.quantity} onChange={(e) => update(index, { quantity: e.target.value })}
                     inputMode="decimal" placeholder="1"
                     aria-label={`Quantidade da linha ${index + 1}`}
                     className={cn(cell, 'col-span-4 sm:col-span-2')}
                   />
-                  <input
+                  <Input
                     value={row.unit_price} onChange={(e) => update(index, { unit_price: e.target.value })}
                     inputMode="decimal" placeholder="0,00"
                     aria-label={`Preço unitário da linha ${index + 1}`}
                     className={cn(cell, 'col-span-4 sm:col-span-2')}
                   />
                   <div className="col-span-3 sm:col-span-2 flex items-center gap-1">
-                    <input
+                    <Input
                       value={row.vat_rate} onChange={(e) => update(index, { vat_rate: e.target.value })}
                       inputMode="decimal" list="taxas-iva"
                       aria-label={`Taxa de IVA da linha ${index + 1} (%)`}
@@ -290,16 +283,16 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
                   <span>
                     base {formatMoney(preview.lines[index]?.net || 0)} + IVA {formatMoney(preview.lines[index]?.vat || 0)}
                   </span>
-                  <span className="font-bold text-neutral-700">{formatMoney(preview.lines[index]?.gross || 0)}</span>
+                  <span className="font-semibold text-neutral-700">{formatMoney(preview.lines[index]?.gross || 0)}</span>
                 </div>
 
                 {num(row.vat_rate) === 0 && (
-                  <input
+                  <Input
                     value={row.vat_exemption_reason || ''}
                     onChange={(e) => update(index, { vat_exemption_reason: e.target.value })}
                     placeholder="Motivo da isenção (ex.: art.º 53.º do CIVA)"
                     aria-label={`Motivo da isenção de IVA da linha ${index + 1}`}
-                    className={cn(inputClass, 'h-8 px-2.5 text-xs border-amber-200 bg-amber-50/50 focus:border-amber-400 focus:ring-amber-100')}
+                    className="text-xs border-amber-200 bg-amber-50/50 focus:border-amber-400 focus:ring-amber-100"
                   />
                 )}
               </div>
@@ -319,7 +312,7 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
             </Button>
 
             {/* -------------------------------------------------- live totals */}
-            <div className="rounded-xl bg-neutral-50 border border-neutral-200 p-3 space-y-1 font-mono tabular-nums text-xs">
+            <div className="rounded-lg bg-neutral-50 border border-neutral-200 px-3 py-2 space-y-1 font-mono tabular-nums text-xs">
               {preview.buckets.map(([rate, b]) => (
                 <div key={rate} className="flex justify-between text-neutral-600">
                   <span>IVA {rate}% sobre {formatMoney(b.base)}</span>
@@ -327,14 +320,14 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
                 </div>
               ))}
               <div className="flex justify-between pt-1 border-t border-neutral-200 text-neutral-700">
-                <span>Base total</span><span className="font-bold">{formatMoney(preview.net)}</span>
+                <span>Base total</span><span className="font-semibold">{formatMoney(preview.net)}</span>
               </div>
               <div className="flex justify-between text-neutral-700">
-                <span>IVA total</span><span className="font-bold">{formatMoney(preview.vat)}</span>
+                <span>IVA total</span><span className="font-semibold">{formatMoney(preview.vat)}</span>
               </div>
               <div className="flex justify-between text-neutral-900">
-                <span className="font-bold">Total do documento</span>
-                <span className="font-bold">{formatMoney(preview.gross)}</span>
+                <span className="font-semibold">Total do documento</span>
+                <span className="font-semibold">{formatMoney(preview.gross)}</span>
               </div>
             </div>
 
@@ -352,12 +345,12 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
         ) : (
           /* ---------------------------------------------------------- saved */
           <div className="space-y-3">
-            <div className="border border-neutral-200 rounded-xl divide-y divide-neutral-100 overflow-hidden">
+            <div className="border border-neutral-200 rounded-lg divide-y divide-neutral-100 overflow-hidden">
               {saved.map((line) => (
                 <div key={line.id} className="px-3 py-2 flex items-center gap-3">
                   <span className="text-2xs font-mono text-neutral-400 w-4 shrink-0">{line.line_number}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-neutral-800 truncate">
+                    <p className="font-medium text-neutral-800 truncate">
                       {line.item_code && (
                         <span className="mr-1.5 font-mono text-2xs text-emerald-700">{line.item_code}</span>
                       )}
@@ -373,13 +366,13 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
                       <p className="text-2xs text-amber-700">{line.vat_exemption_reason}</p>
                     )}
                   </div>
-                  <span className="font-bold font-mono tabular-nums text-neutral-900 shrink-0">{formatMoney(line.gross_amount)}</span>
+                  <span className="font-semibold font-mono tabular-nums text-neutral-900 shrink-0">{formatMoney(line.gross_amount)}</span>
                 </div>
               ))}
             </div>
 
-            <div className="rounded-xl bg-neutral-50 border border-neutral-200 p-3 space-y-1 font-mono tabular-nums text-xs">
-              <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500 font-sans mb-1">Resumo por taxa</p>
+            <div className="rounded-lg bg-neutral-50 border border-neutral-200 px-3 py-2 space-y-1 font-mono tabular-nums text-xs">
+              <p className="text-xs font-medium text-neutral-500 font-sans mb-1">Resumo por taxa</p>
               {byRate.map((b) => (
                 <div key={b.vat_rate} className="flex justify-between text-neutral-600">
                   <span>{b.vat_rate}% · base {formatMoney(b.base_tributavel)}</span>
@@ -387,8 +380,8 @@ export const InvoiceLinesEditor: React.FC<Props> = ({
                 </div>
               ))}
               <div className="flex justify-between pt-1 border-t border-neutral-200 text-neutral-900">
-                <span className="font-bold">Total</span>
-                <span className="font-bold">{formatMoney(byRate.reduce((s, b) => s + b.total, 0))}</span>
+                <span className="font-semibold">Total</span>
+                <span className="font-semibold">{formatMoney(byRate.reduce((s, b) => s + b.total, 0))}</span>
               </div>
             </div>
           </div>

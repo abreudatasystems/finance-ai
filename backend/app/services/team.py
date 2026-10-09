@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import secrets
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Optional
 
 from fastapi import HTTPException
@@ -23,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import ROLE_ORDER, ROLE_OWNER, VALID_ROLES, ROLE_LABELS
 from app.models.models import (
-    PLACEHOLDER_NIF, AuditLog, Company, Invitation, Transaction, User, UserMembership,
+    PLACEHOLDER_NIF, AuditLog, BankAccount, Company, Invitation, Transaction, User, UserMembership,
 )
 from app.services.provisioning import apply_template
 
@@ -99,6 +100,16 @@ def create_company(db: Session, user: User, name: str, **profile) -> Company:
         vat_regime=profile.get("vat_regime") or "normal",
         vat_periodicity=profile.get("vat_periodicity") or "quarterly",
         cae=profile.get("cae"),
+        fiscal_year_start=profile.get("fiscal_year_start") or "01",
+        **{
+            field: profile.get(field)
+            for field in (
+                "trade_name", "share_capital", "incorporation_date", "address", "postal_code", "city",
+                "email", "phone", "website", "irc_regime", "niss",
+                "accountant_name", "accountant_nif", "accountant_email",
+                "customer_terms_days", "supplier_terms_days",
+            )
+        },
     )
     db.add(company)
     db.add(UserMembership(
@@ -111,6 +122,22 @@ def create_company(db: Session, user: User, name: str, **profile) -> Company:
 
     # A new tenant starts with a working chart of accounts, like the first one.
     apply_template(db, company.id)
+
+    # A conta principal com o saldo de partida: sem ela a tesouraria começa em 0 €
+    # e a conciliação não tem onde ligar os movimentos.
+    if any(profile.get(k) not in (None, "") for k in ("bank_name", "iban", "opening_balance")):
+        db.add(BankAccount(
+            id=f"BANK-{company.id}-1",
+            company_id=company.id,
+            name=profile.get("bank_name") or "Conta Principal",
+            bank_name=profile.get("bank_name"),
+            iban=(profile.get("iban") or "").replace(" ", "").upper() or None,
+            currency=company.currency or "EUR",
+            opening_balance=Decimal(str(profile.get("opening_balance") or 0)).quantize(Decimal("0.01")),
+            is_default=True,
+            active=True,
+        ))
+        db.commit()
 
     audit(db, company.id, user.name, "criar", f"Criou a empresa '{company.name}'", company.id, "empresa")
     db.commit()

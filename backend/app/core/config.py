@@ -47,6 +47,20 @@ class Settings(BaseSettings):
     #: Where the invitation links point — the app's public address.
     APP_BASE_URL: str = os.getenv("APP_BASE_URL", "http://localhost:3000")
 
+    # Assistente com IA (Claude). Sem ANTHROPIC_API_KEY o assistente responde
+    # em "modo básico" (palavras-chave) — ver app/services/assistant/.
+    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+    #: Sonnet: bom equilíbrio custo/qualidade para perguntas sobre os dados.
+    ANTHROPIC_MODEL: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
+    #: Desliga a IA mesmo com chave definida ("0"/"false").
+    ASSISTANT_ENABLED: bool = os.getenv("ASSISTANT_ENABLED", "1") not in ("0", "false", "False")
+    #: Segundos de espera por cada chamada à API antes de cair no modo básico.
+    ASSISTANT_TIMEOUT_SECONDS: float = float(os.getenv("ASSISTANT_TIMEOUT_SECONDS", "30"))
+    ASSISTANT_MAX_TOKENS: int = int(os.getenv("ASSISTANT_MAX_TOKENS", "4096"))
+    #: Limite de custo: pedidos à IA por utilizador e empresa numa janela.
+    ASSISTANT_RATE_LIMIT: int = int(os.getenv("ASSISTANT_RATE_LIMIT", "20"))
+    ASSISTANT_RATE_WINDOW_SECONDS: int = int(os.getenv("ASSISTANT_RATE_WINDOW_SECONDS", "600"))
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

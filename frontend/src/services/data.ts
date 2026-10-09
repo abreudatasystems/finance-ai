@@ -380,8 +380,40 @@ export async function createCompany(payload: {
   vat_regime?: string;
   vat_periodicity?: string;
   cae?: string;
+  /** Restante ficha da empresa e conta bancária (components/companies/profile.ts). */
+  [field: string]: unknown;
 }): Promise<{ data?: Company; error?: string }> {
   return apiPostOrError<Company>('/companies/', payload);
+}
+
+export interface CompanySnapshot {
+  income: number;
+  expenses: number;
+  result: number;
+  /** Resultado mês a mês, do mais antigo ao mais recente. */
+  trend: number[];
+}
+
+/**
+ * Resumo dos últimos seis meses de UMA empresa, para a página de escolha.
+ * O cabeçalho X-Company-Id vai explícito: ali ainda não há empresa ativa e o
+ * resumo de cada cartão tem de ser o da empresa desse cartão.
+ */
+export async function fetchCompanySnapshot(companyId: string): Promise<CompanySnapshot | null> {
+  try {
+    const res = await apiFetch('/dashboard/summary?months=6', { headers: { 'X-Company-Id': companyId } });
+    if (!res.ok) return null;
+    const rows = (await res.json()) as { Entradas?: number; Saídas?: number; Resultado?: number }[];
+    const sum = (k: 'Entradas' | 'Saídas' | 'Resultado') => rows.reduce((t, r) => t + (Number(r[k]) || 0), 0);
+    return {
+      income: sum('Entradas'),
+      expenses: sum('Saídas'),
+      result: sum('Resultado'),
+      trend: rows.map((r) => Number(r.Resultado) || 0),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchTeamMembers(companyId: string): Promise<TeamMember[]> {

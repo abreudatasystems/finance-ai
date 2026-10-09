@@ -14,13 +14,14 @@
  * else sees the team read-only.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Users, UserPlus, Shield, Eye, Trash2, Copy, Check, Link2, X,
   Activity, ArrowUpRight, ArrowDownRight, Clock, Send, MailWarning,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useApp } from '@/context/AppContext';
+import { useLoad } from '@/lib/use-load';
 import { Invitation, MemberActivity, TeamMember, UserRole } from '@/types';
 import {
   fetchTeamMembers, fetchInvitations, createInvitation, revokeInvitation,
@@ -29,7 +30,7 @@ import {
 import { API_BASE } from '@/services/api';
 import { formatDate } from '@/lib/format';
 import {
-  Button, IconButton, Card, CardHeader, CardBody, Field, Input, Select, Badge, LoadingState, EmptyState, useConfirm,
+  Button, IconButton, Card, CardHeader, CardBody, Field, Input, Select, Badge, LoadingState, EmptyState, Stat, useConfirm,
 } from '@/components/ui';
 import type { BadgeTone } from '@/components/ui';
 
@@ -57,15 +58,29 @@ const inviteLink = (invitation: Pick<Invitation, 'token' | 'accept_url'>) => {
   return `${origin}/invite/${invitation.token}`;
 };
 
+const NO_MEMBERS: TeamMember[] = [];
+const NO_INVITES: Invitation[] = [];
+
 export const TeamPanel: React.FC = () => {
   const { currentCompany, userRole, formatMoney } = useApp();
   const confirm = useConfirm();
   const companyId = currentCompany?.id;
   const canManage = userRole === 'owner' || userRole === 'admin';
 
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [invites, setInvites] = useState<Invitation[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Sem empresa activa ainda não há o que pedir (fica a carregar).
+  const { data, loading, reload } = useLoad(
+    async () => {
+      const [m, i] = await Promise.all([
+        fetchTeamMembers(companyId!),
+        canManage ? fetchInvitations(companyId!) : Promise.resolve([] as Invitation[]),
+      ]);
+      return { members: m, invites: i.filter((x) => x.status === 'pending') };
+    },
+    [companyId, canManage],
+    { enabled: !!companyId },
+  );
+  const members: TeamMember[] = data?.members ?? NO_MEMBERS;
+  const invites: Invitation[] = data?.invites ?? NO_INVITES;
   const [copied, setCopied] = useState<string | null>(null);
   const [busyInvite, setBusyInvite] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -78,20 +93,6 @@ export const TeamPanel: React.FC = () => {
 
   const [activityFor, setActivityFor] = useState<string | null>(null);
   const [activity, setActivity] = useState<MemberActivity | null>(null);
-
-  const reload = useCallback(async () => {
-    if (!companyId) return;
-    setLoading(true);
-    const [m, i] = await Promise.all([
-      fetchTeamMembers(companyId),
-      canManage ? fetchInvitations(companyId) : Promise.resolve([] as Invitation[]),
-    ]);
-    setMembers(m);
-    setInvites(i.filter((x) => x.status === 'pending'));
-    setLoading(false);
-  }, [companyId, canManage]);
-
-  useEffect(() => { reload(); }, [reload]);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,7 +168,7 @@ export const TeamPanel: React.FC = () => {
       // Recarregamento completo de propósito: sair da empresa invalida tudo o
       // que o contexto tem em memória sobre ela, e router.push mantinha-o.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.href = '/dashboard';
+      window.location.href = '/companies';
       return;
     }
     await reload();
@@ -188,7 +189,7 @@ export const TeamPanel: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 text-xs">
+    <div className="space-y-4 text-xs">
       {/* ------------------------------------------------------------ header */}
       <Card>
         <CardHeader
@@ -207,22 +208,22 @@ export const TeamPanel: React.FC = () => {
             </Button>
           ) : undefined}
         />
-        <CardBody className="space-y-4">
-          <div className="flex items-start gap-2.5 p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-700">
-            <Shield className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
+        <CardBody className="space-y-3">
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-xs bg-neutral-50 border-neutral-200 text-neutral-700">
+            <Shield className="size-3.5 shrink-0 mt-0.5 text-neutral-500" aria-hidden="true" />
             <span>
-              Cada pessoa vê <b>apenas esta empresa</b> — as suas outras empresas continuam separadas.
-              Quem entra por convite trabalha aqui mas <b>não pode abrir empresas próprias</b>.
+              Cada pessoa vê <span className="font-semibold">apenas esta empresa</span> — as suas outras empresas continuam separadas.
+              Quem entra por convite trabalha aqui mas <span className="font-semibold">não pode abrir empresas próprias</span>.
             </span>
           </div>
 
           {notice && (
-            <p role="status" className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">{notice}</p>
+            <p role="status" className="rounded-lg border px-3 py-2 text-xs bg-emerald-50 border-emerald-200 text-emerald-900">{notice}</p>
           )}
 
           {/* ------------------------------------------------------ invite form */}
           {inviteOpen && canManage && (
-            <form onSubmit={send} className="p-4 rounded-xl border border-neutral-200 bg-neutral-50/60 space-y-3">
+            <form onSubmit={send} className="p-3 rounded-lg border border-neutral-200 bg-neutral-50/60 space-y-3">
               <div className="grid sm:grid-cols-2 gap-3">
                 <Field label="Email" required>
                   {(p) => (
@@ -255,7 +256,7 @@ export const TeamPanel: React.FC = () => {
                   Gerar convite
                 </Button>
                 <span className="text-2xs text-neutral-500 flex items-center gap-1">
-                  <MailWarning className="w-3 h-3 shrink-0" aria-hidden="true" />
+                  <MailWarning className="size-3 shrink-0" aria-hidden="true" />
                   Enviamos o convite por email. Se o envio não estiver configurado, o link
                   é copiado para si enviar.
                 </span>
@@ -265,16 +266,16 @@ export const TeamPanel: React.FC = () => {
 
           {/* --------------------------------------------------- pending invites */}
           {canManage && invites.length > 0 && (
-            <div className="border border-amber-200 rounded-xl overflow-hidden">
-              <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 font-bold text-amber-900 flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5" aria-hidden="true" /> Convites por aceitar
+            <div className="border border-neutral-200 rounded-lg overflow-hidden">
+              <div className="px-3 py-2 bg-neutral-50 border-b border-neutral-200 text-13 font-semibold text-neutral-800 flex items-center gap-2">
+                <Clock className="size-3.5 text-amber-600" aria-hidden="true" /> Convites por aceitar
               </div>
-              <div className="divide-y divide-amber-100">
+              <div className="divide-y divide-neutral-100">
                 {invites.map((inv) => (
-                  <div key={inv.id} className="px-4 py-2.5 flex flex-wrap items-center gap-2 justify-between">
+                  <div key={inv.id} className="px-3 py-2 flex flex-wrap items-center gap-2 justify-between">
                     <div className="min-w-0">
-                      <span className="font-semibold text-neutral-800">{inv.email}</span>
-                      <Badge tone={roleTone(inv.role)} className="ml-2 uppercase">{inv.role_label}</Badge>
+                      <span className="font-medium text-neutral-800">{inv.email}</span>
+                      <Badge tone={roleTone(inv.role)} className="ml-2">{inv.role_label}</Badge>
                       <p className="text-2xs text-neutral-500 mt-0.5">
                         Expira a {formatDate(inv.expires_at)}{inv.invited_by_name ? ` · convidado por ${inv.invited_by_name}` : ''}
                       </p>
@@ -312,21 +313,21 @@ export const TeamPanel: React.FC = () => {
           {loading ? (
             <LoadingState label="A carregar a equipa…" />
           ) : (
-            <div className="border border-neutral-200 rounded-xl overflow-hidden">
-              <div className="px-4 py-2 bg-neutral-50 border-b border-neutral-200 font-bold text-neutral-700">Membros</div>
+            <div className="border border-neutral-200 rounded-lg overflow-hidden">
+              <div className="px-3 py-2 bg-neutral-50 border-b border-neutral-200 text-13 font-semibold text-neutral-800">Membros</div>
               {members.length === 0 ? (
                 <EmptyState title="Ainda não há membros nesta equipa." />
               ) : (
               <div className="divide-y divide-neutral-100">
                 {members.map((m) => (
                   <div key={m.user_id}>
-                    <div className="px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
+                    <div className="px-3 py-2 flex flex-wrap items-center gap-3 justify-between">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-neutral-800">{m.name}</span>
-                          {m.is_you && <Badge className="uppercase">Você</Badge>}
+                          <span className="font-medium text-neutral-800">{m.name}</span>
+                          {m.is_you && <Badge>Você</Badge>}
                           {m.account_type === 'invited' && (
-                            <Badge tone="warning" className="uppercase">Convidado</Badge>
+                            <Badge tone="warning">Convidado</Badge>
                           )}
                         </div>
                         <p className="text-2xs text-neutral-500 mt-0.5">
@@ -350,7 +351,7 @@ export const TeamPanel: React.FC = () => {
                             aria-label={`Papel de ${m.name}`}
                             value={m.role}
                             onChange={(e) => changeRole(m.user_id, e.target.value as UserRole)}
-                            className="h-8 w-auto text-xs font-semibold"
+                            className="h-7 w-auto text-xs font-medium"
                           >
                             {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                           </Select>
@@ -372,38 +373,25 @@ export const TeamPanel: React.FC = () => {
 
                     {/* --------------------------------------------- activity */}
                     {activityFor === m.user_id && (
-                      <div className="px-4 pb-4 bg-neutral-50/60 border-t border-neutral-100">
+                      <div className="px-3 pb-3 bg-neutral-50/60 border-t border-neutral-100">
                         {!activity ? (
                           <LoadingState className="py-4" />
                         ) : (
                           <div className="pt-3 space-y-3">
                             <div className="grid grid-cols-3 gap-2">
-                              <div className="p-2.5 rounded-xl bg-white border border-neutral-200">
-                                <p className="text-2xs uppercase font-bold text-neutral-500">Lançamentos</p>
-                                <p className="font-bold text-neutral-900 text-sm tabular-nums">{activity.lancamentos}</p>
-                              </div>
-                              <div className="p-2.5 rounded-xl bg-white border border-neutral-200">
-                                <p className="text-2xs uppercase font-bold text-neutral-500 flex items-center gap-1">
-                                  <ArrowUpRight className="w-3 h-3 text-emerald-600" aria-hidden="true" /> Entradas
-                                </p>
-                                <p className="font-bold text-emerald-700 text-sm tabular-nums">{formatMoney(activity.total_entradas)}</p>
-                              </div>
-                              <div className="p-2.5 rounded-xl bg-white border border-neutral-200">
-                                <p className="text-2xs uppercase font-bold text-neutral-500 flex items-center gap-1">
-                                  <ArrowDownRight className="w-3 h-3 text-rose-600" aria-hidden="true" /> Saídas
-                                </p>
-                                <p className="font-bold text-rose-700 text-sm tabular-nums">{formatMoney(activity.total_saidas)}</p>
-                              </div>
+                              <Stat label="Lançamentos" value={activity.lancamentos} />
+                              <Stat label="Entradas" icon={<ArrowUpRight />} tone="positive" value={formatMoney(activity.total_entradas)} />
+                              <Stat label="Saídas" icon={<ArrowDownRight />} tone="negative" value={formatMoney(activity.total_saidas)} />
                             </div>
 
                             {activity.movimentos.length === 0 ? (
                               <p className="text-neutral-500 text-xs">Ainda não lançou nada nesta empresa.</p>
                             ) : (
-                              <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
+                              <div className="rounded-lg border border-neutral-200 bg-white overflow-hidden">
                                 {activity.movimentos.map((t) => (
                                   <div key={t.id} className="px-3 py-2 flex items-center justify-between gap-3 border-b border-neutral-100 last:border-0">
                                     <span className="truncate text-neutral-700">{formatDate(t.date)} · {t.description}</span>
-                                    <span className={`font-bold tabular-nums whitespace-nowrap ${t.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                    <span className={`font-semibold tabular-nums whitespace-nowrap ${t.type === 'income' ? 'text-emerald-700' : 'text-rose-700'}`}>
                                       {t.type === 'income' ? '+' : '−'}{formatMoney(t.amount)}
                                     </span>
                                   </div>
@@ -413,7 +401,7 @@ export const TeamPanel: React.FC = () => {
 
                             {activity.acoes.length > 0 && (
                               <div>
-                                <p className="text-2xs uppercase font-bold text-neutral-500 mb-1">Últimas ações</p>
+                                <p className="text-xs font-medium text-neutral-500 mb-1">Últimas ações</p>
                                 <ul className="space-y-1">
                                   {activity.acoes.slice(0, 6).map((a, idx) => (
                                     <li key={idx} className="text-2xs text-neutral-600">
@@ -439,7 +427,7 @@ export const TeamPanel: React.FC = () => {
 
           {!canManage && (
             <p className="text-xs text-neutral-500 flex items-center gap-1.5">
-              <Eye className="w-3.5 h-3.5" aria-hidden="true" /> Só o proprietário ou um administrador pode convidar pessoas e alterar papéis.
+              <Eye className="size-3.5" aria-hidden="true" /> Só o proprietário ou um administrador pode convidar pessoas e alterar papéis.
             </p>
           )}
         </CardBody>

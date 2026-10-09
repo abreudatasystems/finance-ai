@@ -14,8 +14,9 @@
  * Kept in its own module so the Settings page stays a thin shell.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
+import { useLoad } from '@/lib/use-load';
 import {
   FolderTree, Plus, CornerDownRight, Lock, Layers, Pencil, Trash2, Check, X,
   RotateCcw, Loader2,
@@ -27,22 +28,22 @@ import {
 } from '@/services/data';
 import { CreateCategoryModal } from '@/components/shared/CreateCategoryModal';
 import {
-  Button, IconButton, Card, CardHeader, CardBody, Badge, EmptyState, inputClass, cn, useConfirm,
+  Button, IconButton, Card, CardHeader, CardBody, Badge, EmptyState, Input, cn, useConfirm,
 } from '@/components/ui';
 
 /** Classes de um <Link> com o aspeto de <Button size="sm">. */
 const linkButton = (primary: boolean) => cn(
-  'inline-flex items-center justify-center h-8 px-3 gap-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 [&_svg]:size-4',
+  'inline-flex items-center justify-center h-7 px-2.5 gap-1.5 rounded-md text-xs font-medium whitespace-nowrap shadow-xs transition-colors',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-1 [&_svg]:size-3.5 [&_svg]:shrink-0',
   primary
-    ? 'bg-black text-white border border-black hover:bg-neutral-800'
+    ? 'bg-neutral-900 text-white border border-neutral-900 hover:bg-neutral-800'
     : 'bg-white text-neutral-800 border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300',
 );
 
 const SystemBadge = () => (
   <Badge
     title="Categoria do sistema — não pode ser alterada nem eliminada"
-    className="uppercase shrink-0"
+    className="shrink-0"
   >
     <Lock className="w-2.5 h-2.5" aria-hidden="true" /> Sistema
   </Badge>
@@ -95,7 +96,7 @@ const CategoryRow: React.FC<RowProps> = ({ cat, depth, onChanged }) => {
 
         {editing ? (
           <>
-            <input
+            <Input
               autoFocus
               aria-label={`Novo nome para ${cat.name}`}
               value={draft}
@@ -104,7 +105,7 @@ const CategoryRow: React.FC<RowProps> = ({ cat, depth, onChanged }) => {
                 if (e.key === 'Enter') save();
                 if (e.key === 'Escape') { setDraft(cat.name); setEditing(false); }
               }}
-              className={cn(inputClass, 'h-8 w-auto text-xs')}
+              className="h-7 w-auto text-xs"
             />
             <IconButton label="Guardar" onClick={save} disabled={busy} className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50">
               {busy ? <Loader2 className="animate-spin" /> : <Check />}
@@ -115,7 +116,7 @@ const CategoryRow: React.FC<RowProps> = ({ cat, depth, onChanged }) => {
           </>
         ) : (
           <>
-            <span className={depth === 0 ? 'font-semibold text-neutral-800' : 'text-neutral-600'}>{cat.name}</span>
+            <span className={depth === 0 ? 'font-medium text-neutral-800' : 'text-neutral-600'}>{cat.name}</span>
             {cat.snc_code && (
               <span className="text-2xs font-mono text-neutral-500 border border-neutral-200 rounded px-1 py-0.5" title="Conta SNC">
                 {cat.snc_code}
@@ -123,10 +124,10 @@ const CategoryRow: React.FC<RowProps> = ({ cat, depth, onChanged }) => {
             )}
             {locked ? <SystemBadge /> : (
               <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                <IconButton label={`Editar ${cat.name}`} onClick={() => setEditing(true)} className="size-7">
+                <IconButton label={`Editar ${cat.name}`} onClick={() => setEditing(true)}>
                   <Pencil />
                 </IconButton>
-                <IconButton label={`Eliminar ${cat.name}`} variant="danger" onClick={remove} disabled={busy} className="size-7">
+                <IconButton label={`Eliminar ${cat.name}`} variant="danger" onClick={remove} disabled={busy}>
                   {busy ? <Loader2 className="animate-spin" /> : <Trash2 />}
                 </IconButton>
               </span>
@@ -144,19 +145,15 @@ const CategoryRow: React.FC<RowProps> = ({ cat, depth, onChanged }) => {
   );
 };
 
+const NO_GROUPS: CategoryGroup[] = [];
+const NO_CATEGORIES: Category[] = [];
+
 export const ChartOfAccounts: React.FC = () => {
-  const [groups, setGroups] = useState<CategoryGroup[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { data, reload } = useLoad(() => Promise.all([fetchCategoryGroups(), fetchCategories()]), []);
+  const groups: CategoryGroup[] = data?.[0] ?? NO_GROUPS;
+  const categories: Category[] = data?.[1] ?? NO_CATEGORIES;
   const [modalOpen, setModalOpen] = useState(false);
   const [restoring, setRestoring] = useState(false);
-
-  const reload = useCallback(async () => {
-    const [g, c] = await Promise.all([fetchCategoryGroups(), fetchCategories()]);
-    setGroups(g);
-    setCategories(c);
-  }, []);
-
-  useEffect(() => { reload(); }, [reload]);
 
   const restore = async () => {
     setRestoring(true);
@@ -174,14 +171,14 @@ export const ChartOfAccounts: React.FC = () => {
   const ownCount = categories.length - systemCount;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <Card className="text-xs">
         <CardHeader
           icon={<FolderTree />}
           title="Plano de Contas"
           subtitle={`${systemCount} do sistema · ${ownCount} próprias`}
         />
-        <CardBody className="space-y-4">
+        <CardBody className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
@@ -204,12 +201,12 @@ export const ChartOfAccounts: React.FC = () => {
             </Link>
           </div>
 
-          <div className="flex items-start gap-2.5 p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-700">
-            <Lock className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
+          <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-xs bg-neutral-50 border-neutral-200 text-neutral-700">
+            <Lock className="size-3.5 shrink-0 mt-0.5 text-neutral-500" aria-hidden="true" />
             <span>
-              A hierarquia é <b>Grupo → Categoria → Subcategoria</b>. As categorias marcadas como{' '}
-              <b>Sistema</b> vêm do plano padrão português (SNC) e <b>não podem ser alteradas nem eliminadas</b> —
-              garantem que os relatórios e o IVA continuam certos. Se faltar alguma, <b>crie a sua</b>: essas são
+              A hierarquia é <span className="font-semibold">Grupo → Categoria → Subcategoria</span>. As categorias marcadas como{' '}
+              <span className="font-semibold">Sistema</span> vêm do plano padrão português (SNC) e <span className="font-semibold">não podem ser alteradas nem eliminadas</span> —
+              garantem que os relatórios e o IVA continuam certos. Se faltar alguma, <span className="font-semibold">crie a sua</span>: essas são
               totalmente editáveis.
             </span>
           </div>
@@ -217,19 +214,19 @@ export const ChartOfAccounts: React.FC = () => {
           {groups.length === 0 ? (
             <EmptyState title="Nenhum grupo carregado." />
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {groups.map((g) => {
                 const roots = categories.filter(
                   (c) => !c.parent_id && (c.group_id ? c.group_id === g.id : c.type === g.kind),
                 );
                 return (
-                  <div key={g.id} className="border border-neutral-200 rounded-xl overflow-hidden">
-                    <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-neutral-50 border-b border-neutral-200">
+                  <div key={g.id} className="border border-neutral-200 rounded-lg overflow-hidden">
+                    <div className="flex items-center justify-between gap-2 px-3 py-2 bg-neutral-50 border-b border-neutral-200">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-base" aria-hidden="true">{g.icon || '📁'}</span>
-                        <span className="font-bold text-neutral-900 truncate">{g.name}</span>
+                        <span className="text-sm" aria-hidden="true">{g.icon || '📁'}</span>
+                        <span className="text-13 font-semibold text-neutral-900 truncate">{g.name}</span>
                         {g.is_system && <SystemBadge />}
-                        <Badge tone={g.kind === 'income' ? 'success' : 'danger'} className="uppercase">
+                        <Badge tone={g.kind === 'income' ? 'success' : 'danger'}>
                           {g.kind === 'income' ? 'Entra' : 'Sai'}
                         </Badge>
                       </div>
@@ -237,11 +234,11 @@ export const ChartOfAccounts: React.FC = () => {
                     </div>
 
                     {roots.length === 0 ? (
-                      <p className="px-4 py-3 text-neutral-500 text-xs">Sem categorias neste grupo.</p>
+                      <p className="px-3 py-2 text-neutral-500 text-xs">Sem categorias neste grupo.</p>
                     ) : (
                       <div className="divide-y divide-neutral-100">
                         {roots.map((c) => (
-                          <div key={c.id} className="px-4 py-2.5">
+                          <div key={c.id} className="px-3 py-2">
                             <CategoryRow cat={c} depth={0} onChanged={reload} />
                             {(c.children || categories.filter((s) => s.parent_id === c.id)).map((sub) => (
                               <CategoryRow key={sub.id} cat={sub} depth={1} onChanged={reload} />

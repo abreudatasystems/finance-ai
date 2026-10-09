@@ -11,18 +11,24 @@ import { CreateSupplierModal } from '@/components/shared/CreateSupplierModal';
 import { CreateCustomerModal } from '@/components/shared/CreateCustomerModal';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { isAuthenticated, redirectToLogin } from '@/services/api';
+import { getActiveCompany, isAuthenticated, redirectToLogin } from '@/services/api';
 
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [createModalType, setCreateModalType] = useState<string | null>(null);
-  const { isAiDrawerOpen, isSidebarCollapsed, pageTitle } = useApp();
+  const { isAiDrawerOpen, isSidebarCollapsed, pageTitle, companiesLoaded } = useApp();
   const router = useRouter();
 
   // Sem sessão não há empresa: em vez de um painel a 0 €, vai-se ao login.
   useEffect(() => {
     if (!isAuthenticated()) redirectToLogin();
   }, []);
+
+  // Dentro do painel trabalha-se sempre numa empresa escolhida: sem escolha
+  // (ou com uma que deixou de ser acessível), volta-se à página de escolha.
+  useEffect(() => {
+    if (isAuthenticated() && !getActiveCompany()) router.replace('/companies');
+  }, [companiesLoaded, router]);
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 flex flex-col font-sans antialiased">
@@ -44,7 +50,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
         {/* Main Right Content Area - Smoothly shifts when AI Side Panel is Open or Sidebar is Collapsed */}
         <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out pl-0 ${
-          isSidebarCollapsed ? 'md:pl-[110px]' : 'md:pl-[245px] lg:pl-[285px]'
+          isSidebarCollapsed ? 'md:pl-[84px]' : 'md:pl-[224px] lg:pl-[248px]'
         } ${
           isAiDrawerOpen ? 'pr-0 xl:pr-[420px]' : 'pr-0'
         }`}>

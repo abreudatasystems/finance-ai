@@ -8,7 +8,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { fetchDashboardSummary, fetchVatSummary } from '@/services/data';
 import { apiFetch } from '@/services/api';
 import {
-  Badge, Button, Card, CardHeader, CardBody, Select,
+  Badge, Button, Card, CardHeader, CardBody, Select, Stat,
   Table, THead, TBody, Th, Tr, Td,
 } from '@/components/ui';
 
@@ -132,7 +132,7 @@ export default function ReportsPage() {
     <div className="space-y-4 animate-in fade-in duration-300">
 
       {/* Header Actions */}
-      <div className="flex justify-end pb-3">
+      <div className="flex justify-end">
         <div className="flex items-center gap-2">
           <Button variant="secondary" icon={<FileSpreadsheet />} onClick={handleExportCsv}>
             Exportar CSV / Excel
@@ -152,7 +152,7 @@ export default function ReportsPage() {
               aria-label="Ano fiscal"
               value={year}
               onChange={(e) => setYear(e.target.value)}
-              className="w-auto h-8 text-xs"
+              className="w-auto"
             >
               {YEARS.map((y) => (
                 <option key={y} value={y}>Ano Fiscal {y}</option>
@@ -178,23 +178,14 @@ export default function ReportsPage() {
       </Card>
 
       {/* Summary KPI grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-        <Card className="p-5 space-y-1">
-          <span className="text-neutral-500 font-medium">Total Receitas Acumuladas</span>
-          <div className="text-xl font-black text-emerald-600 tabular-nums">{formatMoney(totalReceitas)}</div>
-        </Card>
-
-        <Card className="p-5 space-y-1">
-          <span className="text-neutral-500 font-medium">Total Despesas Acumuladas</span>
-          <div className="text-xl font-black text-rose-600 tabular-nums">{formatMoney(totalDespesas)}</div>
-        </Card>
-
-        <Card className="p-5 space-y-1">
-          <span className="text-neutral-500 font-medium">Resultado Acumulado</span>
-          <div className={`text-xl font-black tabular-nums ${totalReceitas - totalDespesas >= 0 ? 'text-neutral-900' : 'text-rose-600'}`}>
-            {totalReceitas - totalDespesas >= 0 ? '+' : ''}{formatMoney(totalReceitas - totalDespesas)}
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Stat label="Total Receitas Acumuladas" value={formatMoney(totalReceitas)} tone="positive" />
+        <Stat label="Total Despesas Acumuladas" value={formatMoney(totalDespesas)} tone="negative" />
+        <Stat
+          label="Resultado Acumulado"
+          value={`${totalReceitas - totalDespesas >= 0 ? '+' : ''}${formatMoney(totalReceitas - totalDespesas)}`}
+          tone={totalReceitas - totalDespesas >= 0 ? 'neutral' : 'negative'}
+        />
       </div>
 
       {/* IVA Summary Section — vendas e compras separadas: somar IVA
@@ -206,7 +197,7 @@ export default function ReportsPage() {
             subtitle={`Período: ${vatSummary.period_label || vatSummary.period}`}
             actions={
               <Badge>
-                <MapPin className="w-3 h-3" aria-hidden="true" /> Portugal
+                <MapPin className="size-3" aria-hidden="true" /> Portugal
               </Badge>
             }
           />
@@ -227,18 +218,18 @@ export default function ReportsPage() {
                 ['Liquidado (vendas)', vatSummary.iva_liquidado],
                 ['Dedutível (compras)', vatSummary.iva_dedutivel],
               ] as const).flatMap(([side, data]) => data.breakdown.map((item, idx) => (
-                <Tr key={`${side}-${idx}`} className="font-medium">
+                <Tr key={`${side}-${idx}`}>
                   <Td className="text-neutral-500">{side}</Td>
-                  <Td className="font-semibold text-neutral-800">{item.label}</Td>
+                  <Td className="font-medium text-neutral-800">{item.label}</Td>
                   <Td numeric className="text-neutral-700">{formatMoney(item.base_tributavel)}</Td>
-                  <Td numeric className="text-neutral-900 font-bold">{formatMoney(item.iva)}</Td>
+                  <Td numeric className="text-neutral-900 font-medium">{formatMoney(item.iva)}</Td>
                   <Td numeric className="text-neutral-700">{formatMoney(item.total)}</Td>
                   <Td numeric className="text-neutral-500">{item.num_documentos}</Td>
                 </Tr>
               )))}
             </TBody>
             <tfoot>
-              <tr className="bg-neutral-50 border-t-2 border-neutral-300 font-bold text-neutral-900">
+              <tr className="bg-neutral-50 border-t border-neutral-200 font-semibold text-neutral-900">
                 <Td colSpan={3}>
                   {vatSummary.apuramento.a_recuperar > 0 ? 'IVA a recuperar' : 'IVA a entregar ao Estado'}
                 </Td>

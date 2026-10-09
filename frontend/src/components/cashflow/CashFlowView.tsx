@@ -4,17 +4,39 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { useLoad } from '@/lib/use-load';
 import { fetchTransactions } from '@/services/data';
 import { settleMany } from '@/components/cashflow/api';
 import { ForecastPanel } from '@/components/cashflow/ForecastPanel';
 import { Transaction } from '@/types';
 import { formatDate, documentStatusLabel } from '@/lib/format';
-import { Search, CheckCircle2, X, Bot, User } from 'lucide-react';
+import { Search, CheckCircle2, X, Bot, User, Landmark } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Badge, Button, IconButton, Card, Input, Select, Table, THead, TBody, Th, Tr, Td, TableMessage,
-  LoadingState, EmptyState, cn, useConfirm,
+  LoadingState, EmptyState, Segmented, Stat, cn, useConfirm,
 } from '@/components/ui';
+
+const NO_TRANSACTIONS: Transaction[] = [];
+
+/** A data de hoje no fuso de quem usa (toISOString dava o dia anterior entre as 00h e a 01h em Portugal). */
+function localDay(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00`) - Date.parse(`${from}T00:00:00`)) / 86_400_000);
+}
+
+type Tab = 'all' | 'income' | 'expense' | 'open' | 'settled';
+
+/** O banco confirma os pagamentos deste documento? */
+function BankBadge({ status }: { status?: Transaction['bank_status'] }) {
+  if (status === 'confirmed') return <Badge tone="success">Confirmado</Badge>;
+  if (status === 'partial') return <Badge tone="warning">Parcial</Badge>;
+  if (status === 'unconfirmed') return <Badge tone="neutral">Por confirmar</Badge>;
+  return <span className="text-neutral-300">—</span>;
+}
 
 export interface CashFlowViewProps {
   mode?: 'cash-flow' | 'payables' | 'receivables';
@@ -22,8 +44,15 @@ export interface CashFlowViewProps {
 export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
   const router = useRouter();
   const { formatMoney, setPageHeader } = useApp();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [activeTab, setActiveTab] = useState<'all' | 'income' | 'expense' | 'pending' | 'open'>(mode === 'cash-flow' ? 'all' : 'open');
+  // `data` fica `undefined` até à primeira resposta; depois de liquidar volta a
+  // ler sem esconder a tabela (por isso "carregado" = já houve uma resposta).
+  const { data: loadedTransactions, reload: reloadTransactions } = useLoad(fetchTransactions, []);
+  const transactions = loadedTransactions ?? NO_TRANSACTIONS;
+  const loaded = loadedTransactions !== undefined;
+  const [activeTab, setActiveTab] = useState<Tab>(mode === 'cash-flow' ? 'all' : 'open');
+  // Contas a pagar e a receber são o livro de um só sentido; o fluxo de caixa tem os dois.
+  const isLedger = mode !== 'cash-flow';
+  const ledgerType: 'expense' | 'income' | null = mode === 'payables' ? 'expense' : mode === 'receivables' ? 'income' : null;
   const [searchTerm, setSearchTerm] = useState('');
   // A list of every movement ever is unusable after two months. The period is
   // the first thing a cash flow needs.
@@ -34,26 +63,20 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
 
   // As contas a pagar e a receber encaminham para aqui; um marcador antigo ou
   // um alerta tem de aterrar já no separador e no sentido certos.
-  useEffect(() => {
+  // Ajustado durante o render quando o URL muda, não num efeito.
+  const [seenParams, setSeenParams] = useState<typeof params | null>(null);
+  if (params !== seenParams) {
+    setSeenParams(params);
     const tab = params.get('tab');
     const dir = params.get('dir');
     if (tab === 'open') setActiveTab('open');
     if (dir === 'expense' || dir === 'income') setDirection(dir);
-  }, [params]);
-  const [period, setPeriod] = useState<string>(() => new Date().toISOString().slice(0, 7));
+  }
+  const [period, setPeriod] = useState<string>(() => localDay().slice(0, 7));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [settling, setSettling] = useState(false);
-  const [loaded, setLoaded] = useState(false);
   const confirm = useConfirm();
 
-  useEffect(() => {
-    async function load() {
-      const trxs = await fetchTransactions();
-      setTransactions(trxs);
-      setLoaded(true);
-    }
-    load();
-  }, []);
 
     useEffect(() => {
     if (mode === 'payables') {
@@ -78,24 +101,38 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
     return out;
   }, []);
 
-  const filteredTransactions = transactions.filter((t) => {
+  /* Contas a pagar = todas as despesas; contas a receber = todas as receitas.
+     Juntas dão exatamente o fluxo de caixa — nada fica só de um lado. */
+  const scoped = React.useMemo(
+    () => (ledgerType ? transactions.filter((t) => t.type === ledgerType) : transactions),
+    [transactions, ledgerType],
+  );
+  const isOpen = (t: Transaction) => Number(t.outstanding_amount ?? 0) > 0;
+  const counts = React.useMemo(() => ({
+    all: scoped.length,
+    open: scoped.filter(isOpen).length,
+    settled: scoped.filter((t) => !isOpen(t)).length,
+  }), [scoped]);
+
+  const filteredTransactions = React.useMemo(() => scoped.filter((t) => {
+    // O que está em aberto não tem mês: uma fatura de março por pagar é trabalho de hoje.
     const matchesPeriod = period === 'all' || activeTab === 'open' || (t.date || '').startsWith(period);
     const matchesTab =
       activeTab === 'all' ? true :
       activeTab === 'income' ? t.type === 'income' :
       activeTab === 'expense' ? t.type === 'expense' :
-      t.status === 'pending_approval' || t.status === 'pending_ai';
+      activeTab === 'open' ? isOpen(t) :
+      !isOpen(t);
 
     const matchesSearch =
       t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.entity_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.category_name.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesOpen = activeTab !== 'open' || Number(t.outstanding_amount ?? 0) > 0;
     const matchesDirection =
-      activeTab !== 'open' || direction === 'all' || t.type === direction;
-    return matchesPeriod && matchesTab && matchesSearch && matchesOpen && matchesDirection;
-  });
+      isLedger || activeTab !== 'open' || direction === 'all' || t.type === direction;
+    return matchesPeriod && matchesTab && matchesSearch && matchesDirection;
+  }), [scoped, period, activeTab, searchTerm, direction, isLedger]);
 
   /* What actually moves through the bank. Not the document total: any
      retention at source goes to the State, so a cash flow that sums the gross
@@ -115,15 +152,23 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
     { entradas: 0, saidas: 0, aberto: 0, retido: 0 },
   );
 
+  /* Pago mas sem linha do extrato a prová-lo: o trabalho da conciliação. */
+  const unconfirmed = React.useMemo(() => {
+    const rows = scoped.filter((t) => t.bank_status === 'unconfirmed' || t.bank_status === 'partial');
+    return { count: rows.length, total: rows.reduce((a, t) => a + Number(t.paid_amount ?? 0), 0) };
+  }, [scoped]);
+  const paidTotal = filteredTransactions.reduce((a, t) => a + Number(t.paid_amount ?? 0), 0);
+  const today = localDay();
+
   /* Vencido, hoje, próximos sete dias.
      A antiguidade de saldos das Cobranças responde "há quanto tempo"; isto
      responde "o que tenho de tratar esta semana", que é outra pergunta e a
      razão de este separador existir. */
   const buckets = React.useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDay();
     const horizon = new Date();
     horizon.setDate(horizon.getDate() + 7);
-    const week = horizon.toISOString().slice(0, 10);
+    const week = localDay(horizon);
 
     const open = filteredTransactions.filter((t) => Number(t.outstanding_amount ?? 0) > 0);
     const due = (t: Transaction) => t.due_date || t.date || '';
@@ -145,14 +190,16 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
   /* Oldest first, carrying a running balance — how a cash flow is read. */
   const withRunning = React.useMemo(() => {
     const ordered = [...filteredTransactions].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    let running = 0;
-    const map = new Map<string, number>();
-    ordered.forEach((t) => {
+    const signed = ordered.map((t) => {
       const amount = Number(t.payable_amount ?? t.gross_amount ?? t.amount ?? 0);
-      running += t.type === 'income' ? amount : -amount;
-      map.set(t.id, running);
+      return t.type === 'income' ? amount : -amount;
     });
-    return map;
+    // Soma acumulada sem mutação: cada saldo é o anterior mais o movimento.
+    const balances = signed.reduce<number[]>(
+      (acc, v, i) => acc.concat((i === 0 ? 0 : acc[i - 1]) + v),
+      [],
+    );
+    return new Map(ordered.map((t, i) => [t.id, balances[i]] as const));
   }, [filteredTransactions]);
 
   const settleSelected = async () => {
@@ -173,8 +220,10 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
       toast.success(`${liquidados} lançamento(s) liquidado(s) — ${formatMoney(total)}.`);
     }
     setSelected(new Set());
-    setTransactions(await fetchTransactions());
+    await reloadTransactions();
   };
+
+  const columns = isLedger ? 9 : 11;
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -191,58 +240,59 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
       {mode === 'cash-flow' && <ForecastPanel />}
 
       {/* Tabs & Filter Header */}
-      <Card className="flex flex-col sm:flex-row items-center justify-between gap-4 p-3">
+      <Card className="p-3 flex flex-wrap items-center gap-2">
 
         {/* Navigation Tabs */}
         {mode === 'cash-flow' && (
-        <div
-          role="tablist"
-          aria-label="Tipo de lançamento"
-          className="flex items-center bg-neutral-100 p-1 rounded-xl text-xs font-semibold text-neutral-600 w-full sm:w-auto overflow-x-auto whitespace-nowrap hide-scrollbar"
-        >
-          {([
-            ['all', `Todos os Lançamentos (${transactions.length})`, 'text-neutral-900'],
-            ['income', 'Receitas (+ €)', 'text-emerald-600'],
-            ['expense', 'Despesas (- €)', 'text-rose-600'],
-            ['open', 'Em aberto', 'text-neutral-900'],
-          ] as const).map(([key, label, activeTone]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === key}
-              onClick={() => setActiveTab(key)}
-              className={cn(
-                'px-3.5 py-1.5 rounded-lg transition-all flex-shrink-0 cursor-pointer',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
-                activeTab === key ? cn('bg-white shadow-2xs font-bold', activeTone) : 'hover:text-neutral-900',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+          <Segmented
+            aria-label="Tipo de lançamento"
+            value={activeTab}
+            onChange={setActiveTab}
+            className="max-w-full overflow-x-auto hide-scrollbar"
+            options={[
+              { value: 'all', label: `Todos os Lançamentos (${transactions.length})` },
+              { value: 'income', label: 'Receitas (+ €)' },
+              { value: 'expense', label: 'Despesas (- €)' },
+              { value: 'open', label: 'Em aberto' },
+            ]}
+          />
         )}
 
-        {/* Period — the first thing a cash flow needs */}
-        <Select
-          value={period} onChange={(e) => setPeriod(e.target.value)}
-          aria-label="Período"
-          className="w-full sm:w-auto h-8 text-xs font-semibold"
-        >
-          {periodOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </Select>
+        {isLedger && (
+          <Segmented
+            aria-label="Estado"
+            value={activeTab}
+            onChange={setActiveTab}
+            className="max-w-full overflow-x-auto hide-scrollbar"
+            options={[
+              { value: 'open', label: `Em aberto (${counts.open})` },
+              { value: 'settled', label: `${mode === 'payables' ? 'Pagas' : 'Recebidas'} (${counts.settled})` },
+              { value: 'all', label: `Todas (${counts.all})` },
+            ]}
+          />
+        )}
+
+        {/* Period — the first thing a cash flow needs. O que está em aberto não tem mês. */}
+        {activeTab !== 'open' && (
+          <Select
+            value={period} onChange={(e) => setPeriod(e.target.value)}
+            aria-label="Período"
+            className="w-full sm:w-auto"
+          >
+            {periodOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </Select>
+        )}
 
         {/* Filter Input */}
-        <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
+        <div className="relative w-full sm:w-64 sm:ml-auto">
+          <Search className="size-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
           <Input
             type="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Filtrar por movimento ou fornecedor..."
+            placeholder={mode === 'receivables' ? 'Procurar documento ou cliente…' : mode === 'payables' ? 'Procurar documento ou fornecedor…' : 'Procurar movimento ou entidade…'}
             aria-label="Filtrar lançamentos"
-            className="h-8 pl-8 text-xs"
+            className="pl-8"
           />
         </div>
 
@@ -254,96 +304,112 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
       {activeTab === 'open' && (
         <div className="space-y-3">
           {mode === 'cash-flow' && (
-            <div
-              role="group"
+            <Segmented
               aria-label="Sentido"
-              className="flex items-center bg-neutral-100 p-1 rounded-xl w-full sm:w-auto sm:inline-flex"
-            >
-            {([
-              ['all', `Tudo (${buckets.aberto.count})`],
-              ['expense', 'A pagar'],
-              ['income', 'A receber'],
-            ] as const).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={direction === key}
-                onClick={() => setDirection(key)}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg font-bold text-xs flex-1 sm:flex-none cursor-pointer',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
-                  direction === key ? 'bg-white text-neutral-900 shadow-2xs' : 'text-neutral-600 hover:text-neutral-900',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+              value={direction}
+              onChange={setDirection}
+              options={[
+                { value: 'all', label: `Tudo (${buckets.aberto.count})` },
+                { value: 'expense', label: 'A pagar' },
+                { value: 'income', label: 'A receber' },
+              ]}
+            />
           )}
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Card className="p-3 rounded-xl border-rose-200">
-              <p className="text-2xs uppercase font-bold tracking-wider text-rose-700">Vencido</p>
-              <p className="font-bold text-rose-700 text-sm mt-0.5 tabular-nums">{formatMoney(buckets.vencido.total)}</p>
-              <p className="text-2xs text-neutral-500">{buckets.vencido.count} documento(s)</p>
-            </Card>
-            <Card className="p-3 rounded-xl border-amber-200">
-              <p className="text-2xs uppercase font-bold tracking-wider text-amber-700">Vence hoje</p>
-              <p className="font-bold text-amber-700 text-sm mt-0.5 tabular-nums">{formatMoney(buckets.hoje.total)}</p>
-              <p className="text-2xs text-neutral-500">{buckets.hoje.count} documento(s)</p>
-            </Card>
-            <Card className="p-3 rounded-xl">
-              <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500">Próximos 7 dias</p>
-              <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(buckets.semana.total)}</p>
-              <p className="text-2xs text-neutral-500">{buckets.semana.count} documento(s)</p>
-            </Card>
-            <Card className="p-3 rounded-xl">
-              <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500">Total em aberto</p>
-              <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(buckets.aberto.total)}</p>
-              <p className="text-2xs text-neutral-500">
-                <Link href="/financial/receivables" className="hover:text-emerald-700 underline-offset-2 hover:underline">
-                  ver antiguidade →
-                </Link>
-              </p>
-            </Card>
+            <Stat
+              label="Vencido"
+              value={formatMoney(buckets.vencido.total)}
+              hint={`${buckets.vencido.count} documento(s)`}
+              tone="negative"
+            />
+            <Stat
+              label="Vence hoje"
+              value={formatMoney(buckets.hoje.total)}
+              hint={`${buckets.hoje.count} documento(s)`}
+              tone="warning"
+            />
+            <Stat
+              label="Próximos 7 dias"
+              value={formatMoney(buckets.semana.total)}
+              hint={`${buckets.semana.count} documento(s)`}
+            />
+            <Stat
+              label="Total em aberto"
+              value={formatMoney(buckets.aberto.total)}
+              hint={`${buckets.aberto.count} documento(s)`}
+            />
           </div>
         </div>
       )}
 
+      {/* Pagamentos que o banco ainda não confirma — a ponte para a conciliação. */}
+      {unconfirmed.count > 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border border-sky-200 bg-sky-50 text-sky-900 text-xs">
+          <Landmark className="size-4 text-sky-600 shrink-0" aria-hidden="true" />
+          <span>
+            <b className="font-semibold tabular-nums">{unconfirmed.count}</b> documento(s) com pagamentos registados
+            (<span className="tabular-nums">{formatMoney(unconfirmed.total)}</span>) que o extrato ainda não confirma.
+          </span>
+          <Link
+            href="/financial/bank-reconciliation"
+            className="ml-auto font-semibold text-sky-800 hover:underline underline-offset-2"
+          >
+            Conciliar com o extrato →
+          </Link>
+        </div>
+      )}
+
       {/* Totals for what is on screen, and the batch action */}
+      {isLedger ? (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-3 rounded-xl border-emerald-100">
-          <p className="text-2xs uppercase font-bold tracking-wider text-emerald-700">Entradas do período</p>
-          <p className="font-bold text-emerald-700 text-sm mt-0.5 tabular-nums">{formatMoney(totals.entradas)}</p>
-        </Card>
-        <Card className="p-3 rounded-xl border-rose-100">
-          <p className="text-2xs uppercase font-bold tracking-wider text-rose-700">Saídas do período</p>
-          <p className="font-bold text-rose-700 text-sm mt-0.5 tabular-nums">{formatMoney(totals.saidas)}</p>
-        </Card>
-        <Card className="p-3 rounded-xl">
-          <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500">Resultado do período</p>
-          <p className={cn(
-            'font-bold text-sm mt-0.5 tabular-nums',
-            totals.entradas - totals.saidas < 0 ? 'text-rose-700' : 'text-neutral-900',
-          )}>
-            {formatMoney(totals.entradas - totals.saidas)}
-          </p>
-        </Card>
-        <Card className="p-3 rounded-xl">
-          <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500">Ainda em aberto</p>
-          <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(totals.aberto)}</p>
-          {/* Money that never reaches either side: it goes to the State. */}
-          {totals.retido > 0 && (
-            <p className="text-2xs font-bold text-amber-700 mt-0.5 tabular-nums">
+        <Stat label={`Total · ${filteredTransactions.length} documento(s)`} value={formatMoney(totals.entradas + totals.saidas)} />
+        <Stat
+          label={mode === 'payables' ? 'Já pago' : 'Já recebido'}
+          value={formatMoney(paidTotal)}
+          tone="positive"
+        />
+        <Stat
+          label="Ainda em aberto"
+          value={formatMoney(totals.aberto)}
+          tone={totals.aberto > 0 ? 'warning' : 'neutral'}
+          hint={totals.retido > 0 ? (
+            <span className="font-medium text-amber-700 tabular-nums">
               {formatMoney(totals.retido)} retidos na fonte
-            </p>
-          )}
-        </Card>
+            </span>
+          ) : undefined}
+        />
+        <Stat
+          label="Por confirmar no banco"
+          value={formatMoney(unconfirmed.total)}
+          hint={`${unconfirmed.count} documento(s)`}
+        />
       </div>
+      ) : (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Stat label="Entradas do período" value={formatMoney(totals.entradas)} tone="positive" />
+        <Stat label="Saídas do período" value={formatMoney(totals.saidas)} tone="negative" />
+        <Stat
+          label="Resultado do período"
+          value={formatMoney(totals.entradas - totals.saidas)}
+          tone={totals.entradas - totals.saidas < 0 ? 'negative' : 'neutral'}
+        />
+        {/* Money that never reaches either side: it goes to the State. */}
+        <Stat
+          label="Ainda em aberto"
+          value={formatMoney(totals.aberto)}
+          hint={totals.retido > 0 ? (
+            <span className="font-medium text-amber-700 tabular-nums">
+              {formatMoney(totals.retido)} retidos na fonte
+            </span>
+          ) : undefined}
+        />
+      </div>
+      )}
 
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-xl bg-neutral-950 text-white text-xs">
-          <span className="font-bold">{selected.size} selecionado(s)</span>
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-neutral-900 text-white text-xs">
+          <span className="font-medium">{selected.size} selecionado(s)</span>
           <Button
             variant="accent"
             size="sm"
@@ -364,40 +430,46 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
         </div>
       )}
 
-      {/* MAIN TRANSACTIONS TABLE */}
+      {/* Main transactions table */}
       <Card className="overflow-hidden">
         <Table>
           <THead>
             <tr>
               <Th className="w-8"><span className="sr-only">Selecionar</span></Th>
-              <Th>Data</Th>
-              <Th>Descrição Profissional</Th>
-              <Th className="hidden md:table-cell">Entidade (Fornecedor/Cliente)</Th>
-              <Th className="hidden lg:table-cell">Categoria (Hierarquia)</Th>
-              <Th className="hidden xl:table-cell">Centro Custo</Th>
-              <Th numeric className="hidden xl:table-cell">IVA</Th>
-              <Th numeric>Valor Total</Th>
-              <Th>Status</Th>
+              <Th>{isLedger ? 'Vencimento' : 'Data'}</Th>
+              <Th>Descrição</Th>
+              <Th className="hidden md:table-cell">{mode === 'payables' ? 'Fornecedor' : mode === 'receivables' ? 'Cliente' : 'Entidade'}</Th>
+              <Th className="hidden lg:table-cell">Categoria</Th>
+              {!isLedger && <Th className="hidden xl:table-cell">Projeto</Th>}
+              {!isLedger && <Th numeric className="hidden xl:table-cell">IVA</Th>}
+              <Th numeric>Valor</Th>
+              {isLedger && <Th numeric>Em falta</Th>}
               <Th className="hidden sm:table-cell">Pagamento</Th>
-              <Th numeric className="hidden lg:table-cell">Saldo acumulado</Th>
-              <Th align="right" className="hidden xl:table-cell">Origem</Th>
+              <Th className="hidden sm:table-cell">Banco</Th>
+              {!isLedger && <Th numeric className="hidden lg:table-cell">Acumulado</Th>}
+              {!isLedger && <Th align="right" className="hidden xl:table-cell">Origem</Th>}
             </tr>
           </THead>
           <TBody>
             {!loaded ? (
-              <TableMessage colSpan={12}><LoadingState /></TableMessage>
+              <TableMessage colSpan={columns}><LoadingState /></TableMessage>
             ) : filteredTransactions.length === 0 ? (
-              <TableMessage colSpan={12}>
+              <TableMessage colSpan={columns}>
                 <EmptyState
-                  title="Sem lançamentos"
+                  title={activeTab === 'open' ? 'Nada em aberto' : 'Sem lançamentos'}
                   description={
-                    transactions.length === 0
+                    scoped.length === 0
                       ? 'Ainda não há movimentos registados.'
-                      : 'Nenhum lançamento corresponde ao período, separador ou filtro escolhidos.'
+                      : activeTab === 'open'
+                        ? `Não há nada por ${mode === 'receivables' ? 'receber' : mode === 'payables' ? 'pagar' : 'liquidar'}.`
+                        : 'Nenhum lançamento corresponde ao período, separador ou filtro escolhidos.'
                   }
                 />
               </TableMessage>
-            ) : filteredTransactions.map((trx) => (
+            ) : filteredTransactions.map((trx) => {
+              const due = trx.due_date || trx.date;
+              const late = isOpen(trx) && due < today ? daysBetween(due, today) : 0;
+              return (
               <Tr
                 key={trx.id}
                 onClick={() => router.push(`/financial/cash-flow/${trx.id}`)}
@@ -406,10 +478,10 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && e.target === e.currentTarget) router.push(`/financial/cash-flow/${trx.id}`);
                 }}
-                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 font-medium"
+                className="focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500"
               >
                 <Td onClick={(e) => e.stopPropagation()}>
-                  {Number(trx.outstanding_amount ?? 0) > 0 ? (
+                  {isOpen(trx) ? (
                     <input
                       type="checkbox" checked={selected.has(trx.id)}
                       onChange={() => toggle(trx.id)}
@@ -421,40 +493,61 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                     <span className="text-neutral-300" aria-hidden="true">—</span>
                   )}
                 </Td>
-                <Td className="text-neutral-500 font-mono tabular-nums whitespace-nowrap">{formatDate(trx.date)}</Td>
-                <Td className="font-bold text-neutral-900">{trx.description}</Td>
-                <Td className="text-neutral-700 font-medium hidden md:table-cell">{trx.entity_name}</Td>
-                <Td className="text-neutral-600 hidden lg:table-cell">{trx.category_name}</Td>
-                <Td className="text-neutral-500 hidden xl:table-cell">{trx.cost_center_name || 'Geral'}</Td>
-                <Td numeric className="text-neutral-500 hidden xl:table-cell">
-                  {trx.vat_amount ? (
+                <Td className="whitespace-nowrap tabular-nums">
+                  {isLedger ? (
                     <>
-                      {formatMoney(Number(trx.vat_amount))}
-                      {trx.vat_rate ? <span className="text-2xs text-neutral-400 ml-1">({trx.vat_rate}%)</span> : null}
+                      <span className={cn(late > 0 ? 'text-rose-600 font-medium' : due === today && isOpen(trx) ? 'text-amber-600 font-medium' : 'text-neutral-600')}>
+                        {formatDate(due)}
+                      </span>
+                      {late > 0 && <span className="block text-2xs text-rose-600">há {late} dia(s)</span>}
+                      {!late && due === today && isOpen(trx) && <span className="block text-2xs text-amber-600">hoje</span>}
                     </>
                   ) : (
-                    <span className="text-neutral-300">—</span>
+                    <span className="text-neutral-500">{formatDate(trx.date)}</span>
                   )}
                 </Td>
-                <Td numeric className={cn('font-extrabold', trx.type === 'income' ? 'text-emerald-600' : 'text-neutral-900')}>
-                  {trx.type === 'income' ? '+' : '-'}{formatMoney(moves(trx))}
+                <Td>
+                  <span className="font-medium text-neutral-900">{trx.description}</span>
+                  {(trx.document_number || (trx.status !== 'approved' && trx.status !== 'paid')) && (
+                    <span className="flex items-center gap-1.5 mt-0.5 text-2xs text-neutral-500">
+                      {trx.document_number}
+                      {trx.status !== 'approved' && trx.status !== 'paid' && (
+                        <Badge tone="warning">{documentStatusLabel(trx.status)}</Badge>
+                      )}
+                    </span>
+                  )}
+                </Td>
+                <Td className="text-neutral-700 hidden md:table-cell">{trx.entity_name}</Td>
+                <Td className="text-neutral-600 hidden lg:table-cell">{trx.category_name}</Td>
+                {!isLedger && <Td className="text-neutral-500 hidden xl:table-cell">{trx.cost_center_name || 'Geral'}</Td>}
+                {!isLedger && (
+                  <Td numeric className="text-neutral-500 hidden xl:table-cell">
+                    {trx.vat_amount ? (
+                      <>
+                        {formatMoney(Number(trx.vat_amount))}
+                        {trx.vat_rate ? <span className="text-2xs text-neutral-400 ml-1">({trx.vat_rate}%)</span> : null}
+                      </>
+                    ) : (
+                      <span className="text-neutral-300">—</span>
+                    )}
+                  </Td>
+                )}
+                <Td numeric className={cn('font-semibold', trx.type === 'income' ? 'text-emerald-600' : 'text-neutral-900')}>
+                  {!isLedger && (trx.type === 'income' ? '+' : '-')}{formatMoney(moves(trx))}
                   {Number(trx.retention_amount ?? 0) > 0 && (
                     <span
-                      className="block text-2xs font-bold text-amber-700 normal-case"
+                      className="block text-2xs font-medium text-amber-700"
                       title={`Documento de ${formatMoney(Number(trx.gross_amount ?? trx.amount))}, com ${formatMoney(Number(trx.retention_amount))} de retenção na fonte`}
                     >
                       ret. −{formatMoney(Number(trx.retention_amount))}
                     </span>
                   )}
                 </Td>
-                <Td>
-                  <Badge
-                    tone={trx.status === 'paid' ? 'success' : trx.status === 'approved' ? 'neutral' : 'warning'}
-                    className="uppercase"
-                  >
-                    {documentStatusLabel(trx.status)}
-                  </Badge>
-                </Td>
+                {isLedger && (
+                  <Td numeric className={cn(isOpen(trx) ? 'font-semibold text-neutral-900' : 'text-neutral-300')}>
+                    {isOpen(trx) ? formatMoney(Number(trx.outstanding_amount)) : '—'}
+                  </Td>
+                )}
                 <Td className="hidden sm:table-cell">
                   {trx.payment_status ? (
                     <Badge
@@ -464,32 +557,38 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
                           : trx.payment_status === 'overdue' ? 'danger'
                           : 'neutral'
                       }
-                      className="uppercase"
                     >
-                      {trx.payment_status === 'paid' ? 'Pago'
+                      {trx.payment_status === 'paid' ? (trx.type === 'income' ? 'Recebido' : 'Pago')
                         : trx.payment_status === 'partially_paid' ? 'Parcial'
                         : trx.payment_status === 'overdue' ? 'Vencido'
+                        : trx.payment_status === 'cancelled' ? 'Anulado'
                         : 'Pendente'}
                     </Badge>
                   ) : (
                     <span className="text-neutral-300">—</span>
                   )}
                 </Td>
-                <Td numeric className={cn(
-                  'font-mono hidden lg:table-cell',
-                  (withRunning.get(trx.id) ?? 0) < 0 ? 'text-rose-600 font-bold' : 'text-neutral-500',
-                )}>
-                  {formatMoney(withRunning.get(trx.id) ?? 0)}
-                </Td>
-                <Td align="right" className="text-neutral-500 hidden xl:table-cell">
-                  {trx.source === 'ai' ? (
-                    <span className="flex items-center justify-end gap-1"><Bot className="w-3.5 h-3.5" aria-hidden="true" /> IA</span>
-                  ) : (
-                    <span className="flex items-center justify-end gap-1"><User className="w-3.5 h-3.5" aria-hidden="true" /> Manual</span>
-                  )}
-                </Td>
+                <Td className="hidden sm:table-cell"><BankBadge status={trx.bank_status} /></Td>
+                {!isLedger && (
+                  <Td numeric className={cn(
+                    'hidden lg:table-cell',
+                    (withRunning.get(trx.id) ?? 0) < 0 ? 'text-rose-600 font-medium' : 'text-neutral-500',
+                  )}>
+                    {formatMoney(withRunning.get(trx.id) ?? 0)}
+                  </Td>
+                )}
+                {!isLedger && (
+                  <Td align="right" className="text-neutral-500 hidden xl:table-cell">
+                    {trx.source === 'ai' ? (
+                      <span className="flex items-center justify-end gap-1"><Bot className="size-3.5" aria-hidden="true" /> IA</span>
+                    ) : (
+                      <span className="flex items-center justify-end gap-1"><User className="size-3.5" aria-hidden="true" /> Manual</span>
+                    )}
+                  </Td>
+                )}
               </Tr>
-            ))}
+              );
+            })}
           </TBody>
         </Table>
       </Card>

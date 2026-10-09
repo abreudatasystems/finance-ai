@@ -264,12 +264,17 @@ def reconciliation_overview(
 @router.get("/entries/{entry_id}/suggestions")
 def entry_suggestions(
     entry_id: str,
+    todos: bool = False,
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
 ):
-    """Transactions this line could be settling, with why each was proposed."""
+    """What this line could be settling or confirming, with why each was proposed.
+
+    ``todos=true`` lists every open document in the same direction, for a
+    partial payment or a line the automatic match does not recognise.
+    """
     entry = recon.scoped_entry(db, company_id, entry_id)
-    return recon.suggestions(db, company_id, entry)
+    return recon.suggestions(db, company_id, entry, todos=todos)
 
 
 @router.post("/entries/{entry_id}/match")

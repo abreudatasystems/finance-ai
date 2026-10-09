@@ -14,6 +14,22 @@ export interface Company {
   vat_regime?: string;
   vat_periodicity?: string;
   cae?: string | null;
+  trade_name?: string | null;
+  share_capital?: number | null;
+  incorporation_date?: string | null;
+  address?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  irc_regime?: string | null;
+  niss?: string | null;
+  accountant_name?: string | null;
+  accountant_nif?: string | null;
+  accountant_email?: string | null;
+  customer_terms_days?: number | null;
+  supplier_terms_days?: number | null;
   /** The role the signed-in login holds in THIS company. */
   role?: UserRole;
   role_label?: string;
@@ -319,6 +335,8 @@ export interface Transaction {
   paid_amount?: number;
   outstanding_amount?: number;
   payment_status?: PaymentStatus;
+  /** O extrato confirma os pagamentos? null = sem pagamentos. */
+  bank_status?: 'confirmed' | 'partial' | 'unconfirmed' | null;
   status: TransactionStatus;
   source: TransactionSource;
   ai_confidence?: number;

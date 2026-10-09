@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { Button, IconButton } from '@/components/ui';
+import { AlertsBell } from '@/components/alerts/AlertsBell';
 import {
   Search,
   Sparkles,
-  Bell,
   Plus,
   Building2,
   ChevronDown,
@@ -52,7 +52,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
       {/* Left Section: Brand Logo + Company Switcher */}
       <div className="flex items-center gap-3 sm:gap-5 min-w-0 flex-1">
         {/* Hamburger Menu (Mobile Only) */}
-        <IconButton label="Abrir menu" onClick={toggleMobileMenu} size="md" className="md:hidden [&_svg]:size-5">
+        <IconButton label="Abrir menu" onClick={toggleMobileMenu} size="md" className="size-9 rounded-lg md:hidden [&_svg]:size-5">
           <Menu />
         </IconButton>
 
@@ -115,12 +115,12 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
 
               <div className="h-px bg-neutral-100 my-1" />
               <Link
-                href="/settings/companies"
+                href="/companies"
                 role="menuitem"
                 onClick={() => setIsCompanyDropdownOpen(false)}
                 className="w-full text-left px-3 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 flex items-center gap-2"
               >
-                <Building2 className="w-3.5 h-3.5" /> Gerir empresas
+                <Building2 className="w-3.5 h-3.5" /> Todas as empresas
               </Link>
             </div>
           )}
@@ -166,7 +166,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
             aria-expanded={isCreateDropdownOpen}
             size="sm"
             icon={<Plus className="text-emerald-400" />}
-            className="px-2.5 sm:px-3"
+            className="h-8 px-2.5 sm:px-3 rounded-lg font-semibold [&_svg]:size-4"
           >
             <span className="hidden sm:inline">Novo</span>
             <ChevronDown className="opacity-70 hidden sm:block" />
@@ -270,29 +270,20 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenSearch, onOpenCreateModal,
           variant={isAiDrawerOpen ? 'primary' : 'secondary'}
           size="sm"
           aria-pressed={isAiDrawerOpen}
-          className="hidden sm:inline-flex"
+          className="hidden sm:inline-flex h-8 px-3 rounded-lg font-semibold [&_svg]:size-4"
           title="Abrir ou fechar o Assistente"
           icon={<Sparkles className={isAiDrawerOpen ? 'text-emerald-400' : 'text-emerald-600'} />}
         >
           Assistente
         </Button>
 
-        {/* Notification Bell */}
-        {/* Era um botão sem acção, com um ponto vermelho a piscar sempre —
-            houvesse ou não alertas. Agora leva à página dos alertas reais. */}
-        <Link
-          href="/alerts"
-          className="relative p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer"
-          title="Alertas"
-          aria-label="Ver alertas"
-        >
-          <Bell className="w-4 h-4" />
-        </Link>
+        {/* Notification Bell — conta os alertas reais e abre-os num painel */}
+        <AlertsBell />
 
         {/* Settings Button */}
         <Link
           href="/settings"
-          className="hidden sm:flex p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer items-center justify-center"
+          className="flex p-2 rounded-xl text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors cursor-pointer items-center justify-center"
           title="Configurações da Plataforma"
           aria-label="Configurações"
         >

@@ -9,7 +9,7 @@
  * decoration, and people learn to ignore decoration.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle, AlertCircle, Info, Check, ArrowRight, RefreshCw, ChevronDown,
@@ -17,24 +17,25 @@ import {
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/format';
+import { useLoad } from '@/lib/use-load';
 import { Button, Card, ErrorState, IconButton, LoadingState } from '@/components/ui';
 import { Alert, AlertSeverity, AlertsPayload } from './types';
 import { fetchAlerts } from './api';
 
 const TONE: Record<AlertSeverity, { box: string; icon: React.ReactNode; label: string }> = {
   danger: {
-    box: 'border-rose-200 bg-rose-50/60',
-    icon: <AlertCircle className="w-4 h-4 text-rose-600" />,
+    box: 'border-neutral-200 bg-white',
+    icon: <AlertCircle className="size-4 text-rose-600" />,
     label: 'Crítico',
   },
   warning: {
-    box: 'border-amber-200 bg-amber-50/60',
-    icon: <AlertTriangle className="w-4 h-4 text-amber-600" />,
+    box: 'border-neutral-200 bg-white',
+    icon: <AlertTriangle className="size-4 text-amber-600" />,
     label: 'Atenção',
   },
   info: {
     box: 'border-neutral-200 bg-neutral-50',
-    icon: <Info className="w-4 h-4 text-neutral-500" />,
+    icon: <Info className="size-4 text-sky-600" />,
     label: 'Informação',
   },
 };
@@ -46,17 +47,8 @@ interface Props {
 
 export const AlertsPanel: React.FC<Props> = ({ limit }) => {
   const { formatMoney } = useApp();
-  const [data, setData] = useState<AlertsPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, loading, reload: load } = useLoad<AlertsPayload | null>(fetchAlerts, []);
   const [expanded, setExpanded] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setData(await fetchAlerts());
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return (
@@ -84,11 +76,11 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
   const hidden = data.alertas.length - alerts.length;
 
   return (
-    <Card className="p-5 space-y-3 text-xs">
+    <Card className="p-4 space-y-3 text-xs">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-600" aria-hidden="true" />
-          <h2 className="font-bold text-sm text-neutral-900">A precisar de atenção</h2>
+          <AlertTriangle className="size-4 text-amber-600" aria-hidden="true" />
+          <h2 className="font-semibold text-13 text-neutral-900">A precisar de atenção</h2>
           {!data.resumo.tudo_em_dia && (
             <span className="text-2xs text-neutral-500 tabular-nums">
               {data.resumo.criticos > 0 && `${data.resumo.criticos} crítico(s) · `}
@@ -96,7 +88,7 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
             </span>
           )}
         </div>
-        <IconButton label="Verificar de novo" onClick={load} className="[&_svg]:size-3.5">
+        <IconButton label="Verificar de novo" onClick={load}>
           <RefreshCw />
         </IconButton>
       </div>
@@ -104,16 +96,16 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
       {data.resumo.sem_dados ? (
         /* Nothing was checked, which is not the same as nothing being wrong. */
         <div className="py-6 text-center space-y-1">
-          <Circle className="w-7 h-7 text-neutral-300 mx-auto" aria-hidden="true" />
-          <p className="text-neutral-700 font-semibold">Ainda não há nada para verificar.</p>
+          <Circle className="size-5 text-neutral-300 mx-auto" aria-hidden="true" />
+          <p className="text-neutral-700 font-medium">Ainda não há nada para verificar.</p>
           <p className="text-2xs text-neutral-500">
             Registe o primeiro documento e os avisos começam a aparecer aqui.
           </p>
         </div>
       ) : data.resumo.tudo_em_dia ? (
         <div className="py-6 text-center space-y-1">
-          <Check className="w-7 h-7 text-emerald-500 mx-auto" aria-hidden="true" />
-          <p className="text-neutral-700 font-semibold">Está tudo em dia.</p>
+          <Check className="size-5 text-emerald-500 mx-auto" aria-hidden="true" />
+          <p className="text-neutral-700 font-medium">Está tudo em dia.</p>
           <p className="text-2xs text-neutral-500">
             Nada vencido, nada por aprovar, nada por conciliar.
           </p>
@@ -124,20 +116,20 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
             const tone = TONE[alert.severity];
             const open = expanded === alert.kind;
             return (
-              <div key={alert.kind} className={`rounded-xl border p-3 ${tone.box}`}>
+              <div key={alert.kind} className={`rounded-lg border px-3 py-2.5 ${tone.box}`}>
                 <div className="flex items-start gap-2.5">
                   <span className="shrink-0 mt-0.5">{tone.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-neutral-900">{alert.title}</p>
+                    <p className="font-medium text-neutral-900">{alert.title}</p>
                     <p className="text-2xs text-neutral-600 mt-0.5">{alert.description}</p>
 
                     <div className="flex items-center gap-3 mt-2 flex-wrap">
                       {alert.action && (
                         <Link
                           href={alert.action}
-                          className="text-2xs font-bold text-emerald-700 hover:underline flex items-center gap-1"
+                          className="text-xs font-medium text-emerald-700 hover:underline flex items-center gap-1"
                         >
-                          {alert.action_label || 'Resolver'} <ArrowRight className="w-3 h-3" />
+                          {alert.action_label || 'Resolver'} <ArrowRight className="size-3" />
                         </Link>
                       )}
                       {alert.items.length > 0 && (
@@ -145,16 +137,16 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
                           type="button"
                           aria-expanded={open}
                           onClick={() => setExpanded(open ? null : alert.kind)}
-                          className="text-2xs font-semibold text-neutral-500 hover:text-neutral-800 flex items-center gap-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                          className="text-xs font-medium text-neutral-500 hover:text-neutral-900 flex items-center gap-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                         >
                           {open ? 'Fechar' : 'Ver quais'}
-                          <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`size-3 transition-transform ${open ? 'rotate-180' : ''}`} />
                         </button>
                       )}
                     </div>
 
                     {open && (
-                      <ul className="mt-2 space-y-1 border-t border-neutral-200/70 pt-2">
+                      <ul className="mt-2 space-y-1 border-t border-neutral-100 pt-2">
                         {alert.items.map((item, index) => (
                           <li key={index} className="text-2xs text-neutral-700 flex justify-between gap-2">
                             <span className="truncate">
@@ -163,7 +155,7 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
                               {item.due_date ? ` · vence ${formatDate(String(item.due_date))}` : ''}
                               {item.periodos ? ` · ${item.periodos} período(s)` : ''}
                             </span>
-                            <span className="tabular-nums font-bold shrink-0">
+                            <span className="tabular-nums font-medium shrink-0">
                               {formatMoney(Number(item.outstanding ?? item.amount ?? 0))}
                             </span>
                           </li>
@@ -173,7 +165,7 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
                   </div>
 
                   {alert.amount > 0 && (
-                    <span className="font-bold tabular-nums text-neutral-900 shrink-0">
+                    <span className="font-semibold tabular-nums text-neutral-900 shrink-0">
                       {formatMoney(alert.amount)}
                     </span>
                   )}
@@ -185,7 +177,7 @@ export const AlertsPanel: React.FC<Props> = ({ limit }) => {
           {hidden > 0 && (
             <p className="text-2xs text-neutral-500 text-center">
               e mais {hidden} —{' '}
-              <Link href="/alerts" className="font-bold text-emerald-700 hover:underline">ver todos os alertas</Link>
+              <Link href="/alerts" className="font-medium text-emerald-700 hover:underline">ver todos os alertas</Link>
             </p>
           )}
         </div>

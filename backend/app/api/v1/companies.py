@@ -23,6 +23,15 @@ router = APIRouter()
 
 VALID_REGIMES = {"normal", "isencao_art53"}
 VALID_PERIODICITY = {"monthly", "quarterly"}
+VALID_IRC = {"geral", "simplificado", "isento", "nao_aplicavel"}
+
+#: Campos da ficha que passam tal e qual da API para a empresa.
+PROFILE_FIELDS = (
+    "trade_name", "share_capital", "incorporation_date", "address", "postal_code", "city",
+    "email", "phone", "website", "irc_regime", "niss", "fiscal_year_start",
+    "accountant_name", "accountant_nif", "accountant_email",
+    "customer_terms_days", "supplier_terms_days",
+)
 
 
 class CompanyCreate(BaseModel):
@@ -34,6 +43,27 @@ class CompanyCreate(BaseModel):
     vat_regime: Optional[str] = None
     vat_periodicity: Optional[str] = None
     cae: Optional[str] = None
+    fiscal_year_start: Optional[str] = None
+    trade_name: Optional[str] = None
+    share_capital: Optional[float] = None
+    incorporation_date: Optional[str] = None
+    address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    irc_regime: Optional[str] = None        # geral | simplificado | isento | nao_aplicavel
+    niss: Optional[str] = None
+    accountant_name: Optional[str] = None
+    accountant_nif: Optional[str] = None
+    accountant_email: Optional[str] = None
+    customer_terms_days: Optional[int] = None
+    supplier_terms_days: Optional[int] = None
+    # Conta bancária principal: saldo de partida para a tesouraria e a conciliação.
+    bank_name: Optional[str] = None
+    iban: Optional[str] = None
+    opening_balance: Optional[float] = None
 
 
 class CompanyUpdate(BaseModel):
@@ -47,6 +77,22 @@ class CompanyUpdate(BaseModel):
     vat_regime: Optional[str] = None        # normal | isencao_art53
     vat_periodicity: Optional[str] = None   # monthly | quarterly
     cae: Optional[str] = None
+    trade_name: Optional[str] = None
+    share_capital: Optional[float] = None
+    incorporation_date: Optional[str] = None
+    address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    irc_regime: Optional[str] = None        # geral | simplificado | isento | nao_aplicavel
+    niss: Optional[str] = None
+    accountant_name: Optional[str] = None
+    accountant_nif: Optional[str] = None
+    accountant_email: Optional[str] = None
+    customer_terms_days: Optional[int] = None
+    supplier_terms_days: Optional[int] = None
 
 
 class RoleUpdate(BaseModel):
@@ -68,6 +114,26 @@ def _require_admin(membership: UserMembership) -> None:
         )
 
 
+def _check_profile(data: dict) -> None:
+    """Recusa valores que estragariam contas ou prazos, com uma mensagem clara."""
+    if data.get("vat_regime") is not None and data["vat_regime"] not in VALID_REGIMES:
+        raise HTTPException(status_code=400, detail="Regime de IVA inválido")
+    if data.get("vat_periodicity") is not None and data["vat_periodicity"] not in VALID_PERIODICITY:
+        raise HTTPException(status_code=400, detail="Periodicidade inválida")
+    if data.get("irc_regime") is not None and data["irc_regime"] not in VALID_IRC:
+        raise HTTPException(status_code=400, detail="Regime de IRC inválido")
+    for field in ("customer_terms_days", "supplier_terms_days"):
+        days = data.get(field)
+        if days is not None and not 0 <= days <= 365:
+            raise HTTPException(status_code=400, detail="O prazo de pagamento tem de estar entre 0 e 365 dias.")
+    capital = data.get("share_capital")
+    if capital is not None and not 0 <= capital < 1e12:
+        raise HTTPException(status_code=400, detail="Capital social inválido.")
+    month = data.get("fiscal_year_start")
+    if month is not None and month not in {f"{m:02d}" for m in range(1, 13)}:
+        raise HTTPException(status_code=400, detail="O início do ano fiscal tem de ser um mês (01 a 12).")
+
+
 def _serialize(company: Company, role: str, members: int = 0) -> dict:
     return {
         "id": company.id,
@@ -80,6 +146,11 @@ def _serialize(company: Company, role: str, members: int = 0) -> dict:
         "vat_regime": company.vat_regime,
         "vat_periodicity": company.vat_periodicity,
         "cae": company.cae,
+        **{
+            field: (float(getattr(company, field)) if field == "share_capital" and getattr(company, field) is not None
+                    else getattr(company, field))
+            for field in PROFILE_FIELDS
+        },
         "created_at": company.created_at.isoformat() if company.created_at else None,
         "role": role,
         "role_label": ROLE_LABELS.get(role, role),
@@ -124,7 +195,11 @@ def create_company(
     current_user: User = Depends(get_current_user),
 ):
     """Open another company. Its data never mixes with the existing ones."""
-    company = team_service.create_company(db, current_user, body.name, **body.model_dump(exclude={"name"}))
+    data = body.model_dump(exclude={"name"})
+    _check_profile(data)
+    if data.get("opening_balance") is not None and abs(data["opening_balance"]) >= 1e12:
+        raise HTTPException(status_code=400, detail="Saldo inicial inválido.")
+    company = team_service.create_company(db, current_user, body.name, **data)
     return _serialize(company, "owner", 1)
 
 
@@ -147,6 +222,7 @@ def update_company(
         raise HTTPException(status_code=400, detail="Regime de IVA inválido")
     if "vat_periodicity" in data and data["vat_periodicity"] not in VALID_PERIODICITY:
         raise HTTPException(status_code=400, detail="Periodicidade inválida")
+    _check_profile(data)
 
     for field, value in data.items():
         setattr(company, field, value)

@@ -27,3 +27,10 @@ pdfplumber~=0.11.10
 pypdfium2>=5.14.0,<6
 pytesseract~=0.3.13
 alembic>=1.20.0,<2
+# Verificação em dois passos: códigos TOTP e o QR em SVG, gerado no servidor.
+pyotp>=2.9,<3
+segno>=1.6,<2
+# Monitorização de erros, desligada enquanto SENTRY_DSN estiver vazio.
+sentry-sdk[fastapi]>=2.0,<3
+# O Assistente com IA, só activo com ANTHROPIC_API_KEY.
+anthropic>=1.12,<2

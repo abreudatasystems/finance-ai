@@ -97,7 +97,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   return res;
 }
 
-const PUBLIC_PATHS = ['/login', '/register', '/invite'];
+const PUBLIC_PATHS = ['/login', '/register', '/invite', '/forgot-password', '/reset-password'];
 
 /** Limpa a sessão e leva ao login, a não ser que já se esteja numa página pública. */
 export function redirectToLogin(): void {

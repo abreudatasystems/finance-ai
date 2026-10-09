@@ -28,7 +28,7 @@ export default function RegisterPage() {
       // Recarga completa: o contexto da app (empresas, utilizador, papel) é
       // carregado uma vez; com router.push ficava vazio ou com o da sessão anterior.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa intencional
-      window.location.assign('/dashboard');
+      window.location.assign('/companies');
     } else {
       setError(result.error || 'Não foi possível criar a conta');
     }
@@ -39,17 +39,17 @@ export default function RegisterPage() {
       <div className="w-full max-w-md space-y-4">
 
         <div className="text-center space-y-2">
-          <div className="size-11 rounded-xl bg-black flex items-center justify-center mx-auto border border-neutral-800">
-            <Zap className="size-5 fill-emerald-400 text-emerald-400" aria-hidden="true" />
+          <div className="size-9 rounded-lg bg-neutral-900 flex items-center justify-center mx-auto">
+            <Zap className="size-4 fill-emerald-400 text-emerald-400" aria-hidden="true" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight">
+          <h1 className="text-lg font-semibold tracking-tight">
             Finance <span className="text-emerald-600">AI</span>
           </h1>
           <p className="text-xs text-neutral-500 font-medium">Criar conta — várias empresas na mesma conta</p>
         </div>
 
-        <Card className="p-6 space-y-5">
-          <form onSubmit={handleRegister} className="space-y-4">
+        <Card className="p-5 space-y-4">
+          <form onSubmit={handleRegister} className="space-y-3">
             <Field label="O seu nome">
               {(p) => (
                 <Input
@@ -107,7 +107,7 @@ export default function RegisterPage() {
             </Field>
 
             {error && (
-              <div role="alert" className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 font-medium">
+              <div role="alert" className="text-xs text-rose-900 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
                 {error}
               </div>
             )}
@@ -118,9 +118,9 @@ export default function RegisterPage() {
             </Button>
           </form>
 
-          <div className="text-center text-xs text-neutral-500 pt-4 border-t border-neutral-100">
+          <div className="text-center text-xs text-neutral-500 pt-3 border-t border-neutral-100">
             Já tem conta?{' '}
-            <Link href="/login" className="text-emerald-700 font-bold hover:underline">
+            <Link href="/login" className="text-emerald-700 font-medium hover:underline">
               Iniciar sessão &rarr;
             </Link>
           </div>
