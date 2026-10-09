@@ -11,3 +11,6 @@ export { LoadingState, EmptyState, ErrorState } from './States';
 export { Badge } from './Badge';
 export type { BadgeTone } from './Badge';
 export { ConfirmProvider, useConfirm } from './ConfirmDialog';
+export { Stat } from './Stat';
+export type { StatTone } from './Stat';
+export { Segmented } from './Segmented';

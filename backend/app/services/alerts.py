@@ -237,7 +237,7 @@ def pending_approvals(db: Session, company_id: str, today: date) -> Optional[dic
         f"{len(rows)} documento(s) por aprovar",
         description,
         count=len(rows), amount=float(total),
-        action="/documents/approvals", action_label="Rever agora",
+        action="/documents/inbox", action_label="Rever agora",
     )
 
 

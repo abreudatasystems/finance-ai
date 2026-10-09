@@ -140,3 +140,41 @@ def test_entries_are_invisible_to_another_company(tenant, other_tenant, statemen
     response = other_tenant.post(f"/api/v1/bank/entries/{statement['payment']}/match",
                                  {"transaction_id": obligations["expense"]["id"]})
     assert response.status_code == 404
+
+
+def test_a_payment_registered_by_hand_is_proposed_for_confirmation(tenant, statement, obligations):
+    """Paga antes de chegar o extrato: a linha do banco tem de a encontrar."""
+    trx_id = obligations["expense"]["id"]
+    payment = tenant.post(f"/api/v1/transactions/{trx_id}/payments",
+                          {"amount": 123.00, "payment_date": "2026-08-20"}).json()["payment"]
+
+    proposals = tenant.get(f"/api/v1/bank/entries/{statement['payment']}/suggestions").json()
+    assert proposals[0]["kind"] == "payment"
+    assert proposals[0]["payment_id"] == payment["id"]
+    assert "por confirmar no banco" in proposals[0]["porque"]
+
+    tenant.post(f"/api/v1/bank/entries/{statement['payment']}/match", {"payment_id": payment["id"]})
+    assert tenant.get(f"/api/v1/transactions/{trx_id}").json()["bank_status"] == "confirmed"
+
+
+def test_bank_status_says_whether_the_bank_confirms_the_payments(tenant, statement, obligations):
+    trx_id = obligations["expense"]["id"]
+    assert tenant.get(f"/api/v1/transactions/{trx_id}").json()["bank_status"] is None
+
+    tenant.post(f"/api/v1/transactions/{trx_id}/payments", {"amount": 123.00, "payment_date": "2026-08-20"})
+    listed = {t["id"]: t for t in tenant.get("/api/v1/transactions/").json()}
+    assert listed[trx_id]["bank_status"] == "unconfirmed"
+
+
+def test_todos_lists_open_documents_for_a_partial_payment(tenant, statement, obligations):
+    """Uma linha de 6,50 € não bate com nada, mas pode pagar parte de uma fatura."""
+    automatic = tenant.get(f"/api/v1/bank/entries/{statement['fee']}/suggestions").json()
+    assert automatic == []
+
+    everything = tenant.get(f"/api/v1/bank/entries/{statement['fee']}/suggestions?todos=true").json()
+    assert [r["transaction_id"] for r in everything] == [obligations["expense"]["id"]]
+    assert "pagamento parcial" in everything[0]["porque"]
+
+    matched = tenant.post(f"/api/v1/bank/entries/{statement['fee']}/match",
+                          {"transaction_id": obligations["expense"]["id"]}).json()
+    assert matched["outstanding_amount"] == 116.50

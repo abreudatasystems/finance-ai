@@ -14,7 +14,7 @@ import { useLoad } from '@/lib/use-load';
 import { Download, ShieldCheck, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiFetch } from '@/services/api';
-import { Button, Card, CardHeader, CardBody, LoadingState, ErrorState } from '@/components/ui';
+import { Button, Card, CardHeader, CardBody, LoadingState, ErrorState, Stat } from '@/components/ui';
 
 interface ExportTable {
   tabela: string;
@@ -80,7 +80,7 @@ export const DataExport: React.FC = () => {
         icon={<Database />}
         title="Exportar os dados da empresa"
       />
-      <CardBody className="space-y-4">
+      <CardBody className="space-y-3">
         <p className="text-neutral-500 leading-relaxed max-w-2xl">
           Tudo o que é desta empresa, num ficheiro ZIP com um CSV por tabela e
           um manifesto com as contagens. Os CSV abrem diretamente no Excel. São
@@ -94,23 +94,15 @@ export const DataExport: React.FC = () => {
         ) : summary ? (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100">
-                <p className="text-2xs uppercase font-bold text-neutral-500">Registos</p>
-                <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">
-                  {summary.total_registos.toLocaleString('pt-PT')}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-neutral-50 border border-neutral-100">
-                <p className="text-2xs uppercase font-bold text-neutral-500">Tabelas</p>
-                <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{summary.total_tabelas}</p>
-              </div>
+              <Stat label="Registos" value={summary.total_registos.toLocaleString('pt-PT')} />
+              <Stat label="Tabelas" value={summary.total_tabelas} />
             </div>
 
             {/* The five biggest are enough to recognise the export as one's own. */}
             <ul className="flex flex-wrap gap-x-4 gap-y-1">
               {summary.tabelas.filter((t) => t.registos > 0).slice(0, 5).map((t) => (
                 <li key={t.tabela} className="text-2xs text-neutral-500">
-                  <span className="font-semibold text-neutral-700">{t.tabela}</span>{' '}
+                  <span className="font-medium text-neutral-700">{t.tabela}</span>{' '}
                   <span className="tabular-nums">{t.registos.toLocaleString('pt-PT')}</span>
                 </li>
               ))}
@@ -118,8 +110,8 @@ export const DataExport: React.FC = () => {
           </>
         ) : null}
 
-        <div className="flex items-start gap-2 text-xs text-neutral-600 bg-neutral-50 rounded-xl p-2.5 border border-neutral-100">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-px" aria-hidden="true" />
+        <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-xs bg-neutral-50 border-neutral-200 text-neutral-600">
+          <ShieldCheck className="size-3.5 text-emerald-600 shrink-0 mt-px" aria-hidden="true" />
           <p className="leading-relaxed">
             Palavras-passe, tokens de sessão e dados de outras empresas nunca são
             exportados. Só o proprietário e os administradores podem gerar o ficheiro.

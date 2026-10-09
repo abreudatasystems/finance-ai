@@ -41,7 +41,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end select-none p-3 sm:p-4 md:p-5">
+    <div className="fixed inset-0 z-50 flex justify-end select-none p-2 sm:p-3">
       {/* Backdrop */}
       <div
         onClick={onClose}
@@ -54,31 +54,31 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`fai-drawer relative h-full w-full ${widthClass} bg-white shadow-2xl rounded-2xl md:rounded-3xl overflow-hidden flex flex-col`}
+        className={`fai-drawer relative h-full w-full ${widthClass} bg-white shadow-2xl rounded-xl border border-neutral-200 overflow-hidden flex flex-col`}
       >
         {/* Header */}
-        <div className="px-5 py-4 text-white flex items-center justify-between bg-black">
+        <div className="px-4 py-3 flex items-center justify-between gap-3 border-b border-neutral-200 bg-white">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="min-w-0">
-              <h2 className="font-bold text-sm truncate">{title}</h2>
-              {subtitle && <p className="text-2xs text-white/70 truncate">{subtitle}</p>}
+              <h2 className="font-semibold text-13 text-neutral-900 truncate">{title}</h2>
+              {subtitle && <p className="text-2xs text-neutral-500 truncate">{subtitle}</p>}
             </div>
           </div>
           <IconButton
             label="Fechar"
             onClick={onClose}
-            className="text-white/80 hover:text-white hover:bg-white/15 [&_svg]:size-5"
+            size="md"
           >
             <X />
           </IconButton>
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto p-4">{children}</div>
 
         {/* Sticky footer */}
         {footer && (
-          <div className="px-5 py-3.5 border-t border-neutral-100 bg-neutral-50/80 backdrop-blur flex gap-2">
+          <div className="px-4 py-3 border-t border-neutral-200 bg-white flex items-center justify-end gap-2">
             {footer}
           </div>
         )}

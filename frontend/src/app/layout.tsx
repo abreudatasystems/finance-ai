@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
 import { Toaster } from "sonner";
 import { ConfirmProvider } from "@/components/ui";
 
-const inter = Inter({ subsets: ["latin"] });
+const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Finance AI — Gestão financeira para PME",
@@ -18,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-PT" className={inter.className}>
-      <body className="min-h-screen bg-[#F8FAFC] antialiased">
+    <html lang="pt-PT" className={geist.className}>
+      <body className="min-h-dvh bg-neutral-50 antialiased">
         <AppProvider>
           <ConfirmProvider>
             {children}

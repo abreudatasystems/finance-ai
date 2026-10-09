@@ -15,7 +15,7 @@ describe('Button', () => {
   });
 
   it.each<[ButtonVariant, string]>([
-    ['primary', 'bg-black'],
+    ['primary', 'bg-neutral-900'],
     ['accent', 'bg-emerald-600'],
     ['secondary', 'bg-white'],
     ['danger', 'bg-rose-600'],
@@ -27,14 +27,14 @@ describe('Button', () => {
 
   it('applies the size classes', () => {
     render(<Button size="sm">Pequeno</Button>);
-    expect(screen.getByRole('button')).toHaveClass('h-8');
+    expect(screen.getByRole('button')).toHaveClass('h-7');
   });
 
   it('lets a className override a variant class', () => {
     render(<Button className="bg-red-500">X</Button>);
     const btn = screen.getByRole('button');
     expect(btn).toHaveClass('bg-red-500');
-    expect(btn).not.toHaveClass('bg-black');
+    expect(btn).not.toHaveClass('bg-neutral-900');
   });
 
   it('loading disables the button and sets aria-busy', async () => {
@@ -98,6 +98,6 @@ describe('IconButton', () => {
         <svg />
       </IconButton>,
     );
-    expect(screen.getByRole('button', { name: 'Menu' })).toHaveClass('size-9');
+    expect(screen.getByRole('button', { name: 'Menu' })).toHaveClass('size-8');
   });
 });

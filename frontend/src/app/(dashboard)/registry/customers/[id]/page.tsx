@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import {
   Badge, Button, Card, CardHeader, CardBody, EmptyState, Field, Input, LoadingState,
-  Table, THead, TBody, Th, Tr, Td,
+  Stat, Table, THead, TBody, Th, Tr, Td,
 } from '@/components/ui';
 import { formatDate } from '@/lib/format';
 
@@ -35,8 +35,8 @@ function EditInput({ label, value, onChange, placeholder }: { label: React.React
 
 function ReadValue({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <span className="text-2xs uppercase tracking-wider text-neutral-500 font-bold flex items-center gap-1">{label}</span>
+    <div className="space-y-1">
+      <span className="text-xs text-neutral-500 font-medium flex items-center gap-1">{label}</span>
       {children}
     </div>
   );
@@ -133,15 +133,15 @@ export default function CustomerProfilePage() {
   return (
     <div className="space-y-4 animate-in fade-in duration-300 pb-6">
       {/* Header Actions */}
-      <div className="flex justify-between gap-3 pb-3">
+      <div className="flex justify-between gap-3">
         <Button variant="secondary" icon={<ArrowLeft />} onClick={() => router.push('/registry/customers')} aria-label="Voltar">
           <span className="hidden sm:inline">Voltar</span>
         </Button>
 
         <div className="flex items-center gap-2 shrink-0">
           {savedToast && (
-            <Badge tone="success" className="text-xs px-2.5 py-1.5">
-              <Check className="w-3.5 h-3.5" aria-hidden="true" /> Guardado
+            <Badge tone="success">
+              <Check className="size-3" aria-hidden="true" /> Guardado
             </Badge>
           )}
           {!editMode ? (
@@ -165,12 +165,12 @@ export default function CustomerProfilePage() {
         {/* LEFT COLUMN - Profile Details */}
         <div className="lg:col-span-1 space-y-4">
           <SectionCard title="Informações Principais" icon={<Building2 />}>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {editMode ? (
                 <EditInput label="Nome da Entidade" value={form.name} onChange={(x) => set({ name: x })} placeholder="Nome da empresa ou pessoa" />
               ) : (
                 <ReadValue label="Nome da Entidade">
-                  <div className="text-sm font-bold text-neutral-800">{v.name}</div>
+                  <div className="text-sm font-semibold text-neutral-900">{v.name}</div>
                 </ReadValue>
               )}
               {editMode ? (
@@ -184,17 +184,17 @@ export default function CustomerProfilePage() {
                 <EditInput label="Categoria de Receita Padrão" value={form.default_category_name} onChange={(x) => set({ default_category_name: x })} placeholder="Ex: Vendas > Serviços" />
               ) : (
                 <ReadValue label="Categoria de Receita Padrão">
-                  <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                    <Tag className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
+                  <Badge tone="success">
+                    <Tag className="size-3" aria-hidden="true" />
                     {v.default_category_name || '—'}
-                  </div>
+                  </Badge>
                 </ReadValue>
               )}
             </div>
           </SectionCard>
 
           <SectionCard title="Contactos & Endereço" icon={<MapPin />}>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {editMode ? (
                 <EditInput label="Email de Faturação" value={form.email} onChange={(x) => set({ email: x })} placeholder="email@cliente.pt" />
               ) : (
@@ -215,17 +215,13 @@ export default function CustomerProfilePage() {
 
         {/* RIGHT COLUMN - Financials & History */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-neutral-950 text-white rounded-2xl p-5 flex items-center justify-between shadow-xs">
-            <div>
-              <span className="text-2xs uppercase tracking-widest text-emerald-300 font-bold flex items-center gap-1.5">
-                <Wallet className="w-3.5 h-3.5" aria-hidden="true" /> Faturação Acumulada
-              </span>
-              <div className="text-3xl font-black text-white mt-1 tabular-nums">
-                {formatMoney(customer.total_revenue || 0)}
-              </div>
-              <p className="text-2xs text-neutral-400 mt-1">Total de receitas registadas para este cliente.</p>
-            </div>
-          </div>
+          <Stat
+            label="Faturação acumulada"
+            icon={<Wallet />}
+            tone="positive"
+            value={formatMoney(customer.total_revenue || 0)}
+            hint="Total de receitas registadas para este cliente."
+          />
 
           {/* Conta-corrente: os dois lados da relação, derivados dos documentos */}
           <EntityAccount entityId={customer.id} formatMoney={formatMoney} focus="vendas" />
@@ -249,7 +245,7 @@ export default function CustomerProfilePage() {
                       <Td className="text-neutral-500 tabular-nums whitespace-nowrap">{formatDate(t.date)}</Td>
                       <Td className="font-semibold text-neutral-800">{t.description}</Td>
                       <Td className="text-neutral-600">{t.category_name}</Td>
-                      <Td numeric className="font-bold text-emerald-600">+{formatMoney(t.amount)}</Td>
+                      <Td numeric className="font-semibold text-emerald-700">+{formatMoney(t.amount)}</Td>
                       <Td align="right">
                         <Badge tone={t.status === 'paid' || t.status === 'received' ? 'success' : 'warning'}>
                           {t.status === 'paid' || t.status === 'received' ? 'Liquidado' : 'Pendente'}

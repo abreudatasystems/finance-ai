@@ -103,11 +103,11 @@ export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType })
   const isImage = (fileType || '').startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(fileName || '');
 
   return (
-    <div className="flex flex-col h-full rounded-2xl border border-neutral-200/80 bg-neutral-50 overflow-hidden shadow-xs">
+    <div className="flex flex-col h-full rounded-lg border border-neutral-200 bg-neutral-50 overflow-hidden">
       <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white border-b border-neutral-200">
         <div className="flex items-center gap-1.5 min-w-0">
-          <FileText className="w-3.5 h-3.5 text-neutral-400 shrink-0" aria-hidden="true" />
-          <span className="text-2xs font-semibold text-neutral-700 truncate">{fileName || 'Documento'}</span>
+          <FileText className="size-3.5 text-neutral-400 shrink-0" aria-hidden="true" />
+          <span className="text-xs font-medium text-neutral-700 truncate">{fileName || 'Documento'}</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {isImage && (
@@ -124,10 +124,10 @@ export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType })
           {fileUrl && src && (
             <a
               href={src} target="_blank" rel="noreferrer"
-              className="size-8 inline-flex items-center justify-center rounded-lg text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              className="size-7 inline-flex items-center justify-center rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
               title="Abrir em separador novo" aria-label="Abrir em separador novo"
             >
-              <ExternalLink className="w-4 h-4" aria-hidden="true" />
+              <ExternalLink className="size-3.5" aria-hidden="true" />
             </a>
           )}
         </div>
@@ -136,7 +136,7 @@ export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType })
       <div className="flex-1 overflow-auto min-h-[320px]">
         {!fileUrl || !src ? (
           <div role={loadError ? 'alert' : 'status'} className="h-full flex flex-col items-center justify-center gap-2 p-6 text-center text-neutral-500">
-            <AlertCircle className="w-5 h-5" aria-hidden="true" />
+            <AlertCircle className="size-5" aria-hidden="true" />
             <p className="text-2xs">
               {!fileUrl
                 ? 'O ficheiro original não está guardado para este documento.'
@@ -153,8 +153,8 @@ export const DocumentViewer: React.FC<Props> = ({ fileUrl, fileName, fileType })
           </div>
         ) : (
           <div className="h-full flex flex-col items-center justify-center gap-2 p-6 text-center">
-            <FileText className="w-5 h-5 text-neutral-400" aria-hidden="true" />
-            <a href={src} target="_blank" rel="noreferrer" className="text-xs font-bold text-emerald-700 hover:underline">
+            <FileText className="size-5 text-neutral-400" aria-hidden="true" />
+            <a href={src} target="_blank" rel="noreferrer" className="text-xs font-medium text-emerald-700 hover:underline">
               Abrir {fileName}
             </a>
           </div>

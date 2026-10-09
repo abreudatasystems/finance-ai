@@ -7,13 +7,19 @@
 @theme {
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
+  /* 13px: o tamanho de trabalho de botões, campos e menu — compacto mas legível. */
+  --text-13: 0.8125rem;
+  --text-13--line-height: 1.25rem;
 }
 
 @layer base {
   body {
-    background-color: #FFFFFF;
-    color: #09090B;
+    background-color: #FAFAFA;
+    color: #18181B;
   }
+  h1, h2, h3 { text-wrap: balance; }
+  /* Valores monetários alinham por coluna em toda a aplicação. */
+  td, th { font-variant-numeric: tabular-nums; }
 }
 
 /* Custom scrollbars */

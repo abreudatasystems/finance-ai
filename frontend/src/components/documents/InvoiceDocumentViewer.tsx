@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch } from '@/services/api';
 import {ZoomIn, ZoomOut, RotateCw, Maximize2, Minimize2, FileText, ExternalLink} from 'lucide-react';
 import { AIDocument } from '@/types';
-import { EmptyState, IconButton } from '@/components/ui';
+import { Button, EmptyState, IconButton } from '@/components/ui';
 
 interface InvoiceDocumentViewerProps {
   document: AIDocument | null;
@@ -24,9 +24,6 @@ interface InvoiceDocumentViewerProps {
   highlightField?: string | null;
   onSelectField?: (field: string) => void;
 }
-
-/** Os botões da barra escura do visualizador. */
-const darkIcon = 'text-neutral-400 hover:text-white hover:bg-neutral-800';
 
 export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
   document,
@@ -73,7 +70,7 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
 
   if (!document) {
     return (
-      <div className="h-full min-h-[460px] bg-neutral-50 rounded-2xl border border-dashed border-neutral-300 flex items-center justify-center">
+      <div className="h-full min-h-[460px] bg-white rounded-xl border border-dashed border-neutral-300 flex items-center justify-center">
         <EmptyState
           icon={<FileText />}
           title="Nenhum documento selecionado"
@@ -98,18 +95,18 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
 
   return (
     <div
-      className={`bg-neutral-950 rounded-2xl border border-neutral-800 shadow-xl overflow-hidden flex flex-col transition-all duration-300 ${
-        isFullscreen ? 'fixed inset-4 z-50 rounded-2xl' : 'h-full min-h-[500px]'
+      className={`bg-white rounded-xl border border-neutral-200 shadow-[0_1px_2px_rgba(24,24,27,0.04)] overflow-hidden flex flex-col ${
+        isFullscreen ? 'fixed inset-4 z-50 shadow-xl' : 'h-full min-h-[500px]'
       }`}
     >
-      {/* Viewer Header Toolbar */}
-      <div className="px-4 py-2.5 bg-black/90 border-b border-neutral-800 flex flex-wrap items-center justify-between gap-3 text-white">
+      {/* Viewer header toolbar */}
+      <div className="px-3 py-2 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="p-1.5 bg-emerald-500/15 text-emerald-400 rounded-lg" aria-hidden="true">
-            <FileText className="w-4 h-4" />
+          <span className="size-7 flex items-center justify-center bg-neutral-100 text-neutral-600 rounded-md" aria-hidden="true">
+            <FileText className="size-3.5" />
           </span>
           <div className="min-w-0">
-            <h4 className="text-xs font-bold text-neutral-100 truncate max-w-[220px] sm:max-w-xs">
+            <h4 className="text-13 font-semibold text-neutral-900 truncate max-w-[220px] sm:max-w-xs">
               {document.file_name}
             </h4>
           </div>
@@ -118,49 +115,49 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
 
         {/* Zoom & Rotation Controls */}
         <div className="flex items-center gap-1">
-          <IconButton label="Diminuir zoom" onClick={handleZoomOut} className={darkIcon}>
+          <IconButton label="Diminuir zoom" onClick={handleZoomOut}>
             <ZoomOut />
           </IconButton>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleResetZoom}
-            className="text-2xs tabular-nums text-neutral-300 px-1 cursor-pointer hover:text-emerald-400 select-none rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="px-1.5 tabular-nums text-2xs"
             title="Repor zoom (100%)"
             aria-label={`Zoom ${zoomLevel}% — repor para 100%`}
           >
             {zoomLevel}%
-          </button>
-          <IconButton label="Aumentar zoom" onClick={handleZoomIn} className={darkIcon}>
+          </Button>
+          <IconButton label="Aumentar zoom" onClick={handleZoomIn}>
             <ZoomIn />
           </IconButton>
-          <IconButton label="Rodar 90°" onClick={handleRotate} className={`${darkIcon} ml-1`}>
+          <IconButton label="Rodar 90°" onClick={handleRotate} className="ml-1">
             <RotateCw />
           </IconButton>
           <a
             href={resolvedFileUrl || undefined}
             target="_blank"
             rel="noopener noreferrer"
-            className={`size-8 inline-flex items-center justify-center rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${darkIcon}`}
+            className="size-7 inline-flex items-center justify-center rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
             title="Abrir em separador novo"
             aria-label="Abrir em separador novo"
           >
-            <ExternalLink className="w-4 h-4" aria-hidden="true" />
+            <ExternalLink className="size-3.5" aria-hidden="true" />
           </a>
           <IconButton
             label={isFullscreen ? 'Sair do ecrã inteiro' : 'Ecrã inteiro'}
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className={darkIcon}
           >
-            {isFullscreen ? <Minimize2 className="text-amber-400" /> : <Maximize2 />}
+            {isFullscreen ? <Minimize2 /> : <Maximize2 />}
           </IconButton>
         </div>
       </div>
 
-      {/* Main Viewer Body */}
-      <div className="flex-1 bg-neutral-950 relative overflow-hidden flex items-center justify-center p-2 select-text">
+      {/* Main viewer body */}
+      <div className="flex-1 bg-neutral-100 relative overflow-hidden flex items-center justify-center p-2 select-text">
         <div className="w-full h-full flex items-center justify-center overflow-auto">
           {!resolvedFileUrl ? (
-            <div role={loadError ? 'alert' : 'status'} className="text-center text-neutral-400 text-xs px-6">
+            <div role={loadError ? 'alert' : 'status'} className="text-center text-neutral-500 text-xs px-6">
               {loadError || 'A carregar o documento original…'}
             </div>
           ) : isPdf ? (
@@ -183,7 +180,7 @@ export const InvoiceDocumentViewer: React.FC<InvoiceDocumentViewerProps> = ({
               <img
                 src={resolvedFileUrl}
                 alt={document.file_name}
-                className="max-h-full max-w-full object-contain rounded-lg shadow-2xl transition-transform duration-200"
+                className="max-h-full max-w-full object-contain rounded-lg shadow-md transition-transform duration-200"
                 style={{
                   transform: `scale(${zoomLevel / 100}) rotate(${rotation}deg)`,
                   transformOrigin: 'center center'

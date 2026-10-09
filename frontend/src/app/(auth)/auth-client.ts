@@ -62,10 +62,10 @@ export async function loginWithCode(challenge: string, code: string): Promise<Lo
   }
 }
 
-/** Para onde ir depois de entrar: a configuração da 2FA, se a empresa a exigir. */
+/** Para onde ir depois de entrar: a configuração da 2FA, se a empresa a exigir; senão, a escolha da empresa. */
 export async function landingPath(): Promise<string> {
   const me = await apiGet<{ two_factor_setup_required?: boolean }>('/auth/me');
-  return me?.two_factor_setup_required ? '/setup-2fa' : '/dashboard';
+  return me?.two_factor_setup_required ? '/setup-2fa' : '/companies';
 }
 
 export async function requestPasswordReset(email: string): Promise<{ ok: boolean; message: string }> {

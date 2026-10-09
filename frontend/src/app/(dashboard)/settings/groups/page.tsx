@@ -14,7 +14,7 @@ import {
   ArrowLeft, Plus, Lock, Trash2, TrendingUp, TrendingDown, Layers,
 } from 'lucide-react';
 import {
-  Button, IconButton, Card, Field, Input, Textarea, Badge, LoadingState, EmptyState, useConfirm,
+  Button, IconButton, Card, Field, Input, Textarea, Badge, LoadingState, EmptyState, Segmented, useConfirm,
 } from '@/components/ui';
 
 const FORM_ID = 'create-group-form';
@@ -23,12 +23,12 @@ const ICON_CHOICES = ['📈', '📉', '🏦', '🔄', '🏗️', '🎯', '💼',
 
 // As chaves são os valores gravados na base de dados ("indigo", "slate"…);
 // só a aparência e o nome mostrado mudam aqui.
-const ACCENTS: Record<string, { ring: string; chip: string; label: string }> = {
-  emerald: { ring: 'border-emerald-200', chip: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Verde' },
-  rose: { ring: 'border-rose-200', chip: 'bg-rose-50 text-rose-700 border-rose-200', label: 'Rosa' },
-  indigo: { ring: 'border-sky-200', chip: 'bg-sky-50 text-sky-700 border-sky-200', label: 'Azul' },
-  amber: { ring: 'border-amber-200', chip: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Âmbar' },
-  slate: { ring: 'border-neutral-200', chip: 'bg-neutral-100 text-neutral-700 border-neutral-200', label: 'Cinza' },
+const ACCENTS: Record<string, { chip: string; label: string }> = {
+  emerald: { chip: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Verde' },
+  rose: { chip: 'bg-rose-50 text-rose-700 border-rose-200', label: 'Rosa' },
+  indigo: { chip: 'bg-sky-50 text-sky-700 border-sky-200', label: 'Azul' },
+  amber: { chip: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Âmbar' },
+  slate: { chip: 'bg-neutral-100 text-neutral-700 border-neutral-200', label: 'Cinza' },
 };
 
 const accentOf = (g: CategoryGroup) => ACCENTS[g.color || ''] || ACCENTS.slate;
@@ -95,21 +95,12 @@ export default function CategoryGroupsPage() {
   const systemGroups = groups.filter((g) => g.is_system);
   const customGroups = groups.filter((g) => !g.is_system);
 
-  const segment = (active: boolean, tone: 'emerald' | 'rose') =>
-    `h-9 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-      active
-        ? tone === 'emerald'
-          ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-          : 'bg-rose-50 border-rose-300 text-rose-700'
-        : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
-    }`;
-
   return (
-    <div className="space-y-5 animate-in fade-in duration-300 pb-6">
+    <div className="space-y-4 animate-in fade-in duration-300 pb-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-200/80 pb-4">
-        <Link href="/settings" className="flex items-center gap-2 text-xs font-semibold text-neutral-500 hover:text-neutral-900">
-          <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Voltar às Configurações
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <Link href="/settings" className="flex items-center gap-1.5 text-13 font-medium text-neutral-500 hover:text-neutral-900">
+          <ArrowLeft className="size-4" aria-hidden="true" /> Voltar às Configurações
         </Link>
         <Button onClick={() => setDrawerOpen(true)} icon={<Plus />}>
           Novo Grupo
@@ -117,12 +108,12 @@ export default function CategoryGroupsPage() {
       </div>
 
       {/* Explainer */}
-      <div className="flex items-start gap-2.5 p-4 bg-neutral-50 rounded-2xl border border-neutral-200 text-xs text-neutral-700">
-        <Layers className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
+      <div className="flex items-start gap-2 rounded-lg border px-3 py-2 text-xs bg-sky-50 border-sky-200 text-sky-900">
+        <Layers className="size-3.5 shrink-0 mt-0.5 text-sky-600" aria-hidden="true" />
         <span>
-          Cada grupo declara a sua <b>natureza financeira</b> — receita ou despesa. É isso que permite criar grupos
+          Cada grupo declara a sua <span className="font-semibold">natureza financeira</span> — receita ou despesa. É isso que permite criar grupos
           próprios (Investimento, Frota…) sem afetar o fluxo de caixa, o painel ou o relatório de IVA, que continuam
-          a somar por natureza. A hierarquia é <b>Grupo → Categoria → Subcategoria</b>.
+          a somar por natureza. A hierarquia é <span className="font-semibold">Grupo → Categoria → Subcategoria</span>.
         </span>
       </div>
 
@@ -132,7 +123,7 @@ export default function CategoryGroupsPage() {
         <>
           {/* System groups */}
           <section className="space-y-2">
-            <h3 className="text-2xs font-bold text-neutral-500 uppercase tracking-widest">Originais do sistema</h3>
+            <h3 className="text-xs font-medium text-neutral-500">Originais do sistema</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {systemGroups.map((g) => (
                 <GroupCard key={g.id} group={g} />
@@ -142,7 +133,7 @@ export default function CategoryGroupsPage() {
 
           {/* Custom groups */}
           <section className="space-y-2">
-            <h3 className="text-2xs font-bold text-neutral-500 uppercase tracking-widest">
+            <h3 className="text-xs font-medium text-neutral-500">
               Os seus grupos ({customGroups.length})
             </h3>
             {customGroups.length === 0 ? (
@@ -210,35 +201,27 @@ export default function CategoryGroupsPage() {
               )}
             </Field>
 
-            <div role="group" aria-labelledby="group-kind-label" className="space-y-1.5">
-              <span id="group-kind-label" className="block text-xs font-semibold text-neutral-700">
+            <div className="space-y-1">
+              <span id="group-kind-label" className="block text-xs font-medium text-neutral-700">
                 Natureza Financeira<span className="text-rose-500 ml-0.5" aria-hidden="true">*</span>
               </span>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  aria-pressed={kind === 'income'}
-                  onClick={() => setKind('income')}
-                  className={segment(kind === 'income', 'emerald')}
-                >
-                  <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" /> Entra (receita)
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={kind === 'expense'}
-                  onClick={() => setKind('expense')}
-                  className={segment(kind === 'expense', 'rose')}
-                >
-                  <TrendingDown className="w-3.5 h-3.5" aria-hidden="true" /> Sai (despesa)
-                </button>
-              </div>
+              <Segmented
+                aria-label="Natureza Financeira"
+                value={kind}
+                onChange={setKind}
+                className="flex w-full [&>button]:flex-1"
+                options={[
+                  { value: 'income', label: <span className="inline-flex items-center gap-1.5"><TrendingUp className="size-3.5 text-emerald-600" aria-hidden="true" /> Entra (receita)</span> },
+                  { value: 'expense', label: <span className="inline-flex items-center gap-1.5"><TrendingDown className="size-3.5 text-rose-600" aria-hidden="true" /> Sai (despesa)</span> },
+                ]}
+              />
               <p className="text-xs text-neutral-500">
                 Define como o grupo é somado no fluxo de caixa e no IVA. Não muda depois de haver categorias.
               </p>
             </div>
 
-            <div role="group" aria-labelledby="group-icon-label" className="space-y-1.5">
-              <span id="group-icon-label" className="block text-xs font-semibold text-neutral-700">Ícone</span>
+            <div role="group" aria-labelledby="group-icon-label" className="space-y-1">
+              <span id="group-icon-label" className="block text-xs font-medium text-neutral-700">Ícone</span>
               <div className="flex flex-wrap gap-1.5">
                 {ICON_CHOICES.map((ic) => (
                   <button
@@ -247,7 +230,7 @@ export default function CategoryGroupsPage() {
                     aria-pressed={icon === ic}
                     aria-label={`Ícone ${ic}`}
                     onClick={() => setIcon(ic)}
-                    className={`w-9 h-9 rounded-lg border text-base transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                    className={`size-8 rounded-md border text-base transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                       icon === ic ? 'bg-emerald-50 border-emerald-400' : 'bg-white border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
@@ -257,8 +240,8 @@ export default function CategoryGroupsPage() {
               </div>
             </div>
 
-            <div role="group" aria-labelledby="group-color-label" className="space-y-1.5">
-              <span id="group-color-label" className="block text-xs font-semibold text-neutral-700">Cor de destaque</span>
+            <div role="group" aria-labelledby="group-color-label" className="space-y-1">
+              <span id="group-color-label" className="block text-xs font-medium text-neutral-700">Cor de destaque</span>
               <div className="flex flex-wrap gap-1.5">
                 {(['indigo', 'emerald', 'rose', 'amber', 'slate'] as const).map((c) => (
                   <button
@@ -266,7 +249,7 @@ export default function CategoryGroupsPage() {
                     type="button"
                     aria-pressed={color === c}
                     onClick={() => setColor(c)}
-                    className={`h-8 px-3 rounded-lg border text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                    className={`h-7 px-2.5 rounded-md border text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                       color === c ? ACCENTS[c].chip : 'bg-white border-neutral-200 text-neutral-500 hover:bg-neutral-50'
                     }`}
                   >
@@ -298,26 +281,26 @@ export default function CategoryGroupsPage() {
 function GroupCard({ group, onDelete }: { group: CategoryGroup; onDelete?: () => void }) {
   const accent = accentOf(group);
   return (
-    <Card className={`${accent.ring} p-4 flex items-start gap-3`}>
-      <div className="w-10 h-10 rounded-xl bg-neutral-50 border border-neutral-200 flex items-center justify-center text-lg shrink-0" aria-hidden="true">
+    <Card className="p-4 flex items-start gap-3">
+      <div className="size-8 rounded-lg bg-neutral-50 border border-neutral-200 flex items-center justify-center text-base shrink-0" aria-hidden="true">
         {group.icon || '📁'}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <h4 className="font-bold text-sm text-neutral-900 truncate">{group.name}</h4>
+          <h4 className="font-semibold text-13 text-neutral-900 truncate">{group.name}</h4>
           {group.is_system ? (
-            <Badge className="uppercase tracking-wide">
+            <Badge>
               <Lock className="w-2.5 h-2.5" aria-hidden="true" /> Sistema
             </Badge>
           ) : null}
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-2xs font-semibold uppercase tracking-wide border ${accent.chip}`}>
+          <span className={`inline-flex items-center h-5 px-1.5 rounded text-2xs font-medium border ${accent.chip}`}>
             {group.kind === 'income' ? 'Entra' : 'Sai'}
           </span>
         </div>
         {group.description && (
           <p className="text-xs text-neutral-500 mt-1 line-clamp-2">{group.description}</p>
         )}
-        <p className="text-2xs text-neutral-500 mt-1.5 tabular-nums">
+        <p className="text-2xs text-neutral-500 mt-1 tabular-nums">
           {group.category_count ?? 0} categoria(s)
         </p>
       </div>

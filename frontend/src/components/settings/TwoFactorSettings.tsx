@@ -83,17 +83,17 @@ export function TwoFactorSetupFlow({ onDone, onCancel }: { onDone: () => void; o
   if (recovery) {
     return (
       <div className="space-y-3">
-        <p role="status" className="px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-1.5">
+        <p role="status" className="rounded-lg border px-3 py-2 text-xs bg-emerald-50 border-emerald-200 text-emerald-900 flex items-center gap-1.5">
           <Check className="size-3.5" aria-hidden="true" /> Verificação em dois passos ativa.
         </p>
         <div className="space-y-1">
-          <p className="text-xs font-semibold text-neutral-800">Códigos de recuperação</p>
+          <p className="text-13 font-semibold text-neutral-800">Códigos de recuperação</p>
           <p className="text-xs text-neutral-500">
             Se perder o telemóvel, cada um destes códigos permite entrar uma vez. Guarde-os num
             local seguro (gestor de palavras-passe, papel guardado) — <strong>não voltam a ser mostrados</strong>.
           </p>
         </div>
-        <ul className="grid grid-cols-2 gap-1.5 p-3 rounded-xl bg-neutral-50 border border-neutral-200 font-mono text-sm select-all">
+        <ul className="grid grid-cols-2 gap-1.5 px-3 py-2 rounded-lg bg-neutral-50 border border-neutral-200 font-mono text-sm select-all">
           {recovery.map((c) => <li key={c}>{c}</li>)}
         </ul>
         <div className="flex flex-wrap items-center gap-3">
@@ -138,7 +138,7 @@ export function TwoFactorSetupFlow({ onDone, onCancel }: { onDone: () => void; o
         <img src={setup.qr_svg} alt="Código QR para a app de autenticação"
           className="size-44 rounded-lg border border-neutral-200 bg-white p-1" />
         <div className="space-y-1 min-w-0">
-          <p className="text-xs font-semibold text-neutral-700">Chave manual</p>
+          <p className="text-xs font-medium text-neutral-700">Chave manual</p>
           <code className="block text-sm font-mono break-all bg-neutral-50 border border-neutral-200 rounded-lg px-2 py-1.5 select-all">
             {groupKey(setup.secret)}
           </code>
@@ -221,7 +221,7 @@ export const TwoFactorSettings: React.FC = () => {
               {status.setup_required ? 'Obrigatória' : 'Desativada'}
             </Badge>)}
       />
-      <CardBody className="space-y-4">
+      <CardBody className="space-y-3">
         {loading ? (
           <LoadingState />
         ) : !status ? (
@@ -233,7 +233,7 @@ export const TwoFactorSettings: React.FC = () => {
               {' '}Restam <strong>{status.recovery_codes_remaining}</strong> código(s) de recuperação.
             </p>
             {disabling ? (
-              <form onSubmit={disable} className="space-y-3 p-3 rounded-xl border border-rose-200 bg-rose-50/40">
+              <form onSubmit={disable} className="space-y-3 p-3 rounded-lg border border-neutral-200 bg-neutral-50">
                 <p className="text-xs text-neutral-700">
                   Para desativar, confirme a palavra-passe e um código da app (ou de recuperação).
                 </p>
@@ -273,7 +273,7 @@ export const TwoFactorSettings: React.FC = () => {
         ) : (
           <div className="space-y-3">
             {status.setup_required && (
-              <p className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+              <p className="rounded-lg border px-3 py-2 text-xs bg-amber-50 border-amber-200 text-amber-900">
                 Uma empresa a que pertence obriga a usar verificação em dois passos.
               </p>
             )}
@@ -285,7 +285,7 @@ export const TwoFactorSettings: React.FC = () => {
         )}
 
         {status?.can_manage_policy && (
-          <div className="pt-4 border-t border-neutral-100 space-y-2">
+          <div className="pt-3 border-t border-neutral-100 space-y-2">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -295,7 +295,7 @@ export const TwoFactorSettings: React.FC = () => {
                 onChange={(e) => setPolicy(e.target.checked)}
               />
               <span className="space-y-0.5">
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-neutral-800">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-neutral-800">
                   <Users className="size-3.5" aria-hidden="true" /> Obrigar a equipa a usar
                 </span>
                 <span className="block text-xs text-neutral-500">

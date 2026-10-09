@@ -25,10 +25,10 @@ interface EmptyStateProps {
 export function EmptyState({ title, description, icon, action, className }: EmptyStateProps) {
   return (
     <div className={cn('flex flex-col items-center justify-center text-center py-10 px-4', className)}>
-      <span className="size-10 rounded-xl bg-neutral-100 text-neutral-400 flex items-center justify-center mb-3 [&_svg]:size-5">
+      <span className="size-9 rounded-lg bg-neutral-100 text-neutral-400 flex items-center justify-center mb-2.5 [&_svg]:size-4">
         {icon ?? <Inbox />}
       </span>
-      <p className="text-sm font-semibold text-neutral-800">{title}</p>
+      <p className="text-13 font-semibold text-neutral-800">{title}</p>
       {description && <p className="text-xs text-neutral-500 mt-1 max-w-sm">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
@@ -39,10 +39,10 @@ export function EmptyState({ title, description, icon, action, className }: Empt
 export function ErrorState({ message, action, className }: { message: string; action?: React.ReactNode; className?: string }) {
   return (
     <div role="alert" className={cn('flex flex-col items-center justify-center text-center py-10 px-4', className)}>
-      <span className="size-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center mb-3">
-        <AlertTriangle className="size-5" aria-hidden="true" />
+      <span className="size-9 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center mb-2.5">
+        <AlertTriangle className="size-4" aria-hidden="true" />
       </span>
-      <p className="text-sm font-semibold text-neutral-800">{message}</p>
+      <p className="text-13 font-semibold text-neutral-800">{message}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   );

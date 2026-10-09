@@ -184,6 +184,9 @@ class TransactionOut(BaseModel):
     outstanding_amount: Optional[float] = None
     #: Derived from the payments, never written directly.
     payment_status: Optional[str] = None
+    #: Whether the bank statement confirms the payments: None (no payments),
+    #: "unconfirmed", "partial" or "confirmed". Filled in by the API.
+    bank_status: Optional[str] = None
     status: str
     source: str
     ai_confidence: Optional[int] = None

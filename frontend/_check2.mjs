@@ -1,0 +1,31 @@
+import { chromium } from 'playwright';
+const out = process.env.TEMP + '/shots';
+const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
+const errs=[]; p.on('pageerror',e=>errs.push('PAGEERR '+e.message));
+p.on('console',m=>{ if(m.type()==='error' && !/401/.test(m.text())) errs.push(m.text().slice(0,200))});
+await p.goto('http://localhost:3000/login',{waitUntil:'networkidle'});
+await p.fill('input[type=email]','demo@finance-ai.pt');
+await p.fill('input[type=password]','Tesouraria!Atlantico26');
+await p.click('button[type=submit]');
+await p.waitForURL('**/companies');
+await p.getByRole('button',{name:'Nova empresa'}).first().click();
+await p.waitForTimeout(700);
+await p.screenshot({path: out+'/hub-drawer.png'});
+await p.keyboard.press('Escape');
+await p.getByRole('button',{name:/^Entrar em /}).first().click();
+await p.waitForURL('**/dashboard');
+const seg = async () => (await p.locator('[role=group][aria-label="Estado"]').innerText()).replace(/\n/g,' | ');
+for (const path of ['financial/payables','financial/receivables']) {
+  await p.goto('http://localhost:3000/'+path); await p.waitForLoadState('networkidle'); await p.waitForTimeout(800);
+  console.log(path, '->', await seg(), '| linhas:', await p.locator('tbody tr').count());
+  await p.screenshot({path: `${out}/${path.replace('/','_')}.png`});
+}
+await p.goto('http://localhost:3000/financial/cash-flow'); await p.waitForLoadState('networkidle'); await p.waitForTimeout(800);
+await p.getByLabel('Período').selectOption('all'); await p.waitForTimeout(400);
+console.log('cash-flow tudo linhas:', await p.locator('tbody tr').count());
+await p.goto('http://localhost:3000/financial/bank-reconciliation'); await p.waitForLoadState('networkidle'); await p.waitForTimeout(1500);
+await p.screenshot({path: out+'/recon.png'});
+await p.getByRole('button',{name:/TRF RECEBIDA/}).click(); await p.waitForTimeout(1200);
+await p.screenshot({path: out+'/recon2.png'});
+console.log('ERRS', errs);
+await b.close();

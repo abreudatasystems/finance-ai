@@ -100,17 +100,71 @@ def score(entry: BankStatementEntry, trx: Transaction) -> int:
 
     text = f"{trx.entity_name or ''} {trx.description or ''} {trx.document_number or ''}"
     overlap = _word_overlap(entry.description, text)
-    total += int(round(overlap * 15))
+    total += int(round(overlap * 30))
 
     return min(total, 100)
 
 
-def suggestions(db: Session, company_id: str, entry: BankStatementEntry, limit: int = 5) -> list[dict]:
-    """Transactions this bank line could be settling, best first."""
+def _transaction_row(entry: BankStatementEntry, trx: Transaction, value: int, reason: str) -> dict:
+    return {
+        "kind": "transaction",
+        "transaction_id": trx.id,
+        "payment_id": None,
+        "description": trx.description,
+        "entity_name": trx.entity_name,
+        "category_name": trx.category_name,
+        "document_number": trx.document_number,
+        "date": trx.date,
+        "due_date": trx.due_date,
+        "payment_date": None,
+        "amount": float(_d(trx.amount)),
+        "outstanding": float(_d(trx.outstanding_amount if trx.outstanding_amount is not None else trx.amount)),
+        "payment_status": trx.payment_status,
+        "score": value,
+        "porque": reason,
+    }
+
+
+def _payment_score(entry: BankStatementEntry, payment: Payment, trx: Transaction) -> int:
+    """Like ``score``, for a payment already registered by hand."""
+    if (_d(payment.amount) - _d(entry.amount).copy_abs()).copy_abs() > AMOUNT_TOLERANCE:
+        return 0
+    total = 60
+    gap = _days_apart(entry.date, payment.payment_date)
+    if gap == 0:
+        total += 25
+    elif gap is not None and gap <= 3:
+        total += 18
+    elif gap is not None and gap <= DATE_WINDOW_DAYS:
+        total += 10
+    text = f"{trx.entity_name or ''} {trx.description or ''} {trx.document_number or ''} {payment.reference or ''}"
+    total += int(round(_word_overlap(entry.description, text) * 30))
+    return min(total, 100)
+
+
+def suggestions(db: Session, company_id: str, entry: BankStatementEntry,
+                limit: int = 5, todos: bool = False) -> list[dict]:
+    """What this bank line could be, best first.
+
+    Two kinds of candidate:
+
+    * an **open document** (por pagar / por receber): matching it creates the
+      payment the bank line describes;
+    * a **payment already registered by hand** that no bank line confirms yet:
+      matching it only confirms it. Without these, every invoice paid before
+      the statement arrived stayed "sem confirmação no banco" for ever.
+
+    With ``todos`` the amount no longer has to agree: every open document in
+    the same direction is listed, for partial payments and lines the
+    automatic match cannot recognise.
+    """
     direction = _direction_of(entry)
     wanted_type = "expense" if direction == "out" else "income"
+    amount = _d(entry.amount).copy_abs()
 
-    candidates = (
+    scored: list[dict] = []
+
+    open_docs = (
         db.query(Transaction)
         .filter(
             Transaction.company_id == company_id,
@@ -120,27 +174,63 @@ def suggestions(db: Session, company_id: str, entry: BankStatementEntry, limit: 
         )
         .all()
     )
-
-    scored = []
-    for trx in candidates:
+    for trx in open_docs:
         value = score(entry, trx)
         if value >= MIN_SCORE:
-            scored.append({
-                "transaction_id": trx.id,
-                "description": trx.description,
-                "entity_name": trx.entity_name,
-                "category_name": trx.category_name,
-                "document_number": trx.document_number,
-                "date": trx.date,
-                "due_date": trx.due_date,
-                "amount": float(_d(trx.amount)),
-                "outstanding": float(_d(trx.outstanding_amount if trx.outstanding_amount is not None else trx.amount)),
-                "payment_status": trx.payment_status,
-                "score": value,
-                "porque": _why(entry, trx, value),
-            })
-    scored.sort(key=lambda s: s["score"], reverse=True)
-    return scored[:limit]
+            scored.append(_transaction_row(entry, trx, value, _why(entry, trx, value)))
+        elif todos:
+            outstanding = _d(trx.outstanding_amount if trx.outstanding_amount is not None else trx.amount)
+            if amount <= outstanding + AMOUNT_TOLERANCE:
+                reason = f"pagamento parcial: fica {fmt.eur(outstanding - amount)} em aberto"
+            else:
+                reason = f"o movimento é maior do que o que está em aberto ({fmt.eur(outstanding)})"
+            scored.append(_transaction_row(entry, trx, 0, reason))
+
+    unconfirmed = (
+        db.query(Payment, Transaction)
+        .join(Transaction, Transaction.id == Payment.transaction_id)
+        .filter(
+            Payment.company_id == company_id,
+            Payment.direction == direction,
+            Payment.bank_entry_id.is_(None),
+            Transaction.status != "cancelled",
+        )
+        .all()
+    )
+    for payment, trx in unconfirmed:
+        value = _payment_score(entry, payment, trx)
+        if value < MIN_SCORE:
+            continue
+        gap = _days_apart(entry.date, payment.payment_date)
+        bits = ["pagamento já registado, por confirmar no banco", "valor igual ao cêntimo"]
+        if gap == 0:
+            bits.append("mesma data")
+        elif gap is not None and gap <= DATE_WINDOW_DAYS:
+            bits.append(f"{gap} dia(s) de diferença")
+        scored.append({
+            "kind": "payment",
+            "transaction_id": trx.id,
+            "payment_id": payment.id,
+            "description": trx.description,
+            "entity_name": trx.entity_name,
+            "category_name": trx.category_name,
+            "document_number": trx.document_number,
+            "date": trx.date,
+            "due_date": trx.due_date,
+            "payment_date": payment.payment_date,
+            "amount": float(_d(payment.amount)),
+            "outstanding": float(_d(trx.outstanding_amount if trx.outstanding_amount is not None else 0)),
+            "payment_status": trx.payment_status,
+            "score": value,
+            "porque": " · ".join(bits),
+        })
+
+    def closeness(row: dict) -> int:
+        gap = _days_apart(entry.date, row["payment_date"] or row["due_date"] or row["date"])
+        return gap if gap is not None else 10_000
+
+    scored.sort(key=lambda r: (-r["score"], closeness(r)))
+    return scored[: (50 if todos else limit)]
 
 
 def _why(entry: BankStatementEntry, trx: Transaction, value: int) -> str:
@@ -372,7 +462,11 @@ def list_entries(db: Session, company_id: str, status: str = "all",
     query = db.query(BankStatementEntry).filter(BankStatementEntry.company_id == company_id)
     if statement_id:
         query = query.filter(BankStatementEntry.statement_id == statement_id)
-    if status and status != "all":
+    if status == "unmatched":
+        # "Por conciliar" é tudo o que ainda não foi tratado — com ou sem
+        # sugestão. Sem isto, o resumo dizia 10 por conciliar e a lista mostrava 3.
+        query = query.filter(BankStatementEntry.status.in_(["unmatched", "suggested"]))
+    elif status and status != "all":
         query = query.filter(BankStatementEntry.status == status)
     entries = query.order_by(BankStatementEntry.date.desc()).all()
     if not entries:

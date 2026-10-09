@@ -7,7 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { IconButton } from '@/components/ui';
 import {
   LayoutDashboard, Wallet, BarChart3, Users, Truck, Receipt, PanelLeftClose, PanelLeftOpen, ScanText,
-  CheckCheck, BellRing, FileText, HandCoins, Landmark, Package, Settings,
+  FileText, HandCoins, Landmark, Package,
 } from 'lucide-react';
 
 interface NavItem {
@@ -31,8 +31,8 @@ export const Sidebar: React.FC = () => {
     {
       group: 'VISÃO GERAL',
       items: [
+        // Os alertas vivem no sino da barra de topo (AlertsBell).
         { label: 'Painel', href: '/dashboard', icon: LayoutDashboard },
-        { label: 'Alertas', href: '/alerts', icon: BellRing }
       ]
     },
     {
@@ -48,7 +48,6 @@ export const Sidebar: React.FC = () => {
       group: 'INTELIGÊNCIA ARTIFICIAL',
       items: [
         { label: 'Automação (OCR)', href: '/documents/inbox', icon: ScanText, highlight: true },
-        { label: 'Aprovações', href: '/documents/approvals', icon: CheckCheck }
       ]
     },
     {
@@ -66,12 +65,7 @@ export const Sidebar: React.FC = () => {
         { label: 'Clientes', href: '/registry/customers', icon: Users }
       ]
     },
-    {
-      group: 'SISTEMA',
-      items: [
-        { label: 'Configurações', href: '/settings', icon: Settings }
-      ]
-    }
+    // As Configurações abrem-se pela roda dentada da barra de topo.
   ];
 
   // Só o item mais específico fica activo: em /reports/dre acende "Demonstração
@@ -95,19 +89,19 @@ export const Sidebar: React.FC = () => {
       )}
 
       <aside
-        className={`fixed left-0 top-[64px] md:top-[74px] z-50 bg-black text-neutral-300 flex flex-col h-[calc(100vh-64px)] md:h-[calc(100vh-84px)] rounded-none md:rounded-r-3xl border-r border-t border-b border-neutral-800/80 shadow-2xl transition-all duration-300 ease-in-out select-none overflow-hidden
+        className={`fixed left-0 top-[64px] md:top-[68px] z-50 bg-black text-neutral-300 flex flex-col h-[calc(100vh-64px)] md:h-[calc(100vh-74px)] rounded-none md:rounded-r-2xl border-r border-t border-b border-neutral-800/80 shadow-2xl transition-all duration-300 ease-in-out select-none overflow-hidden
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-          ${isSidebarCollapsed ? 'w-[72px]' : 'w-[250px] lg:w-[250px] md:w-[210px]'}
+          ${isSidebarCollapsed ? 'w-[60px]' : 'w-[224px] md:w-[200px] lg:w-[224px]'}
         `}
       >
       {/* Top Controls: Collapse / Expand Toggle Button */}
-      <div className="h-12 border-b border-neutral-800/80 flex items-center bg-neutral-950/80 shrink-0">
-        <div className="w-[52px] h-full flex items-center justify-center shrink-0">
+      <div className="h-10 border-b border-neutral-800/80 flex items-center bg-neutral-950/80 shrink-0">
+        <div className="w-[44px] ml-2 h-full flex items-center justify-center shrink-0">
           <IconButton
             label={isSidebarCollapsed ? 'Expandir menu' : 'Recolher menu'}
             onClick={toggleSidebar}
             aria-expanded={!isSidebarCollapsed}
-            className="rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800 [&_svg]:size-5"
+            className="size-7 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 [&_svg]:size-4"
           >
             {isSidebarCollapsed ? (
               <PanelLeftOpen className="text-emerald-400" />
@@ -124,11 +118,11 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Navigation Links Container */}
-      <div className="flex-1 overflow-y-auto py-3 px-2 space-y-4 scrollbar-thin scrollbar-thumb-neutral-800">
+      <div className="flex-1 overflow-y-auto py-2 px-2 space-y-2.5 scrollbar-thin scrollbar-thumb-neutral-800">
         {navGroups.map((group, idx) => (
-          <div key={idx} className="space-y-1">
+          <div key={idx} className="space-y-0.5">
             {/* FIXED HEADER HEIGHT (h-5) */}
-            <div className="h-5 flex items-center px-4">
+            <div className="h-5 flex items-center px-3">
               <h3 className={`text-2xs font-bold text-neutral-500 uppercase tracking-widest whitespace-nowrap overflow-hidden transition-opacity duration-300 ease-in-out ${
                 isSidebarCollapsed ? 'opacity-0' : 'opacity-100'
               }`}>
@@ -146,15 +140,15 @@ export const Sidebar: React.FC = () => {
                     href={item.href}
                     title={isSidebarCollapsed ? item.label : undefined}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`flex items-center h-11 rounded-xl text-xs font-semibold transition-all duration-200 group relative overflow-hidden ${
+                    className={`flex items-center h-8 rounded-lg text-xs font-semibold transition-all duration-200 group relative overflow-hidden ${
                       isActive
                         ? 'bg-neutral-900 text-white font-bold border border-neutral-700 shadow-xs'
                         : 'text-neutral-400 hover:text-white hover:bg-neutral-900/80'
                     }`}
                   >
                     {/* FIXED ICON BOX (52px wide) */}
-                    <div className="w-[52px] h-full flex items-center justify-center shrink-0">
-                      <Icon className={`w-[22px] h-[22px] transition-colors duration-200 ${
+                    <div className="w-[44px] h-full flex items-center justify-center shrink-0">
+                      <Icon className={`w-[17px] h-[17px] transition-colors duration-200 ${
                         isActive ? 'text-emerald-400' : 'text-neutral-400 group-hover:text-white'
                       }`} />
                     </div>

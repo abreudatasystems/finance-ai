@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell>
       <div className="space-y-1">
-        <h1 className="text-base font-bold">Recuperar a palavra-passe</h1>
+        <h1 className="text-base font-semibold">Recuperar a palavra-passe</h1>
         <p className="text-xs text-neutral-500">
           Indique o email com que entra no Finance AI. Enviamos um link para escolher uma nova
           palavra-passe.
@@ -46,15 +46,15 @@ export default function ForgotPasswordPage() {
       </div>
 
       {sent ? (
-        <div role="status" className="px-3 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs space-y-1">
-          <p className="flex items-center gap-1.5 font-semibold">
+        <div role="status" className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs space-y-1">
+          <p className="flex items-center gap-1.5 font-medium">
             <MailCheck className="size-4" aria-hidden="true" /> Pedido recebido
           </p>
           <p>{sent}</p>
           <p className="text-emerald-700">Não chegou nada? Veja a pasta de spam ou peça de novo dentro de alguns minutos.</p>
         </div>
       ) : (
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="space-y-3">
           <Field label="Email">
             {(p) => (
               <Input
@@ -70,7 +70,7 @@ export default function ForgotPasswordPage() {
           </Field>
 
           {error && (
-            <div role="alert" className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 font-medium">
+            <div role="alert" className="text-xs text-rose-900 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
               {error}
             </div>
           )}
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
         </form>
       )}
 
-      <div className="pt-4 border-t border-neutral-100 text-xs">
+      <div className="pt-3 border-t border-neutral-100 text-xs">
         <Link href="/login" className="inline-flex items-center gap-1 text-neutral-500 hover:text-neutral-800">
           <ArrowLeft className="size-3.5" aria-hidden="true" /> Voltar ao início de sessão
         </Link>

@@ -5,10 +5,10 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { fetchItems, deleteItem } from '@/services/data';
 import { Item } from '@/types';
-import { Package, Tag, Plus, Trash2, Briefcase } from 'lucide-react';
+import { Package, Tag, Plus, Trash2, Briefcase, Search } from 'lucide-react';
 import { CreateItemModal } from '@/components/shared/CreateItemModal';
 import {
-  Badge, Button, IconButton, Card, Table, THead, TBody, Th, Tr, Td, TableMessage, LoadingState, EmptyState, useConfirm,
+  Badge, Button, IconButton, Card, Input, Table, THead, TBody, Th, Tr, Td, TableMessage, LoadingState, EmptyState, useConfirm,
 } from '@/components/ui';
 
 export default function ItemsPage() {
@@ -18,6 +18,7 @@ export default function ItemsPage() {
   const [loaded, setLoaded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -62,14 +63,30 @@ export default function ItemsPage() {
     toast.success(outcome.message || 'Item eliminado.');
   };
 
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? items.filter(p => [p.code, p.description, p.family, p.ean].some(v => String(v ?? '').toLowerCase().includes(q)))
+    : items;
+
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
 
-      <div className="flex justify-end">
-        <Button onClick={() => setIsModalOpen(true)} icon={<Plus className="text-emerald-400" />}>
+      <Card className="p-3 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400 pointer-events-none" aria-hidden="true" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Procurar por código, descrição ou família"
+            aria-label="Procurar itens"
+            className="pl-8"
+          />
+        </div>
+        <Button className="ml-auto" onClick={() => setIsModalOpen(true)} icon={<Plus className="text-emerald-400" />}>
           Novo item
         </Button>
-      </div>
+      </Card>
 
       <Card className="overflow-hidden">
         <Table>
@@ -95,12 +112,16 @@ export default function ItemsPage() {
                   description="Clique em «Novo item» para começar o catálogo."
                 />
               </TableMessage>
-            ) : items.map((p) => (
+            ) : visible.length === 0 ? (
+              <TableMessage colSpan={7}>
+                <EmptyState icon={<Search />} title="Nenhum item corresponde à pesquisa" />
+              </TableMessage>
+            ) : visible.map((p) => (
               <Tr key={p.id}>
-                <Td className="font-bold text-neutral-900">
+                <Td className="font-semibold text-neutral-900">
                   <div className="flex items-center gap-2.5">
-                    <div className={`size-8 rounded-xl flex items-center justify-center border shrink-0 ${p.kind === 'service' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                      {p.kind === 'service' ? <Briefcase className="size-4" aria-hidden="true" /> : <Package className="size-4" aria-hidden="true" />}
+                    <div className={`size-7 rounded-md flex items-center justify-center shrink-0 ${p.kind === 'service' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                      {p.kind === 'service' ? <Briefcase className="size-3.5" aria-hidden="true" /> : <Package className="size-3.5" aria-hidden="true" />}
                     </div>
                     <div className="flex flex-col">
                       <span>{p.code}</span>
@@ -109,7 +130,7 @@ export default function ItemsPage() {
                   </div>
                 </Td>
                 <Td>
-                  <Badge tone={p.kind === 'service' ? 'warning' : 'success'} className="uppercase tracking-wide">
+                  <Badge tone={p.kind === 'service' ? 'warning' : 'success'}>
                     {p.kind === 'service' ? 'Serviço' : 'Produto'}
                   </Badge>
                 </Td>
@@ -121,7 +142,7 @@ export default function ItemsPage() {
                     {p.vat_rate}
                   </Badge>
                 </Td>
-                <Td numeric className="font-bold text-neutral-900">
+                <Td numeric className="font-semibold text-neutral-900">
                   <div className="flex flex-col items-end">
                     <span>{formatMoney(p.price_1)}</span>
                     {p.price_includes_vat && <span className="text-2xs text-neutral-500 font-medium">c/ IVA</span>}

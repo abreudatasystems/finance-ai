@@ -6,7 +6,7 @@ import { Category, CategoryGroup } from '@/types';
 import { fetchCategoryGroups } from '@/services/data';
 import { apiPost } from '@/services/api';
 import { SideDrawer } from './SideDrawer';
-import { Button, Field, Input, Select, Textarea } from '@/components/ui';
+import { Button, Field, Input, Segmented, Select, Textarea } from '@/components/ui';
 
 interface CreateCategoryModalProps {
   onClose: () => void;
@@ -66,14 +66,6 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
     onClose();
   };
 
-  const segment = (active: boolean, tone: 'emerald' | 'rose') =>
-    `h-9 rounded-lg border text-xs font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-      active
-        ? tone === 'emerald'
-          ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-          : 'bg-rose-50 border-rose-300 text-rose-700'
-        : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
-    }`;
 
   return (
     <SideDrawer
@@ -82,16 +74,16 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
       onClose={onClose}
       footer={
         <>
-          <Button variant="secondary" className="flex-1" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" form={FORM_ID} loading={submitting} className="flex-1">
+          <Button type="submit" form={FORM_ID} loading={submitting}>
             Criar Categoria
           </Button>
         </>
       }
     >
-      <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+      <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-3">
         {groups.length ? (
           <Field label="Grupo" hint="O grupo define a natureza (entra/sai) da categoria.">
             {(p) => (
@@ -114,25 +106,16 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
           </Field>
         ) : (
           <div role="group" aria-labelledby="category-type-label" className="space-y-1.5">
-            <span id="category-type-label" className="block text-xs font-semibold text-neutral-700">Natureza</span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                aria-pressed={type === 'expense'}
-                onClick={() => setType('expense')}
-                className={segment(type === 'expense', 'rose')}
-              >
-                Despesa (- €)
-              </button>
-              <button
-                type="button"
-                aria-pressed={type === 'income'}
-                onClick={() => setType('income')}
-                className={segment(type === 'income', 'emerald')}
-              >
-                Receita (+ €)
-              </button>
-            </div>
+            <span id="category-type-label" className="block text-xs font-medium text-neutral-700">Natureza</span>
+            <Segmented<'expense' | 'income'>
+              aria-label="Natureza"
+              value={type}
+              onChange={setType}
+              options={[
+                { value: 'expense', label: 'Despesa (- €)' },
+                { value: 'income', label: 'Receita (+ €)' },
+              ]}
+            />
             <p className="text-xs text-neutral-500">O grupo define a natureza (entra/sai) da categoria.</p>
           </div>
         )}
@@ -167,7 +150,7 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
         <Field
           label={
             <span className="inline-flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+              <Sparkles className="size-3.5 text-emerald-600" aria-hidden="true" />
               Palavras-Chave IA (separadas por vírgula)
             </span>
           }

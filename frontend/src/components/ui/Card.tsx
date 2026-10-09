@@ -5,7 +5,7 @@ import { cn } from './cn';
 export function Card({ className, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('bg-white rounded-2xl border border-neutral-200/80 shadow-xs', className)}
+      className={cn('bg-white rounded-xl border border-neutral-200 shadow-[0_1px_2px_rgba(24,24,27,0.04)]', className)}
       {...rest}
     />
   );
@@ -22,15 +22,15 @@ interface CardHeaderProps {
 
 export function CardHeader({ title, subtitle, icon, actions, className }: CardHeaderProps) {
   return (
-    <div className={cn('flex items-center justify-between gap-3 px-5 py-4 border-b border-neutral-100', className)}>
+    <div className={cn('flex items-center justify-between gap-3 px-4 py-3 border-b border-neutral-100', className)}>
       <div className="flex items-center gap-2.5 min-w-0">
         {icon && (
-          <span className="size-8 rounded-lg bg-neutral-100 text-neutral-700 flex items-center justify-center shrink-0 [&_svg]:size-4">
+          <span className="size-7 rounded-md bg-neutral-100 text-neutral-600 flex items-center justify-center shrink-0 [&_svg]:size-3.5">
             {icon}
           </span>
         )}
         <div className="min-w-0">
-          <h2 className="text-sm font-bold text-neutral-900 truncate">{title}</h2>
+          <h2 className="text-13 font-semibold text-neutral-900 truncate">{title}</h2>
           {subtitle && <p className="text-xs text-neutral-500 truncate">{subtitle}</p>}
         </div>
       </div>
@@ -40,5 +40,5 @@ export function CardHeader({ title, subtitle, icon, actions, className }: CardHe
 }
 
 export function CardBody({ className, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('p-5', className)} {...rest} />;
+  return <div className={cn('p-4', className)} {...rest} />;
 }

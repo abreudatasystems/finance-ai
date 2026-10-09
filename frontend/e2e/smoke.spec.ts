@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 /**
  * Percurso mínimo de um utilizador novo, contra o backend real:
- * criar conta → painel → páginas principais → criar fornecedor →
+ * criar conta → escolher empresa → painel → páginas principais → criar fornecedor →
  * terminar sessão → entrar outra vez.
  */
 
@@ -45,6 +45,9 @@ test('novo utilizador: registo, navegação, fornecedor, sair e entrar', async (
     await page.getByLabel(/email/i).fill(user.email);
     await page.getByLabel(/palavra-passe/i).fill(user.password);
     await page.locator('form button[type="submit"]').click();
+    // Depois de entrar escolhe-se a empresa, numa página à parte.
+    await page.waitForURL('**/companies');
+    await page.getByRole('button', { name: `Entrar em ${user.company}` }).click();
     await page.waitForURL('**/dashboard');
     await expect(pageTitle(page)).toHaveText('Painel');
   });
@@ -55,7 +58,6 @@ test('novo utilizador: registo, navegação, fornecedor, sair e entrar', async (
     { link: 'Fornecedores', url: /\/registry\/suppliers$/, title: 'Fornecedores' },
     { link: 'Clientes', url: /\/registry\/customers$/, title: 'Clientes' },
     { link: 'Relatórios', url: /\/reports$/, title: 'Relatórios' },
-    { link: 'Configurações', url: /\/settings$/, title: 'Configurações' },
   ];
 
   for (const p of pages) {
@@ -84,7 +86,8 @@ test('novo utilizador: registo, navegação, fornecedor, sair e entrar', async (
   });
 
   await test.step('terminar sessão', async () => {
-    await page.locator('aside').getByRole('link', { name: 'Configurações', exact: true }).click();
+    // As Configurações abrem-se pela roda dentada da barra de topo.
+    await page.locator('header').getByRole('link', { name: 'Configurações' }).click();
     await expect(pageTitle(page)).toHaveText('Configurações');
     await page.getByRole('button', { name: 'Perfil' }).click();
     await page.getByRole('button', { name: /terminar sess/i }).click();
@@ -97,6 +100,9 @@ test('novo utilizador: registo, navegação, fornecedor, sair e entrar', async (
     await page.getByLabel(/email/i).fill(user.email);
     await page.getByLabel(/palavra-passe/i).fill(user.password);
     await page.locator('form button[type="submit"]').click();
+    // Depois de entrar escolhe-se a empresa, numa página à parte.
+    await page.waitForURL('**/companies');
+    await page.getByRole('button', { name: `Entrar em ${user.company}` }).click();
     await page.waitForURL('**/dashboard');
     await expect(pageTitle(page)).toHaveText('Painel');
   });

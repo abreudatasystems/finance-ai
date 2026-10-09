@@ -7,7 +7,7 @@ import {
 import { toast } from 'sonner';
 import {
   Badge, Button, IconButton, Card, CardHeader, CardBody, Field, Input, Select, LoadingState,
-  cn, inputClass, useConfirm,
+  Segmented, cn, useConfirm,
 } from '@/components/ui';
 import type { BadgeTone } from '@/components/ui';
 import { formatDate } from '@/lib/format';
@@ -171,14 +171,14 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
       <CardBody className="space-y-4">
         {/* Progress */}
         <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-semibold tabular-nums">
+          <div className="flex justify-between text-xs font-medium tabular-nums">
             <span className="text-neutral-500">{isIncome ? 'Recebido' : 'Pago'} {formatMoney(paid)}</span>
             <span className={settled ? 'text-emerald-700' : 'text-neutral-800'}>
               {settled ? 'Liquidado' : `Em aberto ${formatMoney(outstanding)}`}
             </span>
           </div>
           <div
-            className="h-2 rounded-full bg-neutral-100 overflow-hidden"
+            className="h-1.5 rounded-full bg-neutral-100 overflow-hidden"
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -199,18 +199,18 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
             {/* Installments */}
             {installments.length > 0 ? (
               <div className="space-y-1.5">
-                <h4 className="text-2xs font-bold text-neutral-500 uppercase tracking-wider">
+                <h4 className="text-xs font-medium text-neutral-500">
                   Prestações ({installments.length})
                 </h4>
                 {installments.map((i) => {
                   const st = INST_STATUS[i.status] || INST_STATUS.pending;
                   return (
-                    <div key={i.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-neutral-200 bg-neutral-50/60">
-                      <span className="w-10 text-xs font-black text-neutral-700 font-mono shrink-0">{i.label}</span>
+                    <div key={i.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-200 bg-neutral-50/60">
+                      <span className="w-10 text-xs font-semibold text-neutral-700 font-mono shrink-0">{i.label}</span>
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-neutral-800 tabular-nums">{formatMoney(i.amount)}</div>
+                        <div className="text-xs font-semibold text-neutral-800 tabular-nums">{formatMoney(i.amount)}</div>
                         <div className="text-2xs text-neutral-500 flex items-center gap-1">
-                          <CalendarClock className="w-3 h-3" aria-hidden="true" /> vence {formatDate(i.due_date)}
+                          <CalendarClock className="size-3" aria-hidden="true" /> vence {formatDate(i.due_date)}
                           {i.paid_amount > 0 && i.status !== 'paid' && (
                             <span className="ml-1">· pago {formatMoney(i.paid_amount)}</span>
                           )}
@@ -228,34 +228,23 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
               </div>
             ) : (
               !settled && (
-                <div className="p-3 rounded-xl border border-dashed border-neutral-200 space-y-2">
-                  <h4 className="text-2xs font-bold text-neutral-500 uppercase tracking-wider">Dividir em prestações</h4>
-                  <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Número de prestações">
-                    {[2, 3, 4, 6, 12].map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        aria-pressed={splitCount === n}
-                        onClick={() => setSplitCount(n)}
-                        className={cn(
-                          'h-8 px-2.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors',
-                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
-                          splitCount === n
-                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                            : 'bg-neutral-50 border-neutral-200 text-neutral-600 hover:bg-neutral-100',
-                        )}
-                      >
-                        {n}x
-                      </button>
-                    ))}
-                    <input
+                <div className="p-3 rounded-lg border border-dashed border-neutral-200 space-y-2">
+                  <h4 className="text-xs font-medium text-neutral-500">Dividir em prestações</h4>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Segmented
+                      aria-label="Número de prestações"
+                      value={String(splitCount)}
+                      onChange={(v) => setSplitCount(Number(v))}
+                      options={[2, 3, 4, 6, 12].map((n) => ({ value: String(n), label: `${n}x` }))}
+                    />
+                    <Input
                       type="number"
                       min={2}
                       max={120}
                       value={splitCount}
                       onChange={(e) => setSplitCount(Math.min(120, Math.max(2, Number(e.target.value) || 2)))}
                       aria-label="Número de prestações"
-                      className={cn(inputClass, 'w-16 h-8 px-2 text-xs font-bold text-center tabular-nums')}
+                      className="w-16 px-2 text-center tabular-nums"
                     />
                     <Button size="sm" onClick={split} loading={splitting}>
                       Criar plano
@@ -273,7 +262,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
 
             {/* Payment history */}
             <div className="space-y-1.5">
-              <h4 className="text-2xs font-bold text-neutral-500 uppercase tracking-wider">
+              <h4 className="text-xs font-medium text-neutral-500">
                 Movimentos ({payments.length})
               </h4>
               {payments.length === 0 ? (
@@ -282,17 +271,17 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
                 </p>
               ) : (
                 payments.map((p) => (
-                  <div key={p.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-neutral-200">
+                  <div key={p.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-200">
                     <div className={cn(
-                      'w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
+                      'size-7 rounded-md flex items-center justify-center shrink-0',
                       p.direction === 'in' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600',
                     )}>
                       {p.direction === 'in'
-                        ? <ArrowDownLeft className="w-3.5 h-3.5" aria-label="Entrada" />
-                        : <ArrowUpRight className="w-3.5 h-3.5" aria-label="Saída" />}
+                        ? <ArrowDownLeft className="size-3.5" aria-label="Entrada" />
+                        : <ArrowUpRight className="size-3.5" aria-label="Saída" />}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-neutral-800 tabular-nums">{formatMoney(p.amount)}</div>
+                      <div className="text-xs font-semibold text-neutral-800 tabular-nums">{formatMoney(p.amount)}</div>
                       <div className="text-2xs text-neutral-500 truncate">
                         {formatDate(p.payment_date)}
                         {p.payment_method ? ` · ${METHODS.find((m) => m.value === p.payment_method)?.label || p.payment_method}` : ''}
@@ -308,8 +297,8 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
             </div>
 
             {settled && (
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
-                <Check className="w-3.5 h-3.5" aria-hidden="true" /> Totalmente liquidado.
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
+                <Check className="size-3.5" aria-hidden="true" /> Totalmente liquidado.
               </div>
             )}
           </>
@@ -317,8 +306,8 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
 
         {/* Register form */}
         {open && (
-          <form onSubmit={submit} className="p-3 rounded-xl border border-neutral-200 bg-neutral-50 space-y-3">
-            <h4 className="text-xs font-bold text-neutral-900">
+          <form onSubmit={submit} className="p-3 rounded-lg border border-neutral-200 bg-neutral-50 space-y-3">
+            <h4 className="text-13 font-semibold text-neutral-900">
               Registar {noun.toLowerCase()}
               {targetInstallment && ` · prestação ${installments.find((i) => i.id === targetInstallment)?.label}`}
             </h4>
@@ -360,7 +349,7 @@ export const SettlementPanel: React.FC<Props> = ({ transaction, formatMoney, onC
               </Field>
             </div>
             <p className="text-2xs text-neutral-500">
-              Máximo em aberto: <b className="tabular-nums">{formatMoney(outstanding)}</b>. Valores parciais são aceites.
+              Máximo em aberto: <b className="font-semibold tabular-nums">{formatMoney(outstanding)}</b>. Valores parciais são aceites.
             </p>
             <div className="flex gap-2">
               <Button variant="secondary" size="sm" onClick={() => setOpen(false)} className="flex-1">

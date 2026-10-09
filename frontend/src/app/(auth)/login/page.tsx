@@ -59,7 +59,7 @@ export default function LoginPage() {
   };
 
   const errorBox = error && (
-    <div role="alert" className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 font-medium">
+    <div role="alert" className="text-xs text-rose-900 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
       {error}
     </div>
   );
@@ -70,24 +70,24 @@ export default function LoginPage() {
 
         {/* Marca */}
         <div className="text-center space-y-2">
-          <div className="size-11 rounded-xl bg-black flex items-center justify-center mx-auto border border-neutral-800">
-            <Zap className="size-5 fill-emerald-400 text-emerald-400" aria-hidden="true" />
+          <div className="size-9 rounded-lg bg-neutral-900 flex items-center justify-center mx-auto">
+            <Zap className="size-4 fill-emerald-400 text-emerald-400" aria-hidden="true" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight">
+          <h1 className="text-lg font-semibold tracking-tight">
             Finance <span className="text-emerald-600">AI</span>
           </h1>
           <p className="text-xs text-neutral-500 font-medium">A sua equipa financeira, com inteligência artificial</p>
         </div>
 
-        <Card className="p-6 space-y-5">
+        <Card className="p-5 space-y-4">
           {challenge ? (
-            <form onSubmit={handleCode} className="space-y-4">
+            <form onSubmit={handleCode} className="space-y-3">
               <div className="flex items-start gap-3">
-                <div className="size-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+                <div className="size-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
                   <ShieldCheck className="size-4 text-emerald-700" aria-hidden="true" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold">Verificação em dois passos</h2>
+                  <h2 className="text-13 font-semibold">Verificação em dois passos</h2>
                   <p className="text-xs text-neutral-500">
                     {useRecovery
                       ? 'Introduza um dos códigos de recuperação que guardou. Cada código só serve uma vez.'
@@ -123,19 +123,21 @@ export default function LoginPage() {
               </Button>
 
               <div className="flex items-center justify-between text-xs">
-                <button type="button" onClick={backToPassword}
-                  className="inline-flex items-center gap-1 text-neutral-500 hover:text-neutral-800">
-                  <ArrowLeft className="size-3.5" aria-hidden="true" /> Voltar
-                </button>
-                <button type="button"
+                <Button variant="ghost" size="sm" onClick={backToPassword} icon={<ArrowLeft aria-hidden="true" />} className="-ml-2.5">
+                  Voltar
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => { setUseRecovery((v) => !v); setCode(''); setError(null); }}
-                  className="text-emerald-700 font-bold hover:underline">
+                  className="-mr-2.5 text-emerald-700 hover:text-emerald-800"
+                >
                   {useRecovery ? 'Usar o código da app' : 'Usar código de recuperação'}
-                </button>
+                </Button>
               </div>
             </form>
           ) : (
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-3">
               <Field label="Email profissional">
                 {(p) => (
                   <Input
@@ -163,7 +165,7 @@ export default function LoginPage() {
                   )}
                 </Field>
                 <p className="text-2xs text-right">
-                  <Link href="/forgot-password" className="text-emerald-700 font-semibold hover:underline">
+                  <Link href="/forgot-password" className="text-emerald-700 font-medium hover:underline">
                     Esqueceu-se da palavra-passe?
                   </Link>
                 </p>
@@ -178,9 +180,9 @@ export default function LoginPage() {
             </form>
           )}
 
-          <div className="text-center text-xs text-neutral-500 pt-4 border-t border-neutral-100">
+          <div className="text-center text-xs text-neutral-500 pt-3 border-t border-neutral-100">
             Ainda não tem conta?{' '}
-            <Link href="/register" className="text-emerald-700 font-bold hover:underline">
+            <Link href="/register" className="text-emerald-700 font-medium hover:underline">
               Criar conta de teste &rarr;
             </Link>
           </div>

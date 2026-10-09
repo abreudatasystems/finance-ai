@@ -13,8 +13,10 @@ export async function fetchOverview(): Promise<ReconciliationOverview | null> {
   return apiGet<ReconciliationOverview>('/bank/reconciliation/overview');
 }
 
-export async function fetchSuggestions(entryId: string): Promise<MatchSuggestion[]> {
-  return (await apiGet<MatchSuggestion[]>(`/bank/entries/${entryId}/suggestions`)) || [];
+/** `todos`: every open document in the same direction, not only exact amounts. */
+export async function fetchSuggestions(entryId: string, todos = false): Promise<MatchSuggestion[]> {
+  const query = todos ? '?todos=true' : '';
+  return (await apiGet<MatchSuggestion[]>(`/bank/entries/${entryId}/suggestions${query}`)) || [];
 }
 
 export interface MatchResult {
@@ -27,11 +29,15 @@ export interface MatchResult {
   outstanding_amount?: number | null;
 }
 
+/** Liga a linha a um documento em aberto (cria o pagamento) ou a um pagamento já registado (confirma-o). */
 export async function matchEntry(
   entryId: string,
-  transactionId: string,
+  target: { transactionId?: string; paymentId?: string },
 ): Promise<{ data?: MatchResult; error?: string }> {
-  return apiPostOrError<MatchResult>(`/bank/entries/${entryId}/match`, { transaction_id: transactionId });
+  return apiPostOrError<MatchResult>(
+    `/bank/entries/${entryId}/match`,
+    target.paymentId ? { payment_id: target.paymentId } : { transaction_id: target.transactionId },
+  );
 }
 
 export async function unmatchEntry(

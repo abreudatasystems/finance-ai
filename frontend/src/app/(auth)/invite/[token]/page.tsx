@@ -69,38 +69,38 @@ export default function InvitePage() {
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-center justify-center gap-2">
-          <div className="size-9 rounded-xl bg-black flex items-center justify-center border border-neutral-800">
+          <div className="size-7 rounded-lg bg-neutral-900 flex items-center justify-center">
             <Zap className="size-4 fill-emerald-400 text-emerald-400" aria-hidden="true" />
           </div>
-          <span className="font-extrabold text-lg tracking-tight text-neutral-900">
+          <span className="font-semibold text-base tracking-tight text-neutral-900">
             Finance <span className="text-emerald-600">AI</span>
           </span>
         </div>
 
-        <Card className="p-6 space-y-4 text-xs">
+        <Card className="p-5 space-y-3 text-xs">
           {loading ? (
             <LoadingState label="A abrir o convite…" />
           ) : loadError ? (
             <div className="space-y-3">
-              <p role="alert" className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs">
+              <p role="alert" className="flex items-start gap-2 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-xs">
                 <AlertCircle className="size-4 shrink-0 mt-0.5" aria-hidden="true" /> {loadError}
               </p>
               <Link
                 href="/login"
-                className="flex items-center justify-center h-9 px-4 rounded-lg border border-neutral-200 bg-white font-semibold text-sm text-neutral-800 hover:bg-neutral-50"
+                className="flex items-center justify-center h-8 px-3 rounded-md border border-neutral-200 bg-white shadow-xs font-medium text-13 text-neutral-800 hover:bg-neutral-50"
               >
                 Ir para o início de sessão
               </Link>
             </div>
           ) : done ? (
-            <p role="status" className="py-8 text-center text-emerald-700 font-bold flex items-center justify-center gap-2">
+            <p role="status" className="py-8 text-center text-emerald-700 font-medium flex items-center justify-center gap-2">
               <Check className="size-4" aria-hidden="true" /> Entrou em {preview?.company_name}. A abrir…
             </p>
           ) : preview && (
             <>
               <div className="text-center space-y-1">
                 <p className="text-neutral-500">Foi convidado para</p>
-                <h1 className="text-lg font-extrabold text-neutral-900">{preview.company_name}</h1>
+                <h1 className="text-lg font-bold text-neutral-900">{preview.company_name}</h1>
                 <p className="text-neutral-500">
                   como <b className="text-neutral-800">{preview.role_label}</b>
                   {preview.invited_by_name ? <> · convite de {preview.invited_by_name}</> : null}
@@ -108,12 +108,12 @@ export default function InvitePage() {
               </div>
 
               {preview.message && (
-                <p className="px-3 py-2.5 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-700 italic">
+                <p className="px-3 py-2 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-700 italic">
                   “{preview.message}”
                 </p>
               )}
 
-              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-emerald-50/60 border border-emerald-100 text-xs text-emerald-900">
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
                 <ShieldCheck className="size-4 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
                 <span>
                   O convite é para <b>{preview.email}</b> e dá acesso apenas a esta empresa.
@@ -121,7 +121,7 @@ export default function InvitePage() {
               </div>
 
               {error && (
-                <p role="alert" className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs">{error}</p>
+                <p role="alert" className="px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-xs">{error}</p>
               )}
 
               {signedIn ? (
@@ -141,7 +141,7 @@ export default function InvitePage() {
                   </p>
                   <Link
                     href="/login"
-                    className="w-full h-9 px-4 rounded-lg bg-black hover:bg-neutral-800 text-white text-sm font-semibold flex items-center justify-center gap-2"
+                    className="w-full h-8 px-3 rounded-md bg-neutral-900 hover:bg-neutral-800 text-white text-13 font-medium shadow-xs flex items-center justify-center gap-1.5"
                   >
                     <LogIn className="size-4" aria-hidden="true" /> Iniciar sessão
                   </Link>

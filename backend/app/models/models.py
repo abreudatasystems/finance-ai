@@ -29,6 +29,29 @@ class Company(Base):
     # Regime normal: mensal (volume ≥ 650k€) ou trimestral (< 650k€)
     vat_periodicity = Column(String, default="quarterly")
     cae = Column(String, nullable=True)               # código de atividade económica
+    irc_regime = Column(String, nullable=True)        # geral | simplificado | isento | nao_aplicavel
+    niss = Column(String, nullable=True)              # número de identificação da Segurança Social
+
+    # --- Ficha da empresa ---
+    trade_name = Column(String, nullable=True)        # nome comercial, quando difere da denominação
+    share_capital = Column(Numeric(14, 2), nullable=True)
+    incorporation_date = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    postal_code = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+
+    # --- Contabilista certificado ---
+    accountant_name = Column(String, nullable=True)
+    accountant_nif = Column(String, nullable=True)
+    accountant_email = Column(String, nullable=True)
+
+    #: Prazos habituais, em dias. Um documento sem vencimento vence a data
+    #: do documento mais este prazo (ver transactions.create_transaction).
+    customer_terms_days = Column(Integer, nullable=True)
+    supplier_terms_days = Column(Integer, nullable=True)
 
     # Chart of accounts provisioning
     chart_template = Column(String, nullable=True)

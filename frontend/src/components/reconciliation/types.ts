@@ -26,7 +26,11 @@ export interface BankEntry {
 }
 
 export interface MatchSuggestion {
+  /** `transaction`: documento em aberto. `payment`: pagamento já registado, por confirmar no banco. */
+  kind: 'transaction' | 'payment';
   transaction_id: string;
+  payment_id?: string | null;
+  payment_date?: string | null;
   description: string;
   entity_name: string;
   category_name: string;

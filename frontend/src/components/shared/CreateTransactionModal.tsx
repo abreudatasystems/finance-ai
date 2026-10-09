@@ -8,7 +8,7 @@ import { apiPostOrError } from '@/services/api';
 import { fetchCategories } from '@/services/data';
 import { Category } from '@/types';
 import { SideDrawer } from './SideDrawer';
-import { Button, Field, Input, Select, Textarea, cn } from '@/components/ui';
+import { Button, Field, Input, Segmented, Select, Textarea, cn } from '@/components/ui';
 import { formatDate } from '@/lib/format';
 
 
@@ -185,10 +185,10 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
       footer={
         showFooter ? (
           <>
-            <Button variant="secondary" onClick={onClose} className="flex-1">
+            <Button variant="secondary" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" form={FORM_ID} loading={submitting} className="flex-1">
+            <Button type="submit" form={FORM_ID} loading={submitting}>
               Confirmar Lançamento
             </Button>
           </>
@@ -196,50 +196,29 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
       }
     >
       {isSuccess ? (
-        <div className="py-10 text-center space-y-3" role="status">
-          <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-            <Check className="w-7 h-7" aria-hidden="true" />
+        <div className="py-8 text-center space-y-2" role="status">
+          <div className="size-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+            <Check className="size-4" aria-hidden="true" />
           </div>
-          <h4 className="text-sm font-bold text-neutral-800">Lançamento Criado com Sucesso!</h4>
+          <h4 className="text-13 font-semibold text-neutral-800">Lançamento Criado com Sucesso!</h4>
           <p className="text-xs text-neutral-500">O valor foi sincronizado com o teu Fluxo de Caixa.</p>
         </div>
       ) : (
-        <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+        <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-3">
           {formError && (
-            <div role="alert" className="rounded-xl bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2 text-xs font-semibold">
+            <div role="alert" className="rounded-lg bg-rose-50 border border-rose-200 text-rose-900 px-3 py-2 text-xs">
               {formError}
             </div>
           )}
-          <div
-            role="radiogroup"
+          <Segmented<'expense' | 'income'>
             aria-label="Tipo de movimento"
-            className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-neutral-100 p-1 rounded-xl text-xs font-semibold text-neutral-600"
-          >
-            <button
-              type="button"
-              role="radio"
-              aria-checked={type === 'expense'}
-              onClick={() => setType('expense')}
-              className={cn(
-                'py-1.5 rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
-                type === 'expense' ? 'bg-white text-rose-600 font-bold shadow-xs' : 'hover:text-neutral-900',
-              )}
-            >
-              Despesa (- €)
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={type === 'income'}
-              onClick={() => setType('income')}
-              className={cn(
-                'py-1.5 rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
-                type === 'income' ? 'bg-white text-emerald-600 font-bold shadow-xs' : 'hover:text-neutral-900',
-              )}
-            >
-              Receita (+ €)
-            </button>
-          </div>
+            value={type}
+            onChange={setType}
+            options={[
+              { value: 'expense', label: <span className={cn(type === 'expense' && 'text-rose-600')}>Despesa (- €)</span> },
+              { value: 'income', label: <span className={cn(type === 'income' && 'text-emerald-600')}>Receita (+ €)</span> },
+            ]}
+          />
 
           <Field label="Estado do Movimento">
             {(p) => (
@@ -263,12 +242,12 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             )}
           </Field>
 
-          <label className="flex items-center gap-2 px-1 text-xs font-semibold text-neutral-700 cursor-pointer">
+          <label className="flex items-center gap-2 text-xs font-medium text-neutral-700 cursor-pointer">
             <input
               type="checkbox"
               checked={isRecurring}
               onChange={(e) => setIsRecurring(e.target.checked)}
-              className="w-4 h-4 rounded border-neutral-300 accent-emerald-600"
+              className="size-4 rounded border-neutral-300 accent-emerald-600"
             />
             Tornar este movimento Recorrente (mensalidade, subscrição, etc)
           </label>
@@ -352,26 +331,26 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                         value={vatRate}
                         onChange={(e) => setVatRate(Math.min(100, Math.max(0, Number(e.target.value))))}
                         placeholder="17.5"
-                        className="w-20 font-bold text-center tabular-nums"
+                        className="w-20 text-center tabular-nums"
                       />
-                      <span className="text-xs font-bold text-neutral-500" aria-hidden="true">%</span>
+                      <span className="text-xs font-medium text-neutral-500" aria-hidden="true">%</span>
                     </div>
                   )}
                 </div>
               )}
             </Field>
-            <div className="grid grid-cols-3 gap-2 p-2.5 bg-neutral-50 rounded-xl text-center border border-neutral-200/80">
+            <div className="grid grid-cols-3 gap-2 px-3 py-2 bg-neutral-50 rounded-lg text-center border border-neutral-200">
               <div>
-                <div className="text-2xs text-neutral-500 font-bold uppercase tracking-wide">Líquido</div>
-                <div className="text-xs font-bold text-neutral-800 tabular-nums">{formatMoney(breakdown.net)}</div>
+                <div className="text-2xs text-neutral-500 font-medium">Líquido</div>
+                <div className="text-xs font-semibold text-neutral-800 tabular-nums">{formatMoney(breakdown.net)}</div>
               </div>
               <div>
-                <div className="text-2xs text-neutral-500 font-bold uppercase tracking-wide">IVA</div>
-                <div className="text-xs font-bold text-neutral-800 tabular-nums">{formatMoney(breakdown.vat)}</div>
+                <div className="text-2xs text-neutral-500 font-medium">IVA</div>
+                <div className="text-xs font-semibold text-neutral-800 tabular-nums">{formatMoney(breakdown.vat)}</div>
               </div>
               <div>
-                <div className="text-2xs text-neutral-500 font-bold uppercase tracking-wide">Total</div>
-                <div className="text-xs font-black text-neutral-950 tabular-nums">{formatMoney(breakdown.gross)}</div>
+                <div className="text-2xs text-neutral-500 font-medium">Total</div>
+                <div className="text-xs font-semibold text-neutral-900 tabular-nums">{formatMoney(breakdown.gross)}</div>
               </div>
             </div>
             <p className="text-2xs text-neutral-500">O valor introduzido é o total com IVA; o líquido é calculado a partir da taxa.</p>
@@ -412,7 +391,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                       aria-label="Número de prestações"
                       value={installmentCount}
                       onChange={(e) => setInstallmentCount(Math.min(120, Math.max(1, Number(e.target.value) || 1)))}
-                      className="w-20 font-bold text-center tabular-nums"
+                      className="w-20 text-center tabular-nums"
                     />
                   )}
                 </div>
@@ -420,8 +399,8 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             </Field>
 
             {installmentCount > 1 && (
-              <div className="p-2.5 bg-neutral-50 rounded-xl border border-neutral-200/80 space-y-1">
-                <div className="flex items-center justify-between text-2xs font-bold uppercase tracking-wide text-neutral-500">
+              <div className="px-3 py-2 bg-neutral-50 rounded-lg border border-neutral-200 space-y-1">
+                <div className="flex items-center justify-between text-2xs font-medium text-neutral-500">
                   <span>Plano de {installmentCount} prestações</span>
                   <span>Mensal, a partir do vencimento</span>
                 </div>
@@ -430,7 +409,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
                     <span className="text-neutral-500 font-mono tabular-nums">
                       {p.number}/{installmentCount} · {formatDate(p.due_date)}
                     </span>
-                    <span className="font-bold text-neutral-800 tabular-nums">{formatMoney(p.amount)}</span>
+                    <span className="font-semibold text-neutral-800 tabular-nums">{formatMoney(p.amount)}</span>
                   </div>
                 ))}
                 {installmentCount > 6 && (
@@ -513,7 +492,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             </Button>
 
             {showAdvanced && (
-              <div className="mt-4 space-y-4 animate-in slide-in-from-top-2 duration-200 fade-in">
+              <div className="mt-3 space-y-3 animate-in slide-in-from-top-2 duration-200 fade-in">
                 <Field label="Etiquetas (separadas por vírgula)">
                   {(p) => (
                     <Input

@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { toast } from 'sonner';
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -156,10 +155,10 @@ export default function DocumentInspectorPage() {
 
       {/* Dizer o que não se consegue ler vale mais do que aceitar e falhar. */}
       {cannotReadImages && (
-        <div role="alert" className="p-3 mt-3 shrink-0 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
+        <div role="alert" className="px-3 py-2 mt-3 shrink-0 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-start gap-2">
+          <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
           <span>
-            Este servidor lê <b>PDFs com texto</b>, mas não fotografias nem PDFs
+            Este servidor lê <b className="font-semibold">PDFs com texto</b>, mas não fotografias nem PDFs
             digitalizados — falta o motor de reconhecimento.
             {capabilities?.em_falta?.length ? (
               <> Em falta: {capabilities.em_falta.join('; ')}.</>
@@ -171,34 +170,31 @@ export default function DocumentInspectorPage() {
 
       {/* Toast Notification */}
       {successToast && (
-        <div role="status" className="p-3 mt-3 shrink-0 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2 shadow-sm animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden="true" />
+        <div role="status" className="px-3 py-2 mt-3 shrink-0 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-medium text-emerald-900 flex items-center gap-2 animate-in fade-in">
+          <CheckCircle2 className="size-4 text-emerald-600 shrink-0" aria-hidden="true" />
           <span>{successToast}</span>
         </div>
       )}
 
-      {/* The queue where documents wait for a human decision. */}
+      {/* Documentos à espera de decisão: aprovam-se aqui mesmo, ao abri-los. */}
       {approvals.length > 0 && (
-        <Link
-          href="/documents/approvals"
-          className="mt-3 shrink-0 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center justify-between gap-2 hover:bg-amber-100 transition-colors"
+        <div
+          role="status"
+          className="mt-3 shrink-0 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium flex items-center gap-2"
         >
-          <span className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" aria-hidden="true" />
-            {approvals.length} documento(s) à espera de aprovação
-          </span>
-          <span className="font-bold underline">Rever agora</span>
-        </Link>
+          <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" aria-hidden="true" />
+          {approvals.length} documento(s) à espera de aprovação — abra-os na lista para os aprovar.
+        </div>
       )}
 
-      {/* MAIN SPLIT-SCREEN WORKSPACE (100% Height remaining) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start flex-1 min-h-0 mt-4 pb-4">
+      {/* Main split-screen workspace (100% height remaining) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start flex-1 min-h-0 mt-3 pb-4">
 
-        {/* LEFT COLUMN: DOCUMENT LIST & SAMPLES (3 Cols) */}
+        {/* Left column: document list (3 cols) */}
         <Card className="lg:col-span-3 h-full flex flex-col overflow-hidden">
-          <div className="p-3 bg-neutral-50 border-b border-neutral-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          <div className="px-3 py-2.5 border-b border-neutral-100 flex flex-wrap items-center justify-between gap-2 shrink-0">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-2xs font-bold text-neutral-700 uppercase tracking-wider">Faturas Inspecionadas</span>
+              <span className="text-13 font-semibold text-neutral-900">Faturas inspecionadas</span>
               <Badge className="tabular-nums">{documents.length}</Badge>
             </div>
             <Button
@@ -231,31 +227,31 @@ export default function DocumentInspectorPage() {
                   aria-pressed={isSelected}
                   onClick={() => setSelectedDoc(doc)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDoc(doc); } }}
-                  className={`p-3 rounded-xl cursor-pointer transition-all mb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-                    isSelected ? 'bg-emerald-50 border border-emerald-200 shadow-2xs' : 'hover:bg-neutral-50/80 border border-transparent'
+                  className={`px-3 py-2 rounded-lg cursor-pointer transition-colors mb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                    isSelected ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-neutral-50/80 border border-transparent'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-1">
                     <div className="flex items-center gap-2 min-w-0">
-                      <FileText className={`w-4 h-4 shrink-0 ${isSelected ? 'text-emerald-600' : 'text-neutral-400'}`} aria-hidden="true" />
-                      <span className="text-xs font-bold text-neutral-800 truncate">{doc.file_name}</span>
+                      <FileText className={`size-4 shrink-0 ${isSelected ? 'text-emerald-600' : 'text-neutral-400'}`} aria-hidden="true" />
+                      <span className="text-xs font-medium text-neutral-800 truncate">{doc.file_name}</span>
                     </div>
                   </div>
 
                   <div className="mt-1 flex items-center justify-between text-2xs">
                     <span className="text-neutral-500 truncate">{doc.extracted_supplier || 'A processar...'}</span>
-                    <span className="font-extrabold text-neutral-900 tabular-nums">
+                    <span className="font-semibold text-neutral-900 tabular-nums">
                       {doc.extracted_amount ? formatMoney(doc.extracted_amount) : '---'}
                     </span>
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between text-2xs">
+                  <div className="mt-1.5 flex items-center justify-between text-2xs">
                     <Badge>
                       {doc.ai_confidence != null ? `${doc.ai_confidence}% OCR` : 'Por ler'}
                     </Badge>
                     {isApp ? (
-                      <span className="text-emerald-700 font-bold flex items-center gap-0.5">
-                        <Check className="w-3 h-3" aria-hidden="true" /> Aprovado
+                      <span className="text-emerald-700 font-medium flex items-center gap-0.5">
+                        <Check className="size-3" aria-hidden="true" /> Aprovado
                       </span>
                     ) : (
                       <span className="text-neutral-500 font-medium tabular-nums">{formatDate(doc.extracted_date)}</span>
@@ -267,9 +263,9 @@ export default function DocumentInspectorPage() {
           </div>
         </Card>
 
-        {/* CENTER COLUMN: INTERACTIVE VISUAL DOCUMENT VIEWER (5 Cols) */}
+        {/* Center column: document viewer (5 cols) */}
         <div className="lg:col-span-5 h-full flex flex-col min-h-0">
-          <div className="flex-1 min-h-0 rounded-2xl overflow-hidden shadow-xs">
+          <div className="flex-1 min-h-0 rounded-xl overflow-hidden">
             <InvoiceDocumentViewer
               document={selectedDoc}
               rawOcrText={selectedDoc ? [
@@ -298,7 +294,7 @@ export default function DocumentInspectorPage() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: AI & FISCAL EXTRACTION METADATA INSPECTOR (4 Cols) */}
+        {/* Right column: extracted metadata inspector (4 cols) */}
         <Card className="lg:col-span-4 h-full flex flex-col overflow-hidden">
           {/* Confidence & Engine Banner */}
           <CardHeader
@@ -307,20 +303,20 @@ export default function DocumentInspectorPage() {
             title="Metadados Estruturados"
             subtitle="Validação Algorítmica Fiscal PT"
             actions={
-              <Badge tone={selectedDoc?.ai_confidence != null ? 'success' : 'neutral'} className="text-xs">
+              <Badge tone={selectedDoc?.ai_confidence != null ? 'success' : 'neutral'}>
                 {selectedDoc?.ai_confidence != null ? `${selectedDoc.ai_confidence}% Precisão` : 'Sem leitura'}
               </Badge>
             }
           />
 
           {/* Scrollable Metadata Content */}
-          <div className="flex-1 overflow-y-auto p-5">
+          <div className="flex-1 overflow-y-auto p-4">
             {selectedDoc ? (
-              <div className="space-y-3.5 text-xs">
+              <div className="space-y-3 text-xs">
 
                 {/* Supplier & NIF */}
-                <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200/80 space-y-3">
-                  <Field label={<span className="flex items-center gap-1"><Building2 className="w-3 h-3" aria-hidden="true" /> Fornecedor</span>}>
+                <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200/80 space-y-3">
+                  <Field label={<span className="flex items-center gap-1"><Building2 className="size-3" aria-hidden="true" /> Fornecedor</span>}>
                     {(p) => (
                       <Input
                         {...p}
@@ -328,7 +324,7 @@ export default function DocumentInspectorPage() {
                         value={selectedDoc.extracted_supplier || ''}
                         onChange={(e) => setSelectedDoc({...selectedDoc, extracted_supplier: e.target.value})}
                         placeholder="Emissor Desconhecido"
-                        className="font-bold"
+                        className="font-medium"
                       />
                     )}
                   </Field>
@@ -348,7 +344,7 @@ export default function DocumentInspectorPage() {
 
                 {/* Dates & Reference */}
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label={<span className="flex items-center gap-1"><Calendar className="w-3 h-3" aria-hidden="true" /> Emissão</span>}>
+                  <Field label={<span className="flex items-center gap-1"><Calendar className="size-3" aria-hidden="true" /> Emissão</span>}>
                     {(p) => (
                       <Input
                         {...p}
@@ -358,7 +354,7 @@ export default function DocumentInspectorPage() {
                       />
                     )}
                   </Field>
-                  <Field label={<span className="flex items-center gap-1"><Calendar className="w-3 h-3" aria-hidden="true" /> Vencimento</span>}>
+                  <Field label={<span className="flex items-center gap-1"><Calendar className="size-3" aria-hidden="true" /> Vencimento</span>}>
                     {(p) => (
                       <Input
                         {...p}
@@ -371,8 +367,8 @@ export default function DocumentInspectorPage() {
                 </div>
 
                 {/* Financial Amounts Breakdown */}
-                <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200/80 space-y-2">
-                  <span className="text-2xs uppercase font-bold text-neutral-700">Decomposição Financeira &amp; IVA</span>
+                <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200/80 space-y-2">
+                  <span className="text-xs font-medium text-neutral-700">Decomposição Financeira &amp; IVA</span>
                   <div className="grid grid-cols-2 gap-2">
                     <Field label="Base líquida (€)">
                       {(p) => (
@@ -417,7 +413,7 @@ export default function DocumentInspectorPage() {
                           step="0.01"
                           value={selectedDoc.extracted_amount || ''}
                           onChange={(e) => setSelectedDoc({...selectedDoc, extracted_amount: parseFloat(e.target.value) || 0})}
-                          className="text-right tabular-nums font-bold text-neutral-900 border-neutral-300"
+                          className="text-right tabular-nums font-semibold text-neutral-900"
                         />
                       )}
                     </Field>
@@ -425,7 +421,7 @@ export default function DocumentInspectorPage() {
                 </div>
 
                 {/* Accounting Category */}
-                <Field label={<span className="flex items-center gap-1"><Layers className="w-3 h-3" aria-hidden="true" /> Categoria Contabilística Sugerida</span>}>
+                <Field label={<span className="flex items-center gap-1"><Layers className="size-3" aria-hidden="true" /> Categoria Contabilística Sugerida</span>}>
                   {(p) => (
                     <Input
                       {...p}
@@ -433,7 +429,7 @@ export default function DocumentInspectorPage() {
                       value={selectedDoc.suggested_category || ''}
                       onChange={(e) => setSelectedDoc({...selectedDoc, suggested_category: e.target.value})}
                       placeholder="Ex: Serviços Especializados"
-                      className="font-semibold"
+                      className="font-medium"
                     />
                   )}
                 </Field>
@@ -441,8 +437,8 @@ export default function DocumentInspectorPage() {
                 {/* Action Buttons */}
                 <div className="pt-2 space-y-2">
                   {isCurrentApproved ? (
-                    <div role="status" className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center font-bold text-emerald-700 text-xs flex items-center justify-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4" aria-hidden="true" /> Lançamento Aprovado e Registado no Livro Caixa
+                    <div role="status" className="px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-center font-medium text-emerald-800 text-xs flex items-center justify-center gap-1.5">
+                      <CheckCircle2 className="size-4" aria-hidden="true" /> Lançamento Aprovado e Registado no Livro Caixa
                     </div>
                   ) : (
                     <Button

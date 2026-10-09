@@ -22,7 +22,7 @@ import { useApp } from '@/context/AppContext';
 import { CashForecast, ForecastMovement, ForecastWeek } from './types';
 import { fetchForecast } from './api';
 import {
-  Badge, Button, IconButton, Card, CardHeader, CardBody, LoadingState, ErrorState, cn,
+  Badge, Button, IconButton, Card, CardHeader, CardBody, LoadingState, ErrorState, Segmented, Stat, cn,
 } from '@/components/ui';
 import { formatDate } from '@/lib/format';
 import { useLoad } from '@/lib/use-load';
@@ -34,9 +34,9 @@ const HORIZONS = [
 ];
 
 const ORIGIN_ICON: Record<ForecastMovement['origin'], React.ReactNode> = {
-  'documento': <FileText className="w-3 h-3" aria-hidden="true" />,
-  'recorrência': <Repeat className="w-3 h-3" aria-hidden="true" />,
-  'IVA': <Landmark className="w-3 h-3" aria-hidden="true" />,
+  'documento': <FileText className="size-3" aria-hidden="true" />,
+  'recorrência': <Repeat className="size-3" aria-hidden="true" />,
+  'IVA': <Landmark className="size-3" aria-hidden="true" />,
 };
 
 /** Só para o eixo do gráfico: "08 out" cabe por baixo de um ponto, dd/mm/aaaa não. */
@@ -98,7 +98,7 @@ const BalanceChart: React.FC<{
                 fill={goesNegative ? '#e11d48' : '#262626'} stroke="#fff" strokeWidth="2" />
         <text x={Math.min(x(lowIndex), width - 90)} y={Math.max(y(values[lowIndex]) - 10, 12)}
               className={goesNegative ? 'fill-rose-600' : 'fill-neutral-600'}
-              style={{ fontSize: 11, fontWeight: 700 }}>
+              style={{ fontSize: 11, fontWeight: 600 }}>
           mínimo {formatMoney(values[lowIndex])}
         </text>
 
@@ -125,7 +125,7 @@ const BalanceChart: React.FC<{
       </svg>
 
       {hover != null && (
-        <div className="absolute top-0 right-0 px-2.5 py-1.5 rounded-lg bg-black text-white text-2xs font-mono tabular-nums shadow-lg pointer-events-none">
+        <div className="absolute top-0 right-0 px-2.5 py-1.5 rounded-md bg-neutral-900 text-white text-2xs font-mono tabular-nums shadow-lg pointer-events-none">
           {points[hover].label}: {formatMoney(points[hover].value)}
         </div>
       )}
@@ -173,23 +173,12 @@ export const ForecastPanel: React.FC = () => {
           className="flex-wrap"
           actions={
             <>
-              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-neutral-100" role="group" aria-label="Horizonte da previsão">
-                {HORIZONS.map((h) => (
-                  <button
-                    key={h.weeks}
-                    type="button"
-                    aria-pressed={weeks === h.weeks}
-                    onClick={() => setWeeks(h.weeks)}
-                    className={cn(
-                      'h-7 px-2.5 rounded-md font-bold text-xs cursor-pointer transition-colors',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
-                      weeks === h.weeks ? 'bg-black text-white' : 'text-neutral-600 hover:text-neutral-900',
-                    )}
-                  >
-                    {h.label}
-                  </button>
-                ))}
-              </div>
+              <Segmented
+                aria-label="Horizonte da previsão"
+                value={String(weeks)}
+                onChange={(v) => setWeeks(Number(v))}
+                options={HORIZONS.map((h) => ({ value: String(h.weeks), label: h.label }))}
+              />
               <IconButton label="Actualizar projecção" onClick={load}>
                 <RefreshCw />
               </IconButton>
@@ -202,15 +191,15 @@ export const ForecastPanel: React.FC = () => {
               honest answer is that there is not one yet — a flat line at zero
               must never be dressed as good news. */}
           <div className={cn(
-            'flex items-start gap-2.5 px-3 py-2.5 rounded-xl border',
+            'flex items-start gap-2 px-3 py-2 rounded-lg border',
             empty ? 'bg-neutral-50 border-neutral-200 text-neutral-700'
               : tight ? 'bg-rose-50 border-rose-200 text-rose-900'
               : 'bg-emerald-50 border-emerald-100 text-emerald-900',
           )}>
-            {empty ? <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-neutral-400" aria-hidden="true" />
-              : tight ? <TrendingDown className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-              : <Check className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />}
-            <p className="font-semibold">{data.resumo.mensagem}</p>
+            {empty ? <AlertCircle className="size-4 shrink-0 mt-0.5 text-neutral-400" aria-hidden="true" />
+              : tight ? <TrendingDown className="size-4 shrink-0 mt-0.5" aria-hidden="true" />
+              : <Check className="size-4 shrink-0 mt-0.5" aria-hidden="true" />}
+            <p className="font-medium">{data.resumo.mensagem}</p>
           </div>
 
           {!empty && (
@@ -218,26 +207,15 @@ export const ForecastPanel: React.FC = () => {
           )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3 rounded-xl border border-neutral-200 bg-neutral-50">
-              <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500 flex items-center gap-1">
-                <Wallet className="w-3 h-3" aria-hidden="true" /> Saldo hoje
-              </p>
-              <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(data.saldo_inicial)}</p>
-            </div>
-            <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
-              <p className="text-2xs uppercase font-bold tracking-wider text-emerald-700">Entradas previstas</p>
-              <p className="font-bold text-emerald-700 text-sm mt-0.5 tabular-nums">{formatMoney(data.total_entradas)}</p>
-            </div>
-            <div className="p-3 rounded-xl border border-rose-100 bg-rose-50/40">
-              <p className="text-2xs uppercase font-bold tracking-wider text-rose-700">Saídas previstas</p>
-              <p className="font-bold text-rose-700 text-sm mt-0.5 tabular-nums">{formatMoney(data.total_saidas)}</p>
-            </div>
-            <div className="p-3 rounded-xl border border-neutral-200">
-              <p className="text-2xs uppercase font-bold tracking-wider text-neutral-500">Saldo no fim</p>
-              <p className={cn('font-bold text-sm mt-0.5 tabular-nums', data.saldo_final < 0 ? 'text-rose-700' : 'text-neutral-900')}>
-                {formatMoney(data.saldo_final)}
-              </p>
-            </div>
+            <Stat label="Saldo hoje" icon={<Wallet />} value={formatMoney(data.saldo_inicial)} className="shadow-none" />
+            <Stat label="Entradas previstas" value={formatMoney(data.total_entradas)} tone="positive" className="shadow-none" />
+            <Stat label="Saídas previstas" value={formatMoney(data.total_saidas)} tone="negative" className="shadow-none" />
+            <Stat
+              label="Saldo no fim"
+              value={formatMoney(data.saldo_final)}
+              tone={data.saldo_final < 0 ? 'negative' : 'neutral'}
+              className="shadow-none"
+            />
           </div>
 
           {data.resumo.saidas_previstas_sem_documento > 0 && (
@@ -251,7 +229,7 @@ export const ForecastPanel: React.FC = () => {
 
       {/* ----------------------------------------------------- week by week */}
       <Card className="overflow-hidden">
-        <CardHeader title="Semana a semana" className="py-3" />
+        <CardHeader title="Semana a semana" />
         <div className="divide-y divide-neutral-100 max-h-[26rem] overflow-y-auto">
           {data.semanas.map((week) => {
             const isOpen = open === week.semana;
@@ -264,7 +242,7 @@ export const ForecastPanel: React.FC = () => {
                   onClick={() => setOpen(isOpen ? null : week.semana)}
                   disabled={quiet}
                   aria-expanded={quiet ? undefined : isOpen}
-                  className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-neutral-50 text-left cursor-pointer disabled:cursor-default disabled:hover:bg-transparent focus-visible:outline-none focus-visible:bg-neutral-50"
+                  className="w-full px-4 py-2 flex items-center gap-3 hover:bg-neutral-50 text-left cursor-pointer disabled:cursor-default disabled:hover:bg-transparent focus-visible:outline-none focus-visible:bg-neutral-50"
                 >
                   <span className="text-2xs font-mono tabular-nums text-neutral-500 w-40 shrink-0">
                     {formatDate(week.inicio)} – {formatDate(week.fim)}
@@ -281,14 +259,14 @@ export const ForecastPanel: React.FC = () => {
                       </>
                     )}
                   </span>
-                  <span className={cn('font-mono tabular-nums font-bold shrink-0', negative ? 'text-rose-700' : 'text-neutral-900')}>
+                  <span className={cn('font-mono tabular-nums font-semibold shrink-0', negative ? 'text-rose-700' : 'text-neutral-900')}>
                     {formatMoney(week.saldo_final)}
                   </span>
                   {negative && (
-                    <Badge tone="danger" className="uppercase shrink-0">a descoberto</Badge>
+                    <Badge tone="danger" className="shrink-0">a descoberto</Badge>
                   )}
                   {!quiet && (
-                    <ChevronDown className={cn('w-3.5 h-3.5 text-neutral-400 shrink-0 transition-transform', isOpen && 'rotate-180')} aria-hidden="true" />
+                    <ChevronDown className={cn('size-3.5 text-neutral-400 shrink-0 transition-transform', isOpen && 'rotate-180')} aria-hidden="true" />
                   )}
                 </button>
 
@@ -300,12 +278,12 @@ export const ForecastPanel: React.FC = () => {
                         <span className="text-neutral-500 font-mono tabular-nums w-20 shrink-0">{formatDate(movement.date)}</span>
                         <span className="flex-1 min-w-0 truncate text-neutral-700">{movement.label}</span>
                         {movement.certainty !== 'confirmado' && (
-                          <Badge tone={movement.certainty === 'vencido' ? 'warning' : 'neutral'} className="uppercase shrink-0">
+                          <Badge tone={movement.certainty === 'vencido' ? 'warning' : 'neutral'} className="shrink-0">
                             {movement.certainty}
                           </Badge>
                         )}
                         <span className={cn(
-                          'font-mono tabular-nums font-bold shrink-0',
+                          'font-mono tabular-nums font-semibold shrink-0',
                           movement.kind === 'in' ? 'text-emerald-700' : 'text-rose-700',
                         )}>
                           {movement.kind === 'in' ? '+' : '−'}{formatMoney(movement.amount)}
@@ -321,7 +299,7 @@ export const ForecastPanel: React.FC = () => {
       </Card>
 
       <p className="text-2xs text-neutral-500 flex items-start gap-1.5">
-        <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" aria-hidden="true" />
+        <AlertCircle className="size-3 shrink-0 mt-0.5" aria-hidden="true" />
         A previsão parte do saldo real das contas e junta o que está por receber e por pagar
         nas datas de vencimento, os custos recorrentes ainda não lançados e o IVA na data
         legal de pagamento. Uma fatura já vencida entra hoje, porque é o mais cedo que pode entrar.

@@ -23,7 +23,7 @@ export default function SetupTwoFactorPage() {
       // Já está ativa (ou já não é obrigatória): nada a fazer aqui.
       if (me && !me.two_factor_setup_required) {
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa intencional
-        window.location.assign('/dashboard');
+        window.location.assign('/companies');
         return;
       }
       setReady(true);
@@ -39,11 +39,11 @@ export default function SetupTwoFactorPage() {
   return (
     <AuthShell wide>
       <div className="flex items-start gap-3">
-        <div className="size-9 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+        <div className="size-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
           <ShieldCheck className="size-4 text-emerald-700" aria-hidden="true" />
         </div>
         <div className="space-y-0.5">
-          <h1 className="text-base font-bold">Ative a verificação em dois passos</h1>
+          <h1 className="text-base font-semibold">Ative a verificação em dois passos</h1>
           <p className="text-xs text-neutral-500">
             A sua empresa exige-a a todos os membros. Leva um minuto e só precisa do telemóvel.
           </p>
@@ -54,14 +54,14 @@ export default function SetupTwoFactorPage() {
         <TwoFactorSetupFlow
           onDone={() => {
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- recarga completa intencional
-            window.location.assign('/dashboard');
+            window.location.assign('/companies');
           }}
         />
       ) : (
         <LoadingState />
       )}
 
-      <div className="pt-4 border-t border-neutral-100">
+      <div className="pt-3 border-t border-neutral-100">
         <Button variant="ghost" size="sm" icon={<LogOut />} onClick={logout}>Terminar sessão</Button>
       </div>
     </AuthShell>

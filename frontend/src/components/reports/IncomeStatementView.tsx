@@ -28,7 +28,7 @@ import { useApp } from '@/context/AppContext';
 import { IncomeStatement, StatementLine, StatementSubtotal } from './types';
 import { fetchIncomeStatement } from './api';
 import {
-  Card, CardHeader, CardBody, ErrorState, LoadingState, Select,
+  Card, CardHeader, CardBody, ErrorState, LoadingState, Select, Stat,
   Table, THead, TBody, Th, Td,
 } from '@/components/ui';
 
@@ -76,16 +76,16 @@ const MarginTile: React.FC<{ label: string; value: number; hint: string; previou
   const state = value >= 15 ? 'saudável' : value >= 0 ? 'apertada' : 'negativa';
 
   return (
-    <Card className="p-4">
-      <p className="text-2xs uppercase font-bold text-neutral-500 tracking-wider">{label}</p>
-      <p className={`text-2xl font-black mt-1 tabular-nums ${tone}`}>{value.toFixed(1)}%</p>
-      <p className="text-2xs text-neutral-500 mt-1">
+    <Card className="px-3.5 py-3">
+      <p className="text-xs font-medium text-neutral-500">{label}</p>
+      <p className={`text-lg font-semibold tracking-tight mt-1 tabular-nums ${tone}`}>{value.toFixed(1)}%</p>
+      <p className="text-2xs text-neutral-500 mt-0.5">
         <span className={tone}>{state}</span>
         {delta != null && delta !== 0 && (
           <> · {delta > 0 ? '+' : ''}{delta.toFixed(1)} p.p. vs período anterior</>
         )}
       </p>
-      <p className="text-2xs text-neutral-500 mt-1.5 leading-snug">{hint}</p>
+      <p className="text-2xs text-neutral-500 mt-1 leading-snug">{hint}</p>
     </Card>
   );
 };
@@ -94,12 +94,12 @@ const Variation: React.FC<{ value: number; pct: number | null; format: (n: numbe
   value, pct, format,
 }) => {
   if (value === 0) {
-    return <span className="text-neutral-300 flex items-center gap-1 justify-end"><Minus className="w-3 h-3" aria-label="sem variação" /></span>;
+    return <span className="text-neutral-300 flex items-center gap-1 justify-end"><Minus className="size-3" aria-label="sem variação" /></span>;
   }
   const up = value > 0;
   return (
     <span className={`flex items-center gap-1 justify-end ${up ? 'text-emerald-700' : 'text-rose-700'}`}>
-      {up ? <TrendingUp className="w-3 h-3" aria-label="subiu" /> : <TrendingDown className="w-3 h-3" aria-label="desceu" />}
+      {up ? <TrendingUp className="size-3" aria-label="subiu" /> : <TrendingDown className="size-3" aria-label="desceu" />}
       {format(Math.abs(value))}
       {pct != null && <span className="text-neutral-400 font-normal">({up ? '+' : '−'}{Math.abs(pct).toFixed(0)}%)</span>}
     </span>
@@ -134,12 +134,12 @@ export const IncomeStatementView: React.FC = () => {
           subtitle={data ? `${data.empresa.nome} · ${data.periodo.label}` : undefined}
           actions={
             <div className="flex items-center gap-2">
-              <CalendarRange className="w-3.5 h-3.5 text-neutral-400" aria-hidden="true" />
+              <CalendarRange className="size-3.5 text-neutral-400" aria-hidden="true" />
               <Select
                 aria-label="Período"
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
-                className="w-auto font-semibold"
+                className="w-auto"
               >
                 {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </Select>
@@ -149,11 +149,11 @@ export const IncomeStatementView: React.FC = () => {
 
         {data && (
           <CardBody className="py-3">
-            <p className="flex items-start gap-2 px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-200 text-neutral-700 text-2xs">
-              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
+            <p className="flex items-start gap-2 px-3 py-2 rounded-lg bg-neutral-50 border border-neutral-200 text-neutral-700 text-xs">
+              <Info className="size-3.5 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
               <span>
-                Valores <b>sem IVA</b> — o IVA não é rendimento nem gasto. Regime de{' '}
-                <b>acréscimo</b>: contam os documentos com data no período, pagos ou não.
+                Valores <b className="font-semibold">sem IVA</b> — o IVA não é rendimento nem gasto. Regime de{' '}
+                <b className="font-semibold">acréscimo</b>: contam os documentos com data no período, pagos ou não.
               </span>
             </p>
           </CardBody>
@@ -205,7 +205,7 @@ export const IncomeStatementView: React.FC = () => {
                   return (
                     <React.Fragment key={section.id}>
                       <tr className="bg-neutral-50/60">
-                        <td colSpan={5} className="px-4 py-1.5 text-2xs uppercase font-bold text-neutral-500 tracking-wider">
+                        <td colSpan={5} className="px-3 py-1.5 text-2xs font-medium text-neutral-500">
                           {section.title}
                         </td>
                       </tr>
@@ -223,10 +223,10 @@ export const IncomeStatementView: React.FC = () => {
                                   disabled={line.detalhe.length === 0}
                                   aria-expanded={line.detalhe.length > 0 ? open : undefined}
                                 >
-                                  <span className="font-semibold text-neutral-800 flex items-center gap-1.5">
+                                  <span className="font-medium text-neutral-800 flex items-center gap-1.5">
                                     {line.label}
                                     {line.detalhe.length > 0 && (
-                                      <ChevronDown className={`w-3 h-3 text-neutral-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+                                      <ChevronDown className={`size-3 text-neutral-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
                                     )}
                                   </span>
                                   {line.contas.length > 0 && (
@@ -239,7 +239,7 @@ export const IncomeStatementView: React.FC = () => {
                                   )}
                                 </button>
                               </Td>
-                              <Td numeric className={`font-bold ${
+                              <Td numeric className={`font-medium ${
                                 line.nature === 'income' ? 'text-neutral-900' : 'text-neutral-700'
                               }`}>
                                 {line.nature === 'expense' && line.amount > 0 ? '−' : ''}{formatMoney(line.amount)}
@@ -250,7 +250,7 @@ export const IncomeStatementView: React.FC = () => {
                               <Td numeric className="text-neutral-500">
                                 {formatMoney(line.anterior)}
                               </Td>
-                              <Td numeric className="font-semibold">
+                              <Td numeric className="font-medium">
                                 <Variation value={line.variacao} pct={line.variacao_pct} format={formatMoney} />
                               </Td>
                             </tr>
@@ -278,31 +278,29 @@ export const IncomeStatementView: React.FC = () => {
                         if (!row) return null;
                         const negative = row.amount < 0;
                         return (
-                          <tr key={key} className={row.emphasis ? 'bg-neutral-950 text-white' : 'bg-neutral-100'}>
+                          <tr key={key} className={row.emphasis ? 'bg-neutral-100 border-y border-neutral-200' : 'bg-neutral-50'}>
                             <Td>
-                              <span className={`font-bold ${row.emphasis ? 'text-white' : 'text-neutral-800'}`}>
+                              <span className="font-semibold text-neutral-900">
                                 {row.label}
                               </span>
                               {row.hint && (
-                                <span className={`block text-2xs mt-0.5 max-w-md ${
-                                  row.emphasis ? 'text-neutral-300' : 'text-neutral-500'
-                                }`}>
+                                <span className="block text-2xs mt-0.5 max-w-md text-neutral-500">
                                   {row.hint}
                                 </span>
                               )}
                             </Td>
-                            <Td numeric className={`font-black ${
-                              row.emphasis ? (negative ? 'text-rose-300' : 'text-emerald-300') : 'text-neutral-900'
+                            <Td numeric className={`font-semibold ${
+                              row.emphasis ? (negative ? 'text-rose-600' : 'text-emerald-700') : 'text-neutral-900'
                             }`}>
                               {formatMoney(row.amount)}
                             </Td>
-                            <Td numeric className={row.emphasis ? 'text-neutral-400' : 'text-neutral-500'}>
+                            <Td numeric className="text-neutral-500">
                               {revenue > 0 ? `${share(row.amount).toFixed(1)}%` : '—'}
                             </Td>
-                            <Td numeric className={row.emphasis ? 'text-neutral-400' : 'text-neutral-500'}>
+                            <Td numeric className="text-neutral-500">
                               {formatMoney(row.anterior)}
                             </Td>
-                            <Td numeric className="font-semibold">
+                            <Td numeric className="font-medium">
                               <Variation value={row.variacao} pct={row.variacao_pct} format={formatMoney} />
                             </Td>
                           </tr>
@@ -319,24 +317,12 @@ export const IncomeStatementView: React.FC = () => {
           <Card>
             <CardHeader icon={<Landmark />} title="Resultado não é dinheiro em conta" />
             <CardBody className="space-y-3">
-              <p className="text-2xs text-neutral-600">{data.ponte_caixa.explicacao}</p>
+              <p className="text-xs text-neutral-600">{data.ponte_caixa.explicacao}</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 rounded-xl border border-neutral-200">
-                  <p className="text-2xs uppercase font-bold text-neutral-500">Resultado do período</p>
-                  <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(data.ponte_caixa.resultado)}</p>
-                </div>
-                <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/40">
-                  <p className="text-2xs uppercase font-bold text-emerald-600">Ainda por receber</p>
-                  <p className="font-bold text-emerald-700 text-sm mt-0.5 tabular-nums">{formatMoney(data.ponte_caixa.a_receber)}</p>
-                </div>
-                <div className="p-3 rounded-xl border border-rose-100 bg-rose-50/40">
-                  <p className="text-2xs uppercase font-bold text-rose-600">Ainda por pagar</p>
-                  <p className="font-bold text-rose-700 text-sm mt-0.5 tabular-nums">{formatMoney(data.ponte_caixa.a_pagar)}</p>
-                </div>
-                <div className="p-3 rounded-xl border border-neutral-200 bg-neutral-50">
-                  <p className="text-2xs uppercase font-bold text-neutral-500">Saldo em conta</p>
-                  <p className="font-bold text-neutral-900 text-sm mt-0.5 tabular-nums">{formatMoney(data.ponte_caixa.saldo_em_conta)}</p>
-                </div>
+                <Stat label="Resultado do período" value={formatMoney(data.ponte_caixa.resultado)} className="shadow-none" />
+                <Stat label="Ainda por receber" value={formatMoney(data.ponte_caixa.a_receber)} tone="positive" className="shadow-none" />
+                <Stat label="Ainda por pagar" value={formatMoney(data.ponte_caixa.a_pagar)} tone="negative" className="shadow-none" />
+                <Stat label="Saldo em conta" value={formatMoney(data.ponte_caixa.saldo_em_conta)} className="shadow-none" />
               </div>
               <p className="text-2xs text-neutral-500">{data.base.nota_irc}</p>
             </CardBody>

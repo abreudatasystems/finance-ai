@@ -6,7 +6,7 @@ import { Item } from '@/types';
 import { apiPost } from '@/services/api';
 import { SideDrawer } from './SideDrawer';
 import { toast } from 'sonner';
-import { Button, Field, Input, Select } from '@/components/ui';
+import { Button, Field, Input, Segmented, Select } from '@/components/ui';
 
 interface CreateItemModalProps {
   items: Item[];
@@ -91,25 +91,16 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
   };
 
   const renderTabs = () => (
-    <div className="flex space-x-1 bg-neutral-100 p-1 rounded-xl mb-6 overflow-x-auto">
-      <button
-        type="button"
-        onClick={() => setActiveTab('geral')}
-        aria-pressed={activeTab === 'geral'}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'geral' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
-      >
-        <Package className="w-3.5 h-3.5" />
-        Dados do {kind === 'product' ? 'Produto' : 'Serviço'}
-      </button>
-      <button
-        type="button"
-        onClick={() => setActiveTab('precos')}
-        aria-pressed={activeTab === 'precos'}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${activeTab === 'precos' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'}`}
-      >
-        <Calculator className="w-3.5 h-3.5" />
-        Preços & Custos
-      </button>
+    <div className="mb-3 max-w-full overflow-x-auto">
+      <Segmented<Tab>
+        aria-label="Secções do formulário"
+        value={activeTab}
+        onChange={setActiveTab}
+        options={[
+          { value: 'geral', label: <span className="inline-flex items-center gap-1.5"><Package className="size-3.5" />Dados do {kind === 'product' ? 'Produto' : 'Serviço'}</span> },
+          { value: 'precos', label: <span className="inline-flex items-center gap-1.5"><Calculator className="size-3.5" />Preços & Custos</span> },
+        ]}
+      />
     </div>
   );
 
@@ -120,39 +111,31 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
       onClose={onClose}
       footer={
         <>
-          <Button variant="secondary" className="flex-1" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" form={FORM_ID} loading={submitting} className="flex-1">
+          <Button type="submit" form={FORM_ID} loading={submitting}>
             Guardar Item
           </Button>
         </>
       }
     >
-      <div role="group" aria-label="Tipo de item" className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-neutral-100 p-1 rounded-xl text-xs font-semibold text-neutral-600 mb-6">
-        <button
-          type="button"
-          aria-pressed={kind === 'product'}
-          onClick={() => handleKindChange('product')}
-          className={`py-2 rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${kind === 'product' ? 'bg-white text-neutral-900 font-bold shadow-sm border border-neutral-200/50' : 'hover:bg-neutral-200/60'}`}
-        >
-          Produto
-        </button>
-        <button
-          type="button"
-          aria-pressed={kind === 'service'}
-          onClick={() => handleKindChange('service')}
-          className={`py-2 rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${kind === 'service' ? 'bg-white text-neutral-900 font-bold shadow-sm border border-neutral-200/50' : 'hover:bg-neutral-200/60'}`}
-        >
-          Serviço
-        </button>
-      </div>
+      <Segmented<'product' | 'service'>
+        aria-label="Tipo de item"
+        value={kind}
+        onChange={handleKindChange}
+        options={[
+          { value: 'product', label: 'Produto' },
+          { value: 'service', label: 'Serviço' },
+        ]}
+        className="mb-3"
+      />
 
       {renderTabs()}
 
-      <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
+      <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-3">
         <div className={activeTab === 'geral' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
-          <div className="space-y-4">
+          <div className="space-y-3">
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Código (Automático)">
@@ -244,7 +227,7 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
         </div>
 
         <div className={activeTab === 'precos' ? 'block animate-in fade-in slide-in-from-right-4 duration-300' : 'hidden'}>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Preço de Venda (Base)">
                 {(p) => (
@@ -258,7 +241,7 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
                       onChange={(e) => setPrice1(parseFloat(e.target.value) || 0)}
                       className="pl-8 text-right tabular-nums"
                     />
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 font-bold" aria-hidden="true">€</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 font-medium" aria-hidden="true">€</span>
                   </div>
                 )}
               </Field>
@@ -291,7 +274,7 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
             </Field>
 
             {kind === 'product' && (
-              <div className="pt-4 border-t border-neutral-200/60">
+              <div className="pt-3 border-t border-neutral-100">
                 <Field
                   label="Preço de Custo (Compra)"
                   hint="O preço de custo ajuda a calcular a margem de lucro nos relatórios."
@@ -307,7 +290,7 @@ export const CreateItemModal: React.FC<CreateItemModalProps> = ({ items, onClose
                         onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
                         className="pl-8 text-right tabular-nums"
                       />
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 font-bold" aria-hidden="true">€</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 font-medium" aria-hidden="true">€</span>
                     </div>
                   )}
                 </Field>
