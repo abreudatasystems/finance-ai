@@ -7,7 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { IconButton } from '@/components/ui';
 import {
   LayoutDashboard, Wallet, BarChart3, Users, Truck, Receipt, PanelLeftClose, PanelLeftOpen, ScanText,
-  FileText, HandCoins, Landmark, Package,
+  FileText, HandCoins, Landmark, Package, BellRing, Repeat, Target, FolderKanban, Percent,
 } from 'lucide-react';
 
 interface NavItem {
@@ -41,7 +41,16 @@ export const Sidebar: React.FC = () => {
         { label: 'Fluxo de Caixa', href: '/financial/cash-flow', icon: Wallet },
         { label: 'Contas a Pagar', href: '/financial/payables', icon: Receipt },
         { label: 'Contas a Receber', href: '/financial/receivables', icon: HandCoins },
-        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Landmark }
+        { label: 'Conciliação Bancária', href: '/financial/bank-reconciliation', icon: Landmark },
+        { label: 'Cobranças', href: '/financial/collections', icon: BellRing },
+        { label: 'Recorrências', href: '/financial/recurrences', icon: Repeat },
+      ]
+    },
+    {
+      group: 'PLANEAMENTO',
+      items: [
+        { label: 'Orçamentos', href: '/planning/budgets', icon: Target },
+        { label: 'Projetos', href: '/planning/projects', icon: FolderKanban },
       ]
     },
     {
@@ -54,7 +63,8 @@ export const Sidebar: React.FC = () => {
       group: 'RELATÓRIOS & FISCALIDADE',
       items: [
         { label: 'Relatórios', href: '/reports', icon: BarChart3 },
-        { label: 'Demonstração de Resultados', href: '/reports/dre', icon: FileText }
+        { label: 'Demonstração de Resultados', href: '/reports/dre', icon: FileText },
+        { label: 'Retenções na Fonte', href: '/reports/retentions', icon: Percent },
       ]
     },
     {

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.models.models import BankStatement, BankStatementEntry, Transaction, User
-from app.services.bank_parser import parse_csv, parse_ofx, detect_bank_name
+from app.services.bank_parser import parse_csv, parse_ofx, parse_xlsx, parse_xls, detect_bank_name
 from app.services import reconciliation as recon
 from app.core.uploads import MAX_BYTES
 
@@ -51,7 +51,7 @@ async def upload_bank_statement(
     company_id: str = Depends(get_current_company_id),
     _writer: User = Depends(require_write),
 ):
-    """Upload a CSV or OFX bank statement and auto-match entries."""
+    """Upload a CSV, Excel or OFX bank statement and auto-match entries."""
     # Lê no máximo o limite + 1 byte: um ficheiro enorme não chega à memória.
     content = await file.read(MAX_BYTES + 1)
     if len(content) > MAX_BYTES:
@@ -65,13 +65,23 @@ async def upload_bank_statement(
     # Parse
     if lower_name.endswith((".ofx", ".qfx")):
         parsed_entries = parse_ofx(content)
+    elif lower_name.endswith(".xlsx"):
+        try:
+            parsed_entries = parse_xlsx(content)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Não foi possível abrir o ficheiro Excel.")
+    elif lower_name.endswith(".xls"):
+        try:
+            parsed_entries = parse_xls(content)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Não foi possível abrir o ficheiro Excel (.xls).")
     elif lower_name.endswith((".csv", ".txt", ".tsv")):
         # Try utf-8 first, fallback to latin-1
         parsed_entries = parse_csv(content, "utf-8")
         if not parsed_entries:
             parsed_entries = parse_csv(content, "latin-1")
     else:
-        raise HTTPException(status_code=400, detail="Formato não suportado. Use CSV ou OFX.")
+        raise HTTPException(status_code=400, detail="Formato não suportado. Use CSV, Excel (.xlsx/.xls) ou OFX.")
 
     if not parsed_entries:
         raise HTTPException(status_code=400, detail="Não foi possível extrair entradas do ficheiro. Verifique o formato.")

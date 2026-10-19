@@ -226,8 +226,11 @@ export async function uploadInvoiceDocument(file: File, channel: string = 'uploa
   if (res.ok) {
     return (await res.json()) as Record<string, unknown>;
   }
-  const err = (await res.json().catch(() => ({}))) as { detail?: string };
-  throw new Error(err.detail || 'Erro ao processar fatura.');
+  // O detalhe pode vir como texto ou como objecto { message }; antes o objecto
+  // aparecia como "[object Object]".
+  const err = (await res.json().catch(() => ({}))) as { detail?: string | { message?: string } };
+  const detail = typeof err.detail === 'string' ? err.detail : err.detail?.message;
+  throw new Error(detail || 'Erro ao processar fatura.');
 }
 
 // ── Registry Deletions ──

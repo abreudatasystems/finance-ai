@@ -8,7 +8,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_company_id, get_current_user, require_write
@@ -20,6 +20,7 @@ router = APIRouter()
 
 
 class RecurrenceIn(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     name: str
     type: str = "expense"
     description: str
@@ -40,6 +41,7 @@ class RecurrenceIn(BaseModel):
 
 
 class RecurrencePatch(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     name: Optional[str] = None
     description: Optional[str] = None
     entity_id: Optional[str] = None

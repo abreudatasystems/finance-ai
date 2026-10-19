@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from app.core.config import check_production_config, is_production, settings
@@ -76,9 +77,26 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Sem isto o navegador esconde o nome do ficheiro nas exportações.
+    expose_headers=["Content-Disposition"],
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_request, exc: RequestValidationError):
+    """422 com o campo e o motivo, sem ecoar o valor recebido.
+
+    O FastAPI devolvia o valor enviado na resposta; um "Infinity" fazia a
+    própria mensagem de erro rebentar (500), e ecoar dados também não é boa
+    ideia."""
+    detail = [
+        {"loc": list(err.get("loc", ())), "msg": str(err.get("msg", "")), "type": err.get("type", "")}
+        for err in exc.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": detail})
+
 
 @app.get("/health", include_in_schema=False)
 # Também em /api/v1/health: o Caddy só encaminha /api/* para o backend, e é

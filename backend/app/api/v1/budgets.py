@@ -62,7 +62,7 @@ def budget_comparison(
 
 @router.get("/year")
 def budget_year(
-    year: Optional[int] = Query(None, description="Por omissão, o ano corrente."),
+    year: Optional[int] = Query(None, ge=1900, le=2200, description="Por omissão, o ano corrente."),
     db: Session = Depends(get_db),
     company_id: str = Depends(get_current_company_id),
 ):

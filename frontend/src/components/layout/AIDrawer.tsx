@@ -183,7 +183,7 @@ export const AIDrawer: React.FC = () => {
     { label: 'Analisar fluxo', prompt: 'Analise o meu fluxo de caixa deste mês' },
     { label: 'Criar lançamento', prompt: 'Cria uma despesa de 500€ para Google Ads' },
     { label: 'Categoria IA', prompt: 'Cria uma categoria para despesas de IA' },
-    { label: 'Pagar Microsoft', prompt: 'Paga a fatura da Microsoft' },
+    { label: 'O que vence', prompt: 'O que tenho para pagar esta semana?' },
     { label: 'Encontrar despesa', prompt: 'Quanto gastei em software?' },
     { label: 'Alertas', prompt: 'Quais são os principais problemas financeiros?' }
   ];

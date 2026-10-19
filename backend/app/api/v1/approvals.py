@@ -29,6 +29,11 @@ class ApprovalDecision(BaseModel):
     category_name: Optional[str] = None
     cost_center_name: Optional[str] = None
     due_date: Optional[str] = None
+    # Correções ao que a leitura extraiu: perdiam-se ao aprovar.
+    supplier_name: Optional[str] = None
+    supplier_nif: Optional[str] = None
+    date: Optional[str] = None
+    document_number: Optional[str] = None
     rejection_reason: Optional[str] = None
 
 

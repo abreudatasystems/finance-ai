@@ -134,9 +134,11 @@ export default function DashboardPage() {
           value={
             healthScore == null ? '—'
               : (healthScore.runway_months ?? 0) >= 99 ? 'Sem gastos'
+              : (healthScore.runway_months ?? 0) <= 0 ? 'Sem caixa'
               : `${healthScore.runway_months} meses`
           }
-          hint={burnRate ? `Gasto médio: ${formatMoney(burnRate)}/mês` : 'Cobertura segura'}
+          tone={healthScore != null && (healthScore.runway_months ?? 0) <= 0 ? 'negative' : undefined}
+          hint={burnRate ? `Gasto médio: ${formatMoney(burnRate)}/mês` : 'Sem gastos registados'}
         />
 
         <Stat
@@ -146,7 +148,7 @@ export default function DashboardPage() {
           hint={
             <span className={`inline-flex items-center gap-1 ${margin > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
               {margin > 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-              Tempo real
+              Do mês corrente
             </span>
           }
         />

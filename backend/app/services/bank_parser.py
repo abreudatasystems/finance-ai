@@ -90,30 +90,42 @@ def _guess_columns(header: List[str]):
     return mapping
 
 
-def parse_csv(content: bytes, encoding: str = "utf-8") -> List[BankEntry]:
-    """Parse a bank CSV file into a list of BankEntry objects."""
-    text = content.decode(encoding, errors="replace")
-    # Try common delimiters
-    for delimiter in [";", ",", "\t"]:
-        reader = csv.reader(io.StringIO(text), delimiter=delimiter)
-        rows = list(reader)
-        if rows and len(rows[0]) >= 3:
-            break
-    else:
-        return []
+def _find_header(rows: List[List[str]]) -> int:
+    """Index of the header row.
 
+    Bank exports (CSV or Excel) often open with a few lines about the account
+    — holder, IBAN, period — before the column titles. The header is the first
+    row naming a date column and a money column."""
+    date_keys = ("data", "date", "fecha", "datum")
+    money_keys = ("valor", "amount", "montante", "débito", "debito", "crédito",
+                  "credito", "debit", "credit", "importância")
+    for idx, row in enumerate(rows[:30]):
+        cells = [c.lower() for c in row]
+        if any(any(k in c for k in date_keys) for c in cells) and                 any(any(k in c for k in money_keys) for c in cells):
+            return idx
+    return 0
+
+
+def _parse_rows(rows: List[List[str]]) -> List[BankEntry]:
+    """Turn a table of strings (header + lines) into BankEntry objects."""
+    rows = [r for r in rows if any(c.strip() for c in r)]
     if not rows:
         return []
 
-    header = rows[0]
+    header_idx = _find_header(rows)
+    header = rows[header_idx]
     mapping = _guess_columns(header)
     entries: List[BankEntry] = []
 
-    for row in rows[1:]:
+    for row in rows[header_idx + 1:]:
         if not row or len(row) <= max(v for v in mapping.values() if v is not None):
             continue
 
         date_raw = row[mapping["date"]] if mapping["date"] is not None else ""
+        date = _detect_date(date_raw)
+        # Totals and footers ("Saldo final", "Total") have no date: skip them.
+        if not re.match(r"\d{4}-\d{2}-\d{2}$", date):
+            continue
         desc = row[mapping["description"]] if mapping["description"] is not None else ""
         balance = None
 
@@ -127,17 +139,75 @@ def parse_csv(content: bytes, encoding: str = "utf-8") -> List[BankEntry]:
             debit_val = _normalise_amount(row[mapping["debit"]]) if row[mapping["debit"]].strip() else 0
             credit_val = _normalise_amount(row[mapping["credit"]]) if row[mapping["credit"]].strip() else 0
             if credit_val > 0:
-                entries.append(BankEntry(_detect_date(date_raw), desc, credit_val, "credit", balance))
+                entries.append(BankEntry(date, desc, credit_val, "credit", balance))
             if debit_val != 0:
-                entries.append(BankEntry(_detect_date(date_raw), desc, abs(debit_val), "debit", balance))
+                entries.append(BankEntry(date, desc, abs(debit_val), "debit", balance))
         elif mapping["amount"] is not None:
             raw_amount = row[mapping["amount"]]
             if raw_amount.strip():
                 amount = _normalise_amount(raw_amount)
+                if amount == 0:
+                    continue
                 entry_type = "credit" if amount > 0 else "debit"
-                entries.append(BankEntry(_detect_date(date_raw), desc, abs(amount), entry_type, balance))
+                entries.append(BankEntry(date, desc, abs(amount), entry_type, balance))
 
     return entries
+
+
+def parse_csv(content: bytes, encoding: str = "utf-8") -> List[BankEntry]:
+    """Parse a bank CSV file into a list of BankEntry objects."""
+    text = content.decode(encoding, errors="replace").lstrip("﻿")
+    # The delimiter is the one that splits most lines into 3+ columns.
+    best: List[List[str]] = []
+    for delimiter in [";", ",", "	"]:
+        rows = list(csv.reader(io.StringIO(text), delimiter=delimiter))
+        wide = sum(1 for r in rows if len(r) >= 3)
+        if wide > sum(1 for r in best if len(r) >= 3):
+            best = rows
+    if not best:
+        return []
+    return _parse_rows(best)
+
+
+def _cell_to_str(value) -> str:
+    """Excel cells come typed; the parser works on text like a CSV."""
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d")
+    if isinstance(value, float):
+        return repr(round(value, 2))
+    return str(value).strip()
+
+
+def parse_xlsx(content: bytes) -> List[BankEntry]:
+    """Parse an Excel (.xlsx) bank export — first sheet."""
+    from openpyxl import load_workbook
+
+    wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    ws = wb.worksheets[0]
+    rows = [[_cell_to_str(c) for c in row] for row in ws.iter_rows(values_only=True)]
+    wb.close()
+    return _parse_rows(rows)
+
+
+def parse_xls(content: bytes) -> List[BankEntry]:
+    """Parse an old Excel (.xls) bank export — first sheet."""
+    import xlrd
+
+    book = xlrd.open_workbook(file_contents=content)
+    sheet = book.sheet_by_index(0)
+    rows = []
+    for r in range(sheet.nrows):
+        row = []
+        for c in range(sheet.ncols):
+            cell = sheet.cell(r, c)
+            if cell.ctype == xlrd.XL_CELL_DATE:
+                row.append(xlrd.xldate_as_datetime(cell.value, book.datemode).strftime("%Y-%m-%d"))
+            else:
+                row.append(_cell_to_str(cell.value))
+        rows.append(row)
+    return _parse_rows(rows)
 
 
 def parse_ofx(content: bytes) -> List[BankEntry]:

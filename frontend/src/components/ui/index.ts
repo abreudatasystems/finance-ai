@@ -14,3 +14,5 @@ export { ConfirmProvider, useConfirm } from './ConfirmDialog';
 export { Stat } from './Stat';
 export type { StatTone } from './Stat';
 export { Segmented } from './Segmented';
+export { ExportMenu, downloadTable } from './ExportMenu';
+export type { ExportTable, ExportColumn, ExportRow } from './ExportMenu';

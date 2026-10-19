@@ -11,6 +11,8 @@ from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.models.models import Category, Company, CostCenter, Entity, Payment, Transaction, User
 from app.schemas.schemas import TransactionCreate, TransactionUpdate, TransactionOut
 from app.services import cash_forecast as forecast_service, retentions as retention_service
+from app.services import recurrences as recurrence_service
+from app.services import invoice_lines as invoice_lines_service
 from app.api.v1.settlements import (
     InstallmentPlan, PaymentCreate, create_installments, create_payment, recompute_settlement,
 )
@@ -323,7 +325,8 @@ def create_transaction(
     if item.is_paid:
         create_payment(
             trx_id,
-            PaymentCreate(payment_date=today, payment_method=new_trx.payment_method),
+            PaymentCreate(payment_date=item.payment_date or today, bank_account_id=item.bank_account_id,
+                          payment_method=new_trx.payment_method),
             db=db,
             company_id=company_id,
             current_user=current_user,
@@ -331,6 +334,28 @@ def create_transaction(
         db.refresh(new_trx)
 
     db.commit()
+
+    # "Recorrente" era só uma etiqueta: nada se repetia. Passa a criar a regra
+    # mensal, a começar no mês seguinte (este já está lançado).
+    if item.is_recurring:
+        start = date.fromisoformat(booking_date)
+        recurrence_service.create(db, company_id, {
+            "name": item.description[:120],
+            "type": item.type,
+            "description": item.description,
+            "entity_id": item.entity_id,
+            "entity_name": item.entity_name,
+            "category_id": item.category_id,
+            "category_name": item.category_name,
+            "amount": float(gross),
+            "vat_rate": item.vat_rate,
+            "payment_method": item.payment_method,
+            "frequency": "monthly",
+            "interval": 1,
+            "day_of_month": start.day,
+            "start_date": recurrence_service._add_months(start, 1, start.day).isoformat(),
+        })
+
     db.refresh(new_trx)
     return new_trx
 
@@ -381,6 +406,16 @@ def update_transaction(
         trx.tags = ",".join(tags) if tags else None
 
     money_touched = any(k in data for k in ("amount", "net_amount", "vat_rate", "vat_amount"))
+    # Com linhas, os totais vêm delas. Mudar o cabeçalho deixava o IVA a 0
+    # enquanto as linhas antigas (23% + 6%) continuavam a contar no apuramento.
+    if money_touched and invoice_lines_service.list_lines(db, company_id, trx.id):
+        raise HTTPException(
+            status_code=409,
+            detail="Este documento tem linhas: altere os valores e o IVA nas linhas, e o total acompanha.",
+        )
+    # A retenção é aplicada abaixo pelo serviço, que precisa de saber se o
+    # código mudou; escrevê-la já aqui escondia essa mudança.
+    retention_patch = {k: data.pop(k) for k in ("retention_code", "retention_rate") if k in data}
 
     for field, value in data.items():
         setattr(trx, field, value)
@@ -395,12 +430,12 @@ def update_transaction(
     # The withholding rides on the base, so correcting the amounts has to
     # recompute it — otherwise a corrected total keeps yesterday's retention
     # and the payable no longer adds up.
-    retention_touched = "retention_code" in data or "retention_rate" in data
-    if money_touched or retention_touched:
+    if money_touched or retention_patch:
+        code = retention_patch.get("retention_code", trx.retention_code)
         retention_service.apply_to(
             trx,
-            data.get("retention_code", trx.retention_code),
-            data.get("retention_rate"),
+            "" if "retention_code" in retention_patch and code is None else code,
+            retention_patch.get("retention_rate"),
         )
 
     # Keep outstanding coherent with paid amount — against what is payable,

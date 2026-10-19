@@ -8,7 +8,7 @@ for a company the caller has no membership in.
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
@@ -93,6 +93,7 @@ class CompanyUpdate(BaseModel):
     accountant_email: Optional[str] = None
     customer_terms_days: Optional[int] = None
     supplier_terms_days: Optional[int] = None
+    ai_review_threshold: Optional[int] = Field(None, ge=50, le=99)
 
 
 class RoleUpdate(BaseModel):
@@ -146,6 +147,7 @@ def _serialize(company: Company, role: str, members: int = 0) -> dict:
         "vat_regime": company.vat_regime,
         "vat_periodicity": company.vat_periodicity,
         "cae": company.cae,
+        "ai_review_threshold": company.ai_review_threshold or 80,
         **{
             field: (float(getattr(company, field)) if field == "share_capital" and getattr(company, field) is not None
                     else getattr(company, field))

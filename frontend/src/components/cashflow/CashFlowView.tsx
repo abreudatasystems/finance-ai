@@ -14,8 +14,9 @@ import { Search, CheckCircle2, X, Bot, User, Landmark } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Badge, Button, IconButton, Card, Input, Select, Table, THead, TBody, Th, Tr, Td, TableMessage,
-  LoadingState, EmptyState, Segmented, Stat, cn, useConfirm,
+  LoadingState, EmptyState, Segmented, Stat, cn, useConfirm, ExportMenu,
 } from '@/components/ui';
+import type { ExportTable } from '@/components/ui';
 
 const NO_TRANSACTIONS: Transaction[] = [];
 
@@ -225,6 +226,90 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
 
   const columns = isLedger ? 9 : 11;
 
+  /* O ficheiro exportado é o que está no ecrã: mesmo separador, período e pesquisa. */
+  const buildExport = (): ExportTable => {
+    const title = mode === 'payables' ? 'Contas a Pagar' : mode === 'receivables' ? 'Contas a Receber' : 'Fluxo de Caixa';
+    const tabLabel: Record<Tab, string> = {
+      all: 'Todos', income: 'Receitas', expense: 'Despesas', open: 'Em aberto',
+      settled: mode === 'payables' ? 'Pagas' : 'Recebidas',
+    };
+    const periodLabel = activeTab === 'open' ? null : periodOptions.find((o) => o.value === period)?.label;
+    const subtitle = [tabLabel[activeTab], periodLabel, searchTerm && `pesquisa "${searchTerm}"`]
+      .filter(Boolean).join(' · ');
+    const payLabel = (t: Transaction) =>
+      t.payment_status === 'paid' ? (t.type === 'income' ? 'Recebido' : 'Pago')
+        : t.payment_status === 'partially_paid' ? 'Parcial'
+        : t.payment_status === 'overdue' ? 'Vencido'
+        : t.payment_status === 'cancelled' ? 'Anulado'
+        : 'Pendente';
+    const bankLabel = (t: Transaction) =>
+      t.bank_status === 'confirmed' ? 'Confirmado' : t.bank_status === 'partial' ? 'Parcial'
+        : t.bank_status === 'unconfirmed' ? 'Por confirmar' : '';
+    const entity = mode === 'payables' ? 'Fornecedor' : mode === 'receivables' ? 'Cliente' : 'Entidade';
+
+    if (isLedger) {
+      return {
+        title,
+        subtitle,
+        columns: [
+          { key: 'due', label: 'Vencimento', type: 'date' },
+          { key: 'doc', label: 'Documento' },
+          { key: 'desc', label: 'Descrição' },
+          { key: 'entity', label: entity },
+          { key: 'category', label: 'Categoria' },
+          { key: 'amount', label: 'Valor', type: 'money' },
+          { key: 'retention', label: 'Retenção', type: 'money' },
+          { key: 'open', label: 'Em falta', type: 'money' },
+          { key: 'pay', label: 'Pagamento' },
+          { key: 'bank', label: 'Banco' },
+        ],
+        rows: filteredTransactions.map((t) => ({
+          due: t.due_date || t.date,
+          doc: t.document_number || '',
+          desc: t.description,
+          entity: t.entity_name,
+          category: t.category_name,
+          amount: moves(t),
+          retention: Number(t.retention_amount ?? 0) || null,
+          open: Number(t.outstanding_amount ?? 0),
+          pay: payLabel(t),
+          bank: bankLabel(t),
+        })),
+        totals: { desc: 'Total', amount: totals.entradas + totals.saidas, retention: totals.retido || null, open: totals.aberto },
+      };
+    }
+    const ordered = [...filteredTransactions].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    return {
+      title,
+      subtitle,
+      columns: [
+        { key: 'date', label: 'Data', type: 'date' },
+        { key: 'desc', label: 'Descrição' },
+        { key: 'entity', label: entity },
+        { key: 'category', label: 'Categoria' },
+        { key: 'project', label: 'Projeto' },
+        { key: 'in', label: 'Entrada', type: 'money' },
+        { key: 'out', label: 'Saída', type: 'money' },
+        { key: 'vat', label: 'IVA', type: 'money' },
+        { key: 'running', label: 'Acumulado', type: 'money' },
+        { key: 'pay', label: 'Pagamento' },
+      ],
+      rows: ordered.map((t) => ({
+        date: t.date,
+        desc: t.description,
+        entity: t.entity_name,
+        category: t.category_name,
+        project: t.cost_center_name || 'Geral',
+        in: t.type === 'income' ? moves(t) : null,
+        out: t.type === 'income' ? null : moves(t),
+        vat: Number(t.vat_amount ?? 0) || null,
+        running: withRunning.get(t.id) ?? 0,
+        pay: payLabel(t),
+      })),
+      totals: { desc: 'Total', in: totals.entradas, out: totals.saidas, running: totals.entradas - totals.saidas },
+    };
+  };
+
   const toggle = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -295,6 +380,8 @@ export function CashFlowContent({ mode = 'cash-flow' }: CashFlowViewProps) {
             className="pl-8"
           />
         </div>
+
+        <ExportMenu build={buildExport} disabled={!loaded || filteredTransactions.length === 0} />
 
       </Card>
 

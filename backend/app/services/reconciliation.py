@@ -325,11 +325,14 @@ def match(db: Session, company_id: str, current_user: User, entry_id: str,
                     status_code=409,
                     detail=f"O movimento ({fmt.eur(amount)}) é maior do que o que está em aberto ({fmt.eur(outstanding)}).",
                 )
+            from app.api.v1.settlements import resolve_bank_account
+
             now = datetime.now(timezone.utc)
             payment = Payment(
                 id=f"PAY-BNK-{int(now.timestamp() * 1000)}",
                 company_id=company_id,
                 transaction_id=trx.id,
+                bank_account_id=resolve_bank_account(db, company_id, None),
                 direction=direction,
                 amount=amount,
                 payment_date=entry.date,

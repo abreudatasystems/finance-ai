@@ -87,9 +87,17 @@ def apply_to(trx: Transaction, code: Optional[str] = None,
     gross = _d(trx.gross_amount if trx.gross_amount is not None else trx.amount)
     base = _d(trx.net_amount) if trx.net_amount is not None else gross
 
+    previous_code = trx.retention_code
     if code is not None:
         trx.retention_code = code or None
     effective_code = trx.retention_code
+
+    # Recalcular (valor ou linhas mudaram) não pode trocar a taxa escolhida à
+    # mão pela do catálogo: 11,5% voltava a 25% e um isento (0%) também.
+    # Só uma mudança de código volta a propor a taxa do catálogo.
+    if (rate_override is None and effective_code and effective_code == previous_code
+            and trx.retention_rate is not None):
+        rate_override = trx.retention_rate
 
     rate = resolve_rate(effective_code, rate_override)
     withheld = compute(base, effective_code, rate_override)
@@ -105,7 +113,8 @@ def apply_to(trx: Transaction, code: Optional[str] = None,
             ),
         )
 
-    trx.retention_rate = float(rate) if rate else None
+    # Um 0% explícito guarda-se como 0, não como "nada": senão perde-se.
+    trx.retention_rate = float(rate) if effective_code else None
     trx.retention_amount = withheld
     trx.payable_amount = (gross - withheld).quantize(CENTS, rounding=ROUND_HALF_UP)
     return trx
@@ -150,7 +159,10 @@ def parse_period(period: str) -> tuple[str, str]:
     try:
         year, month = period.split("-")
         start = date(int(year), int(month), 1)
-    except (ValueError, AttributeError):
+        # 9999-12 rebentava ao somar um dia (erro 500 em vez de uma mensagem).
+        if not 1900 <= start.year <= 2200:
+            raise ValueError
+    except (ValueError, AttributeError, OverflowError):
         raise HTTPException(
             status_code=400,
             detail=f"Período inválido: '{period}'. Use AAAA-MM, por exemplo 2026-09.",

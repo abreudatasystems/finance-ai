@@ -29,30 +29,6 @@ import {
 
 type Tab = 'company' | 'categories' | 'ai' | 'profile' | 'users' | 'audit';
 
-const SETTINGS_KEY = 'finance_ai_settings';
-
-interface StoredSettings {
-  autoClassify: boolean;
-  approvalLevel: string;
-  confidenceThreshold: number;
-}
-
-const DEFAULT_SETTINGS: StoredSettings = {
-  autoClassify: true,
-  approvalLevel: 'always_confirm',
-  confidenceThreshold: 85,
-};
-
-/** As preferências guardadas neste navegador (ou as de omissão). */
-function readStoredSettings(): StoredSettings {
-  try {
-    const raw = window.localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    /* ignore */
-  }
-  return DEFAULT_SETTINGS;
-}
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'company', label: 'Empresa', icon: <Building2 className="size-4" /> },
@@ -70,7 +46,10 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('company');
   const { data: aiRules } = useLoad(fetchAIRules, [], { initialData: [] as AIRule[] });
   const { data: auditLogs } = useLoad(fetchAuditLogs, [], { initialData: [] as AuditLogItem[] });
-  const [settings, setSettings] = useState<StoredSettings>(DEFAULT_SETTINGS);
+  // A moeda e o limite da IA são da empresa e gravam-se no servidor; antes a
+  // moeda só trocava o símbolo neste ecrã e o limite ficava no navegador.
+  const [companyCurrency, setCompanyCurrency] = useState<typeof currency>(currency);
+  const [aiThreshold, setAiThreshold] = useState(80);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [profile, setProfile] = useState<CompanyProfile>(EMPTY_PROFILE);
   const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
@@ -85,29 +64,18 @@ export default function SettingsPage() {
     setFormCompany(currentCompany);
     setProfile(profileFromCompany(currentCompany));
     setProfileErrors({});
+    setCompanyCurrency(currentCompany.currency);
+    setAiThreshold(currentCompany.ai_review_threshold ?? 80);
   }
   const changeProfile = (patch: Partial<CompanyProfile>) => setProfile((p) => ({ ...p, ...patch }));
-
-  // As preferências da IA vivem no localStorage, que só existe no navegador:
-  // lidas depois de montar (o HTML do servidor usa as de omissão) e postas no
-  // formulário quando chegam.
-  useLoad(async () => readStoredSettings(), [], { onSuccess: setSettings });
 
   useEffect(() => {
     setPageHeader('Configurações', 'Gestão da empresa, preferências do motor de inteligência artificial e utilizadores');
   }, [setPageHeader]);
 
-  const patch = (p: Partial<StoredSettings>) => setSettings((s) => ({ ...s, ...p }));
-
   const handleSave = async () => {
-    // As preferências da IA ficam neste navegador; os dados da empresa vão
-    // para o servidor. Só se diz "guardado" quando o servidor o confirma —
-    // antes, uma falha mostrava sucesso e nome/NIF nunca eram enviados.
-    try {
-      window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch {
-      /* ignore */
-    }
+    // Só se diz "guardado" quando o servidor o confirma — antes, uma falha
+    // mostrava sucesso e nome/NIF nunca eram enviados.
     if (currentCompany?.id) {
       const found = validateProfile(profile, 'update');
       setProfileErrors(found);
@@ -117,13 +85,18 @@ export default function SettingsPage() {
         return;
       }
       setSaving(true);
-      const { error } = await apiPatchOrError(`/companies/${currentCompany.id}`, toPayload(profile, 'update'));
+      const { error } = await apiPatchOrError(`/companies/${currentCompany.id}`, {
+        ...toPayload(profile, 'update'),
+        currency: companyCurrency,
+        ai_review_threshold: aiThreshold,
+      });
       setSaving(false);
       if (error) {
         toast.error(error);
         return;
       }
       await refreshCompanies();
+      setCurrency(companyCurrency);
     }
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2000);
@@ -188,12 +161,12 @@ export default function SettingsPage() {
                 <CompanyProfileFields value={profile} onChange={changeProfile} errors={profileErrors} />
 
                 <div className="pt-3 border-t border-neutral-100 grid sm:grid-cols-2 gap-3">
-                  <Field label="Moeda por omissão">
+                  <Field label="Moeda da empresa" hint="A moeda em que a empresa regista os valores. Mudar não converte valores já lançados.">
                     {(p) => (
                       <Select
                         {...p}
-                        value={currency}
-                        onChange={(e) => setCurrency(e.target.value as typeof currency)}
+                        value={companyCurrency}
+                        onChange={(e) => setCompanyCurrency(e.target.value as typeof currency)}
                       >
                         <option value="EUR">EUR (€) - Euro</option>
                         <option value="USD">USD ($) - Dólar Americano</option>
@@ -227,54 +200,34 @@ export default function SettingsPage() {
               <Card className="max-w-2xl">
                 <CardHeader icon={<Sparkles />} title="Preferências & Automação do Motor IA" />
                 <CardBody className="space-y-4 text-xs">
-                  <div className="flex items-center justify-between gap-3 px-3 py-2.5 bg-neutral-50 rounded-lg border border-neutral-200">
-                    <div>
-                      <span id="auto-classify-label" className="text-13 font-medium text-neutral-900 block">Classificação Automática por IA</span>
-                      <span className="text-neutral-500 text-xs">Processar faturas assim que dão entrada na Automação (OCR)</span>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={settings.autoClassify}
-                      aria-labelledby="auto-classify-label"
-                      onClick={() => patch({ autoClassify: !settings.autoClassify })}
-                      className={`w-9 h-5 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 ${settings.autoClassify ? 'bg-emerald-600' : 'bg-neutral-300'}`}
-                    >
-                      <div className={`size-4 bg-white rounded-full shadow-xs transition-transform ${settings.autoClassify ? 'translate-x-4' : ''}`} />
-                    </button>
+                  {/* Os interruptores de "auto-aprovar" e "modo autónomo" não
+                      faziam nada. Fica o que é verdade: nada entra nas contas
+                      sem uma pessoa aprovar, e o limite de confiança é real. */}
+                  <div className="flex items-start gap-2 px-3 py-2.5 bg-neutral-50 rounded-lg border border-neutral-200">
+                    <ShieldCheck className="size-4 shrink-0 mt-0.5 text-emerald-600" aria-hidden="true" />
+                    <span className="text-neutral-700">
+                      Cada fatura lida pela IA é <b className="font-semibold">sempre confirmada por uma pessoa</b> em
+                      Documentos antes de entrar nas contas. A IA lê, classifica e propõe; quem aprova decide.
+                    </span>
                   </div>
-
-                  <Field label="Nível de Aprovação Exigido">
-                    {(p) => (
-                      <Select
-                        {...p}
-                        value={settings.approvalLevel}
-                        onChange={(e) => patch({ approvalLevel: e.target.value })}
-                      >
-                        <option value="always_confirm">Confirmar Sempre (Recomendado para início)</option>
-                        <option value="auto_high">Auto-aprovar se Confiança &gt; 90%</option>
-                        <option value="fully_autonomous">Modo 100% Autónomo</option>
-                      </Select>
-                    )}
-                  </Field>
 
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs font-medium text-neutral-700">
-                      <label htmlFor="confidence-threshold">Threshold Mínimo de Confiança</label>
-                      <span className="text-emerald-700 font-semibold tabular-nums">{settings.confidenceThreshold}%</span>
+                      <label htmlFor="confidence-threshold">Confiança mínima para não pedir revisão</label>
+                      <span className="text-emerald-700 font-semibold tabular-nums">{aiThreshold}%</span>
                     </div>
                     <input
                       id="confidence-threshold"
                       type="range"
-                      min="60"
-                      max="98"
-                      value={settings.confidenceThreshold}
-                      onChange={(e) => patch({ confidenceThreshold: Number(e.target.value) })}
+                      min="50"
+                      max="99"
+                      value={aiThreshold}
+                      onChange={(e) => setAiThreshold(Number(e.target.value))}
                       className="w-full accent-emerald-600"
                     />
                     <p className="text-2xs text-neutral-500">
-                      Faturas com confiança abaixo deste valor exigem revisão manual em Aprovações.
-                      {' '}Estas preferências ficam guardadas apenas neste navegador.
+                      Faturas lidas com confiança abaixo deste valor ficam marcadas &quot;a rever&quot; na fila de aprovação.
+                      {' '}Vale para toda a equipa desta empresa; grave com &quot;Guardar&quot;.
                     </p>
                   </div>
                 </CardBody>

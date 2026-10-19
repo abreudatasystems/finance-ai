@@ -186,7 +186,7 @@ def test_an_uploaded_invoice_is_matched_to_a_supplier_in_the_registry(tenant, mo
     supplier = tenant.post("/api/v1/entities/", {
         "name": "Papelaria Central", "nif": "503504564", "is_supplier": True}).json()
 
-    async def fake_read(_bytes, _name):
+    async def fake_read(_bytes, _name, **_company):
         return ParsedInvoice(supplier="Papelaria Central", nif="503504564",
                              gross_amount=Decimal("123.00"), confidence=0.9), "texto"
 

@@ -51,6 +51,9 @@ def detect_type(content: bytes, filename: str = "") -> Optional[str]:
             return media_type
     if content[8:12] == b"WEBP":
         return "image/webp"
+    # Fotografias de iPhone: contentor ISO com a marca "heic"/"heix"/"mif1".
+    if content[4:8] == b"ftyp" and content[8:12] in (b"heic", b"heix", b"mif1", b"msf1", b"heif"):
+        return "image/heic"
     lowered = (filename or "").lower()
     if lowered.endswith(TEXT_EXTENSIONS) and _looks_like_text(content):
         return "text/plain"
@@ -71,7 +74,7 @@ def validate(content: bytes, filename: str = "") -> str:
     detected = detect_type(content, filename)
     if not detected:
         raise UploadRejected(
-            "Formato não suportado. Envie a fatura em PDF, imagem (PNG, JPG, WEBP) "
+            "Formato não suportado. Envie a fatura em PDF, imagem (PNG, JPG, WEBP, HEIC) "
             "ou texto."
         )
     return detected

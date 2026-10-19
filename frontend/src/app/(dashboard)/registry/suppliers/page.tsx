@@ -11,7 +11,7 @@ import { CreateSupplierModal } from '@/components/shared/CreateSupplierModal';
 import { deleteSupplier } from '@/services/data';
 import { useRouter } from 'next/navigation';
 import {
-  Badge, Button, IconButton, Card, Input, Table, THead, TBody, Th, Tr, Td, TableMessage, LoadingState, EmptyState, useConfirm,
+  Badge, Button, IconButton, Card, Input, Table, THead, TBody, Th, Tr, Td, TableMessage, LoadingState, EmptyState, useConfirm, ExportMenu,
 } from '@/components/ui';
 
 export default function SuppliersPage() {
@@ -84,7 +84,28 @@ export default function SuppliersPage() {
             className="pl-8"
           />
         </div>
-        <Button className="ml-auto" onClick={() => setIsModalOpen(true)} icon={<Plus className="text-emerald-400" />}>
+        <ExportMenu
+          className="ml-auto"
+          disabled={visible.length === 0}
+          build={() => ({
+            title: 'Fornecedores',
+            subtitle: q ? `pesquisa "${query.trim()}"` : undefined,
+            columns: [
+              { key: 'name', label: 'Fornecedor' },
+              { key: 'nif', label: 'NIF' },
+              { key: 'category', label: 'Categoria padrão' },
+              { key: 'email', label: 'Email' },
+              { key: 'last', label: 'Último movimento', type: 'date' },
+              { key: 'total', label: 'Total gasto', type: 'money' },
+            ],
+            rows: visible.map((s) => ({
+              name: s.name, nif: s.nif, category: s.default_category_name, email: s.email,
+              last: s.last_transaction_date, total: s.total_spent,
+            })),
+            totals: { name: 'Total', total: visible.reduce((a, s) => a + Number(s.total_spent ?? 0), 0) },
+          })}
+        />
+        <Button onClick={() => setIsModalOpen(true)} icon={<Plus className="text-emerald-400" />}>
           Novo fornecedor
         </Button>
       </Card>

@@ -8,7 +8,7 @@ import { Item } from '@/types';
 import { Package, Tag, Plus, Trash2, Briefcase, Search } from 'lucide-react';
 import { CreateItemModal } from '@/components/shared/CreateItemModal';
 import {
-  Badge, Button, IconButton, Card, Input, Table, THead, TBody, Th, Tr, Td, TableMessage, LoadingState, EmptyState, useConfirm,
+  Badge, Button, IconButton, Card, Input, Table, THead, TBody, Th, Tr, Td, TableMessage, LoadingState, EmptyState, useConfirm, ExportMenu,
 } from '@/components/ui';
 
 export default function ItemsPage() {
@@ -83,7 +83,30 @@ export default function ItemsPage() {
             className="pl-8"
           />
         </div>
-        <Button className="ml-auto" onClick={() => setIsModalOpen(true)} icon={<Plus className="text-emerald-400" />}>
+        <ExportMenu
+          className="ml-auto"
+          disabled={visible.length === 0}
+          build={() => ({
+            title: 'Artigos e serviços',
+            subtitle: q ? `pesquisa "${query.trim()}"` : undefined,
+            columns: [
+              { key: 'code', label: 'Código' },
+              { key: 'desc', label: 'Descrição' },
+              { key: 'kind', label: 'Tipo' },
+              { key: 'ean', label: 'EAN' },
+              { key: 'family', label: 'Família' },
+              { key: 'vat', label: 'Taxa de IVA' },
+              { key: 'price', label: 'Preço de venda', type: 'money' },
+              { key: 'incl', label: 'Preço c/ IVA' },
+            ],
+            rows: visible.map((p) => ({
+              code: p.code, desc: p.description, kind: p.kind === 'service' ? 'Serviço' : 'Produto',
+              ean: p.ean, family: p.family, vat: p.vat_rate, price: p.price_1,
+              incl: p.price_includes_vat ? 'Sim' : 'Não',
+            })),
+          })}
+        />
+        <Button onClick={() => setIsModalOpen(true)} icon={<Plus className="text-emerald-400" />}>
           Novo item
         </Button>
       </Card>

@@ -45,7 +45,10 @@ def parse_period(period: str) -> tuple[str, str]:
     try:
         year, month = period.split("-")
         start = date(int(year), int(month), 1)
-    except (ValueError, AttributeError):
+        # 9999-12 rebentava ao somar um dia (erro 500 em vez de uma mensagem).
+        if not 1900 <= start.year <= 2200:
+            raise ValueError
+    except (ValueError, AttributeError, OverflowError):
         raise HTTPException(
             status_code=400,
             detail=f"Período inválido: '{period}'. Use AAAA-MM, por exemplo 2026-09.",

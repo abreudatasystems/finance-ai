@@ -1,6 +1,6 @@
 import hmac
+import os
 
-import hmac
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy.orm import Session
@@ -27,6 +27,23 @@ def verify_webhook_secret(x_webhook_secret: Optional[str] = Header(default=None)
         x_webhook_secret.encode(), settings.WEBHOOK_SECRET.encode()
     ):
         raise HTTPException(status_code=401, detail="Assinatura de webhook inválida")
+
+
+async def _body(request: Request) -> dict:
+    """JSON inválido ou que não é um objecto: 400, não erro 500."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo do pedido não é JSON válido")
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="O corpo do pedido tem de ser um objecto JSON")
+    return data
+
+
+def _clean_name(name, default: str) -> str:
+    """Só o nome do ficheiro, sem pastas, e com um tamanho razoável."""
+    base = os.path.basename(str(name or "").replace("\\", "/")).strip()
+    return base[:200] or default
 
 
 def _company(db: Session, data: dict) -> str:
@@ -77,9 +94,9 @@ def _ingest(db: Session, *, company_id: str, channel: str, file_name: str,
 
 @router.post("/email", dependencies=[Depends(verify_webhook_secret)])
 async def email_webhook(request: Request, db: Session = Depends(get_db)):
-    data = await request.json()
+    data = await _body(request)
     sender_email = data.get("sender") or "remetente desconhecido"
-    attachment_name = data.get("filename", "fatura_email.pdf")
+    attachment_name = _clean_name(data.get("filename"), "fatura_email.pdf")
     company_id = _company(db, data)
 
     doc_id = _ingest(
@@ -97,9 +114,9 @@ async def email_webhook(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/whatsapp", dependencies=[Depends(verify_webhook_secret)])
 async def whatsapp_webhook(request: Request, db: Session = Depends(get_db)):
-    data = await request.json()
+    data = await _body(request)
     phone_number = data.get("phone") or "número desconhecido"
-    media_url = data.get("media_url", "recibo_whatsapp.jpg")
+    media_url = _clean_name(data.get("media_url"), "recibo_whatsapp.jpg")
     company_id = _company(db, data)
 
     doc_id = _ingest(

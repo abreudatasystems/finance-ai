@@ -20,6 +20,8 @@ class Company(Base):
     nif = Column(String, nullable=False)
     currency = Column(String, default="EUR")
     fiscal_year_start = Column(String, default="01")
+    #: Abaixo desta confiança (%), uma fatura lida pela IA fica marcada para revisão. Nulo = 80.
+    ai_review_threshold = Column(Integer, nullable=True)
 
     # --- Portuguese tax profile ---
     country = Column(String, default="PT")

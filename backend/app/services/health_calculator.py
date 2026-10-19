@@ -94,7 +94,8 @@ def calculate_health_score(company_id: str, db: Session) -> dict:
     burn_rate = round(last_quarter["gastos"] / 3, 2) if last_quarter["gastos"] > 0 else 0
 
     # ── Runway (months of cash remaining) ──
-    runway_months = round(current_balance / burn_rate, 1) if burn_rate > 0 else 99
+    # Saldo negativo não dá "-0,2 meses": não há autonomia nenhuma.
+    runway_months = max(0.0, round(current_balance / burn_rate, 1)) if burn_rate > 0 else 99
 
     # ── Previous month comparison ──
     prev_month_start = (current_month_start - timedelta(days=1)).replace(day=1)

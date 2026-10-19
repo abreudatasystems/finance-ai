@@ -8,6 +8,8 @@ export interface Company {
   nif: string;
   currency: Currency;
   fiscal_year_start: string;
+  /** Abaixo desta confiança (%) uma fatura lida pela IA fica marcada para revisão. */
+  ai_review_threshold?: number;
   created_at: string;
   country?: string;
   legal_form?: string | null;
@@ -311,11 +313,11 @@ export interface Transaction {
   type: TransactionType;
   description: string;
   entity_name: string;
-  entity_id?: string;
+  entity_id?: string | null;
   category_id: string;
   category_name: string;
-  cost_center_id?: string;
-  cost_center_name?: string;
+  cost_center_id?: string | null;
+  cost_center_name?: string | null;
   amount: number;
   // Financial breakdown
   net_amount?: number;
@@ -409,7 +411,7 @@ export type PaymentStatus = 'pending' | 'partially_paid' | 'paid' | 'overdue' | 
 
 export type DocumentChannel = 'email' | 'whatsapp' | 'upload' | 'drive';
 
-export type DocumentStatus = 'uploading' | 'processing' | 'processed' | 'extracted' | 'needs_review' | 'pending_approval' | 'error';
+export type DocumentStatus = 'uploading' | 'processing' | 'processed' | 'extracted' | 'needs_review' | 'pending_approval' | 'approved' | 'rejected' | 'error';
 
 export interface AIDocument {
   id: string;

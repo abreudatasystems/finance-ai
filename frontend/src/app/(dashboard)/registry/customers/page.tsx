@@ -10,7 +10,7 @@ import { CreateCustomerModal } from '@/components/shared/CreateCustomerModal';
 import { deleteCustomer } from '@/services/data';
 import { useRouter } from 'next/navigation';
 import {
-  Badge, Button, IconButton, Card, Input, Table, THead, TBody, Th, Tr, Td, TableMessage, LoadingState, EmptyState, useConfirm,
+  Badge, Button, IconButton, Card, Input, Table, THead, TBody, Th, Tr, Td, TableMessage, LoadingState, EmptyState, useConfirm, ExportMenu,
 } from '@/components/ui';
 
 export default function CustomersPage() {
@@ -83,7 +83,28 @@ export default function CustomersPage() {
             className="pl-8"
           />
         </div>
-        <Button className="ml-auto" onClick={() => setIsModalOpen(true)} icon={<Plus className="text-emerald-400" />}>
+        <ExportMenu
+          className="ml-auto"
+          disabled={visible.length === 0}
+          build={() => ({
+            title: 'Clientes',
+            subtitle: q ? `pesquisa "${query.trim()}"` : undefined,
+            columns: [
+              { key: 'name', label: 'Cliente' },
+              { key: 'nif', label: 'NIF' },
+              { key: 'category', label: 'Categoria de receita' },
+              { key: 'email', label: 'Email' },
+              { key: 'phone', label: 'Telefone' },
+              { key: 'total', label: 'Faturação acumulada', type: 'money' },
+            ],
+            rows: visible.map((c) => ({
+              name: c.name, nif: c.nif, category: c.default_category_name, email: c.email,
+              phone: c.phone, total: c.total_revenue,
+            })),
+            totals: { name: 'Total', total: visible.reduce((a, c) => a + Number(c.total_revenue ?? 0), 0) },
+          })}
+        />
+        <Button onClick={() => setIsModalOpen(true)} icon={<Plus className="text-emerald-400" />}>
           Novo cliente
         </Button>
       </Card>

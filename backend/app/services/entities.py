@@ -117,6 +117,7 @@ def serialize(entity: Entity, stats: Optional[dict] = None) -> dict:
         "papel": _role_label(entity),
         "default_category_id": entity.default_category_id,
         "default_category_name": entity.default_category_name,
+        "default_retention_code": entity.default_retention_code,
         "notes": entity.notes,
         "active": entity.active is not False,
         "created_at": entity.created_at.isoformat() if entity.created_at else None,

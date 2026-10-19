@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { Category, CategoryGroup } from '@/types';
 import { fetchCategoryGroups } from '@/services/data';
-import { apiPost } from '@/services/api';
+import { apiPostOrError } from '@/services/api';
+import { toast } from 'sonner';
 import { SideDrawer } from './SideDrawer';
 import { Button, Field, Input, Segmented, Select, Textarea } from '@/components/ui';
 
@@ -23,6 +24,7 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
   const [submitting, setSubmitting] = useState(false);
   const [groups, setGroups] = useState<CategoryGroup[]>([]);
   const [groupId, setGroupId] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -43,7 +45,7 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
 
     const keywordList = keywords ? keywords.split(',').map(k => k.trim()).filter(Boolean) : [];
 
-    const created = await apiPost<Category>('/categories/', {
+    const { data: created, error } = await apiPostOrError<Category>('/categories/', {
       group_id: groupId || undefined,
       type,
       name: name.trim(),
@@ -51,18 +53,17 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
       keywords: keywordList,
     });
 
-    const newCat: Category = created ?? {
-      id: `CAT-${Date.now()}`,
-      company_id: 'COMP001',
-      type,
-      name: name.trim(),
-      description: description.trim() || undefined,
-      keywords: keywordList,
-      active: true,
-    };
-
     setSubmitting(false);
-    onCreated(newCat);
+    // Se a gravação falhar, diz-se — antes inventava-se uma categoria que só
+    // existia no ecrã e desaparecia ao recarregar.
+    if (!created) {
+      const message = error || 'Não foi possível criar a categoria.';
+      setFormError(message);
+      toast.error(message);
+      return;
+    }
+    toast.success('Categoria criada.');
+    onCreated(created);
     onClose();
   };
 
@@ -84,6 +85,11 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({ onClos
       }
     >
       <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-3">
+        {formError && (
+          <div role="alert" className="rounded-lg bg-rose-50 border border-rose-200 text-rose-900 px-3 py-2 text-xs">
+            {formError}
+          </div>
+        )}
         {groups.length ? (
           <Field label="Grupo" hint="O grupo define a natureza (entra/sai) da categoria.">
             {(p) => (

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import {
   Button, Card, CardHeader, EmptyState,
-  Table, THead, TBody, Th, Tr, Td,
+  Table, THead, TBody, Th, Tr, Td, ExportMenu,
 } from '@/components/ui';
 import { formatDate } from '@/lib/format';
 
@@ -203,12 +203,12 @@ export default function BankReconciliationPage() {
                 Arraste o seu extrato bancário aqui
               </p>
               <p className="text-xs text-neutral-500 mt-1">
-                Formatos aceites: CSV, OFX, QFX • Millennium BCP, CGD, Santander, Novo Banco, BPI, etc.
+                Formatos aceites: Excel (.xlsx, .xls), CSV, OFX • Millennium BCP, CGD, Santander, Novo Banco, BPI, etc.
               </p>
             </div>
             <label className="mt-1 inline-flex items-center justify-center h-8 px-3 rounded-md border border-neutral-900 bg-neutral-900 hover:bg-neutral-800 text-white text-13 font-medium shadow-xs cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-emerald-500/60 focus-within:ring-offset-1">
               Selecionar Ficheiro
-              <input type="file" accept=".csv,.ofx,.qfx,.txt,.tsv" onChange={handleFileSelect} className="sr-only" />
+              <input type="file" accept=".csv,.xlsx,.xls,.ofx,.qfx,.txt,.tsv" onChange={handleFileSelect} className="sr-only" />
             </label>
           </div>
         )}
@@ -299,6 +299,33 @@ export default function BankReconciliationPage() {
                 <span className="flex items-center gap-1 text-neutral-400" title="Sem correspondência">
                   <XCircle className="size-3.5" aria-hidden="true" /> {unmatchedCount}
                 </span>
+                <ExportMenu
+                  size="sm"
+                  build={() => ({
+                    title: `Extrato ${selectedStatement.bank_name}`,
+                    subtitle: `${selectedStatement.file_name} · ${matchedCount} conciliados, ${suggestedCount} sugeridos, ${unmatchedCount} sem correspondência`,
+                    columns: [
+                      { key: 'date', label: 'Data', type: 'date' },
+                      { key: 'desc', label: 'Descrição bancária' },
+                      { key: 'in', label: 'Crédito', type: 'money' },
+                      { key: 'out', label: 'Débito', type: 'money' },
+                      { key: 'balance', label: 'Saldo', type: 'money' },
+                      { key: 'status', label: 'Estado' },
+                      { key: 'match', label: 'Correspondência' },
+                    ],
+                    rows: entries.map((e) => ({
+                      date: e.date,
+                      desc: e.description,
+                      in: e.type === 'credit' ? e.amount : null,
+                      out: e.type === 'credit' ? null : e.amount,
+                      balance: e.balance ?? null,
+                      status: statusLabel(e.status),
+                      match: e.matched_transaction
+                        ? `${e.matched_transaction.entity_name} — ${e.matched_transaction.description}`
+                        : '',
+                    })),
+                  })}
+                />
               </div>
             }
           />

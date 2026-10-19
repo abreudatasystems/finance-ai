@@ -84,5 +84,9 @@ export interface ApprovalDecision {
   category_name?: string;
   cost_center_name?: string;
   due_date?: string;
+  supplier_name?: string;
+  supplier_nif?: string;
+  date?: string;
+  document_number?: string;
   rejection_reason?: string;
 }

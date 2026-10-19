@@ -48,12 +48,13 @@ INVOICE_LINES = [
 
 
 def _font(size: int):
-    for name in ("DejaVuSans-Bold.ttf", "DejaVuSans.ttf"):
+    for path in (f"{FONT_DIR}/DejaVuSans-Bold.ttf", f"{FONT_DIR}/DejaVuSans.ttf",
+                 "C:/Windows/Fonts/arialbd.ttf", "C:/Windows/Fonts/arial.ttf"):
         try:
-            return ImageFont.truetype(f"{FONT_DIR}/{name}", size)
+            return ImageFont.truetype(path, size)
         except OSError:
             continue
-    return ImageFont.load_default()
+    return ImageFont.load_default(size=size)
 
 
 def invoice_image(supplier: str = "EDP COMERCIAL, S.A.",
@@ -388,3 +389,66 @@ def test_reading_a_scanned_pdf_does_not_block_other_requests():
     served = asyncio.run(scenario())
     # Com o loop bloqueado isto ficaria em zero ou perto disso.
     assert served > 20, f"o loop ficou bloqueado: só {served} pedidos servidos"
+
+
+# ---------------------------------------------------------------------------
+# Fotografias a sério: de lado, com sombra, com a orientação no EXIF
+# ---------------------------------------------------------------------------
+
+def _photo_like(image: Image.Image) -> Image.Image:
+    """Papel acinzentado, a sombra da mão a escurecer metade, e ruído."""
+    import random
+    from PIL import ImageFilter
+
+    grey = image.convert("L").point(lambda v: 40 if v < 128 else 230)
+    grey = grey.rotate(1.5, expand=True, fillcolor=230)
+    shade = Image.linear_gradient("L").rotate(90).resize(grey.size)
+    grey = Image.composite(grey.point(lambda v: int(v * 0.35)), grey, shade)
+    random.seed(7)
+    px = grey.load()
+    for _ in range(30000):
+        x, y = random.randrange(grey.width), random.randrange(grey.height)
+        px[x, y] = max(0, min(255, px[x, y] + random.randint(-60, 60)))
+    return grey.filter(ImageFilter.GaussianBlur(0.8)).convert("RGB")
+
+
+@needs_ocr
+def test_a_photo_taken_sideways_with_a_shadow_is_read():
+    """A foto ao telemóvel mais comum: de lado e com a mão a fazer sombra.
+
+    Antes saía lixo (19% de confiança, nenhum valor); a sombra impedia o
+    motor de perceber a orientação e era lida como letras."""
+    photo = _photo_like(invoice_image()).rotate(90, expand=True)
+    parsed, _ = asyncio.run(process_document(as_png(photo), "foto.png"))
+
+    assert parsed.nif == "503504564"
+    assert str(parsed.gross_amount) == "169.03"
+    assert str(parsed.vat_amount) == "31.61"
+
+
+@needs_ocr
+def test_the_orientation_recorded_by_the_phone_is_respected():
+    """Muitos telemóveis gravam a foto deitada e escrevem no EXIF como a pôr."""
+    upright = invoice_image()
+    stored = upright.rotate(90, expand=True)          # como o sensor a gravou
+    exif = Image.Exif()
+    exif[0x0112] = 6                                   # "rodar 90° para ver direito"
+    buffer = io.BytesIO()
+    stored.save(buffer, format="JPEG", exif=exif.tobytes(), quality=92)
+
+    result = extract(buffer.getvalue(), "IMG_0001.jpg")
+    assert "503504564" in result.text
+
+
+def test_iphone_photos_are_accepted():
+    from app.core.uploads import detect_type
+
+    heic_header = b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic"
+    assert detect_type(heic_header, "IMG_1234.HEIC") == "image/heic"
+
+
+def test_the_certified_document_number_is_found_without_n_o():
+    from app.services.invoice_parser import parse_invoice_text
+
+    parsed = parse_invoice_text("EDP\nFATURA FT 2026/004512\nTotal: 10,00 EUR")
+    assert parsed.document_number == "FT 2026/004512"

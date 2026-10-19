@@ -156,7 +156,39 @@ def scoped(db: Session, company_id: str, recurrence_id: str) -> Recurrence:
     return rec
 
 
+def _validate(data: dict) -> None:
+    """Valores impossíveis (dia -5, data inválida) partiam a lista e a previsão."""
+    day = data.get("day_of_month")
+    if day is not None and not 1 <= int(day) <= 31:
+        raise HTTPException(status_code=400, detail="O dia do mês tem de estar entre 1 e 31")
+    interval = data.get("interval")
+    if interval is not None and not 1 <= int(interval) <= 120:
+        raise HTTPException(status_code=400, detail="O intervalo tem de estar entre 1 e 120")
+    lead = data.get("lead_days")
+    if lead is not None and not 0 <= int(lead) <= 365:
+        raise HTTPException(status_code=400, detail="A antecedência tem de estar entre 0 e 365 dias")
+    for field, label in (("start_date", "início"), ("end_date", "fim")):
+        value = data.get(field)
+        if value is None:
+            continue
+        try:
+            parsed = _parse(value)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail=f"Data de {label} inválida (use AAAA-MM-DD)")
+        if not 1900 <= parsed.year <= 2200:
+            raise HTTPException(status_code=400, detail=f"Data de {label} fora do intervalo aceite")
+    amount = data.get("amount")
+    if amount is not None:
+        try:
+            ok = Decimal(str(amount)).is_finite() and abs(Decimal(str(amount))) < Decimal("1e12")
+        except Exception:
+            ok = False
+        if not ok:
+            raise HTTPException(status_code=400, detail="Valor inválido")
+
+
 def create(db: Session, company_id: str, data: dict) -> Recurrence:
+    _validate(data)
     if data.get("frequency") not in FREQUENCIES:
         raise HTTPException(status_code=400, detail="Frequência inválida")
     if _d(data.get("amount")) <= 0:
@@ -182,6 +214,7 @@ def create(db: Session, company_id: str, data: dict) -> Recurrence:
 
 def update(db: Session, company_id: str, recurrence_id: str, data: dict) -> Recurrence:
     rec = scoped(db, company_id, recurrence_id)
+    _validate(data)
     if "frequency" in data and data["frequency"] not in FREQUENCIES:
         raise HTTPException(status_code=400, detail="Frequência inválida")
     if "amount" in data:

@@ -62,15 +62,32 @@ export default function DocumentInspectorPage() {
       // A API devolve { document, approval_id, … } — o documento vem dentro.
       // Tratado como se fosse o próprio documento, a lista ganhava uma linha
       // sem nome nem valores e o visualizador pedia /documents/undefined/file.
-      const result = (await uploadInvoiceDocument(file, 'upload')) as { document?: AIDocument };
+      const result = (await uploadInvoiceDocument(file, 'upload')) as {
+        document?: AIDocument; approval_id?: string | null; validation_status?: string; reread?: boolean;
+      };
       const uploadedDoc = result.document;
       if (!uploadedDoc) throw new Error('A resposta do servidor não trouxe o documento.');
-      setDocuments(prev => [uploadedDoc, ...prev]);
+      // Reenviar um ficheiro ainda por aprovar lê-o de novo: a leitura antiga
+      // sai da lista e fica a nova.
+      if (result.reread) {
+        setDocuments([uploadedDoc, ...(await fetchDocuments()).filter((d) => d.id !== uploadedDoc.id)]);
+        toast.info(`${file.name} foi lido de novo.`);
+      } else {
+        setDocuments(prev => [uploadedDoc, ...prev]);
+      }
       setSelectedDoc(uploadedDoc);
       // O upload cria uma aprovação; sem recarregar, "Aprovar" não a encontrava.
       setApprovals(await fetchApprovals());
-      setSuccessToast(`Documento ${file.name} processado e extraído com sucesso!`);
-      setTimeout(() => setSuccessToast(null), 4000);
+      // "Extraído com sucesso" só quando a leitura deu valores; antes dizia-o
+      // mesmo quando não conseguia ler nada.
+      if (!result.approval_id) {
+        toast.warning(`Não foi possível ler os valores de ${file.name}. Reveja e preencha os campos à mão.`);
+      } else if (result.validation_status && result.validation_status !== 'ok' && result.validation_status !== 'valid') {
+        toast.warning(`${file.name} lido, mas há valores a confirmar antes de aprovar.`);
+      } else {
+        setSuccessToast(`Documento ${file.name} lido. Confirme os valores e aprove.`);
+        setTimeout(() => setSuccessToast(null), 4000);
+      }
     } catch (err) {
       // Antes, uma falha mostrava um documento inventado ("Fornecedor
       // Extraído OCR", 580 €, 97% de confiança) como se tivesse sido lido.
@@ -102,6 +119,10 @@ export default function DocumentInspectorPage() {
       if (selectedDoc.extracted_vat !== original?.extracted_vat) corrections.vat_amount = selectedDoc.extracted_vat;
       if (selectedDoc.suggested_category !== original?.suggested_category) corrections.category_name = selectedDoc.suggested_category;
       if (selectedDoc.extracted_due_date !== original?.extracted_due_date) corrections.due_date = selectedDoc.extracted_due_date;
+      if (selectedDoc.extracted_supplier !== original?.extracted_supplier) corrections.supplier_name = selectedDoc.extracted_supplier;
+      if (selectedDoc.extracted_nif !== original?.extracted_nif) corrections.supplier_nif = selectedDoc.extracted_nif;
+      if (selectedDoc.extracted_date !== original?.extracted_date) corrections.date = selectedDoc.extracted_date;
+      if (selectedDoc.document_number !== original?.document_number) corrections.document_number = selectedDoc.document_number;
       const edited = Object.keys(corrections).length > 0;
 
       // Só se diz "aprovada" depois de a API o confirmar.
@@ -132,7 +153,8 @@ export default function DocumentInspectorPage() {
     URL.revokeObjectURL(url);
   };
 
-  const isCurrentApproved = selectedDoc ? approvedDocs.includes(selectedDoc.id) : false;
+  // O estado vem do servidor; a lista local só cobre o que se aprovou agora.
+  const isCurrentApproved = selectedDoc ? approvedDocs.includes(selectedDoc.id) || selectedDoc.status === 'approved' : false;
 
   /* Um servidor sem o motor de OCR instalado lê PDFs com camada de texto e
      mais nada. Vale a pena dizê-lo antes de alguém fotografar um recibo e
@@ -147,7 +169,7 @@ export default function DocumentInspectorPage() {
         type="file"
         ref={fileInputRef}
         onChange={handleFileUpload}
-        accept={cannotReadImages ? '.pdf,.txt' : '.pdf,.png,.jpg,.jpeg,.webp,.txt'}
+        accept={cannotReadImages ? '.pdf,.txt' : '.pdf,.png,.jpg,.jpeg,.webp,.heic,.heif,.txt'}
         className="hidden"
         aria-hidden="true"
         tabIndex={-1}
@@ -218,7 +240,7 @@ export default function DocumentInspectorPage() {
             )}
             {documents.map((doc) => {
               const isSelected = selectedDoc?.id === doc.id;
-              const isApp = approvedDocs.includes(doc.id);
+              const isApp = approvedDocs.includes(doc.id) || doc.status === 'approved';
               return (
                 <div
                   key={doc.id}

@@ -2,15 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { FileSpreadsheet, Download, MapPin } from 'lucide-react';
+import { Download, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { fetchDashboardSummary, fetchVatSummary } from '@/services/data';
 import { apiFetch } from '@/services/api';
 import {
   Badge, Button, Card, CardHeader, CardBody, Select, Stat,
-  Table, THead, TBody, Th, Tr, Td,
+  Table, THead, TBody, Th, Tr, Td, ExportMenu,
 } from '@/components/ui';
+import type { ExportTable } from '@/components/ui';
 
 /* A forma que /fiscal/vat-summary devolve. Lia-se `iva_total` e
    `total_bruto` por linha, que a API não manda: a tabela mostrava "NaN €". */
@@ -109,23 +110,45 @@ export default function ReportsPage() {
     }
   };
 
-  const handleExportCsv = () => {
-    try {
-      let csv = 'Mês,Receitas,Despesas,Resultado\n';
-      reportData.forEach(r => {
-        csv += `${r.month},${r.Receitas},${r.Despesas},${r.Receitas - r.Despesas}\n`;
-      });
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `relatorio-financeiro-${year}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('Ficheiro CSV exportado com sucesso.');
-    } catch {
-      toast.error('Ocorreu um erro ao exportar o CSV.');
-    }
+  const buildMonthlyExport = (): ExportTable => ({
+    title: `Relatório financeiro ${year}`,
+    subtitle: 'Receitas e despesas por mês, sem IVA',
+    columns: [
+      { key: 'month', label: 'Mês' },
+      { key: 'in', label: 'Receitas', type: 'money' },
+      { key: 'out', label: 'Despesas', type: 'money' },
+      { key: 'result', label: 'Resultado', type: 'money' },
+    ],
+    rows: reportData.map((r) => ({ month: r.month, in: r.Receitas, out: r.Despesas, result: r.Receitas - r.Despesas })),
+    totals: { month: 'Total', in: totalReceitas, out: totalDespesas, result: totalReceitas - totalDespesas },
+  });
+
+  const buildVatExport = (): ExportTable => {
+    const v = vatSummary!;
+    const rows = ([
+      ['Liquidado (vendas)', v.iva_liquidado],
+      ['Dedutível (compras)', v.iva_dedutivel],
+    ] as const).flatMap(([side, data]) => data.breakdown.map((item) => ({
+      side, rate: item.label, base: item.base_tributavel, vat: item.iva, total: item.total, docs: item.num_documentos,
+    })));
+    const recover = v.apuramento.a_recuperar > 0;
+    return {
+      title: `Resumo de IVA ${v.period_label || v.period}`,
+      subtitle: recover ? 'IVA a recuperar' : 'IVA a entregar ao Estado',
+      columns: [
+        { key: 'side', label: 'Sentido' },
+        { key: 'rate', label: 'Taxa IVA' },
+        { key: 'base', label: 'Base tributável', type: 'money' },
+        { key: 'vat', label: 'IVA', type: 'money' },
+        { key: 'total', label: 'Total', type: 'money' },
+        { key: 'docs', label: 'Nº documentos', type: 'number' },
+      ],
+      rows,
+      totals: {
+        side: recover ? 'IVA a recuperar' : 'IVA a entregar',
+        vat: recover ? v.apuramento.a_recuperar : v.apuramento.a_entregar,
+      },
+    };
   };
 
   return (
@@ -134,9 +157,7 @@ export default function ReportsPage() {
       {/* Header Actions */}
       <div className="flex justify-end">
         <div className="flex items-center gap-2">
-          <Button variant="secondary" icon={<FileSpreadsheet />} onClick={handleExportCsv}>
-            Exportar CSV / Excel
-          </Button>
+          <ExportMenu build={buildMonthlyExport} disabled={reportData.length === 0} />
           <Button icon={<Download />} onClick={handleSaftExport} loading={isExporting}>
             SAF-T (PT) XML
           </Button>
@@ -196,9 +217,12 @@ export default function ReportsPage() {
             title="Resumo de IVA"
             subtitle={`Período: ${vatSummary.period_label || vatSummary.period}`}
             actions={
-              <Badge>
-                <MapPin className="size-3" aria-hidden="true" /> Portugal
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge>
+                  <MapPin className="size-3" aria-hidden="true" /> Portugal
+                </Badge>
+                <ExportMenu size="sm" build={buildVatExport} />
+              </div>
             }
           />
 

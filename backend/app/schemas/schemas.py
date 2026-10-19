@@ -83,7 +83,38 @@ class CustomerCreate(BaseModel):
     internal_observations: Optional[str] = None
 
 # Transaction
-class TransactionCreate(BaseModel):
+
+class FiniteMoney(BaseModel):
+    """Recusa NaN/Infinity, valores absurdos e taxas de IVA fora de 0–100 %.
+
+    Antes entravam e davam erro 500 ou gravavam lixo que partia a previsão."""
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    @field_validator("amount", "net_amount", "vat_amount", "retention_rate", check_fields=False)
+    @classmethod
+    def _reasonable(cls, v):
+        if v is not None and abs(v) >= 1e12:
+            raise ValueError("valor demasiado grande")
+        return v
+
+    @field_validator("vat_rate", check_fields=False)
+    @classmethod
+    def _rate(cls, v):
+        if v is not None and not 0 <= v <= 100:
+            raise ValueError("a taxa de IVA tem de estar entre 0 e 100")
+        return v
+
+    # Uma retenção acima do total já é recusada pelo serviço, com a mensagem
+    # que diz porquê; aqui só se trava a negativa.
+    @field_validator("retention_rate", check_fields=False)
+    @classmethod
+    def _retention(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("a taxa de retenção não pode ser negativa")
+        return v
+
+
+class TransactionCreate(FiniteMoney):
     type: str  # income, expense, transfer
     description: str
     entity_name: str
@@ -112,12 +143,15 @@ class TransactionCreate(BaseModel):
     document_date: Optional[str] = None
     is_recurring: Optional[bool] = False
     is_paid: Optional[bool] = True          # books an immediate settling payment
+    #: When is_paid: the day the money moved (defaults to today) and the account.
+    payment_date: Optional[str] = None
+    bank_account_id: Optional[str] = None
     installment_count: Optional[int] = None  # split into N parcelas on creation
     notes: Optional[str] = None
     tags: Optional[List[str]] = None
 
 
-class TransactionUpdate(BaseModel):
+class TransactionUpdate(FiniteMoney):
     """Partial update — only provided fields are changed."""
     description: Optional[str] = None
     entity_name: Optional[str] = None
@@ -207,6 +241,7 @@ class TransactionOut(BaseModel):
     approved_by: Optional[str] = None
     approved_at: Optional[str] = None
     rejection_reason: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
     @field_validator("tags", mode="before")
     @classmethod

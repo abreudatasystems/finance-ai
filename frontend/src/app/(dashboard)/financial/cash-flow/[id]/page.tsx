@@ -3,8 +3,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { fetchTransaction, updateTransaction } from '@/services/data';
-import { Transaction } from '@/types';
+import {
+  fetchTransaction, updateTransaction, fetchCategories, fetchCostCenters, fetchSuppliers, fetchCustomers,
+} from '@/services/data';
+import { Category, CostCenter, Transaction } from '@/types';
 import { SettlementPanel } from '@/components/financial/SettlementPanel';
 import { InvoiceLinesEditor } from '@/components/lines/InvoiceLinesEditor';
 import { DocumentViewer, openDocument } from '@/components/approvals/DocumentViewer';
@@ -15,7 +17,7 @@ import {
   ExternalLink, Landmark, Bot, User,
 } from 'lucide-react';
 import {
-  Badge, Button, IconButton, Card, CardHeader, CardBody, Field, Input, Textarea,
+  Badge, Button, IconButton, Card, CardHeader, CardBody, Field, Input, Select, Textarea,
   LoadingState, EmptyState, ErrorState, Segmented, cn,
 } from '@/components/ui';
 import type { BadgeTone } from '@/components/ui';
@@ -133,14 +135,47 @@ export default function TransactionDetailPage() {
   const startEdit = () => { setForm(trx || {}); setEditMode(true); };
   const cancelEdit = () => { setForm(trx || {}); setEditMode(false); };
 
+  /* As listas para escolher categoria, projecto e entidade. Escrever o nome à
+     mão só mudava o texto: o identificador ficava o antigo, e é por ele que a
+     DRE, os orçamentos e os projectos classificam. */
+  const [categoryOptions, setCategoryOptions] = useState<{ id: string; label: string }[]>([]);
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
+  const [entities, setEntities] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!editMode || !trx) return;
+    let active = true;
+    (async () => {
+      const [cats, centres, people] = await Promise.all([
+        fetchCategories(),
+        fetchCostCenters(),
+        trx.type === 'income' ? fetchCustomers() : fetchSuppliers(),
+      ]);
+      if (!active) return;
+      const opts: { id: string; label: string }[] = [];
+      for (const parent of cats) {
+        if (parent.type && parent.type !== trx.type) continue;
+        const children = (parent as Category & { children?: Category[] }).children || [];
+        if (children.length) children.forEach((c) => opts.push({ id: c.id, label: `${parent.name} > ${c.name}` }));
+        else opts.push({ id: parent.id, label: parent.name });
+      }
+      setCategoryOptions(opts);
+      setCostCenters(centres.filter((c) => c.active !== false || c.id === trx.cost_center_id));
+      setEntities(people.map((p) => ({ id: p.id, name: p.name })));
+    })();
+    return () => { active = false; };
+  }, [editMode, trx]);
+
   const save = async () => {
     if (!trx) return;
     setSaving(true);
-    const patch: Partial<Transaction> = {
+    const full: Partial<Transaction> = {
       description: form.description,
       entity_name: form.entity_name,
+      entity_id: form.entity_id ?? null,
+      category_id: form.category_id,
       category_name: form.category_name,
-      cost_center_name: form.cost_center_name,
+      cost_center_id: form.cost_center_id ?? null,
+      cost_center_name: form.cost_center_name ?? null,
       amount: Number(form.amount),
       // `!= null` e não truthy: a taxa 0 (isento) também é uma escolha, e
       // ficava por enviar — o IVA mantinha-se o da taxa antiga.
@@ -155,6 +190,21 @@ export default function TransactionDetailPage() {
       notes: form.notes,
       tags: form.tags,
     };
+    // Só segue o que mudou: reenviar o total intacto recalculava o IVA e a
+    // retenção, e num documento com linhas é recusado.
+    const patch = Object.fromEntries(
+      Object.entries(full).filter(([k, val]) => {
+        const before = trx[k as keyof Transaction];
+        if (val === undefined) return false;
+        if (k === 'amount' || k === 'vat_rate') return Number(val) !== Number(before ?? 0);
+        return JSON.stringify(val ?? null) !== JSON.stringify(before ?? null);
+      }),
+    ) as Partial<Transaction>;
+    if (Object.keys(patch).length === 0) {
+      setSaving(false);
+      setEditMode(false);
+      return;
+    }
 
     const { data: updated, error } = await updateTransaction(trx.id, patch);
     if (!updated) {
@@ -350,9 +400,57 @@ export default function TransactionDetailPage() {
               {editMode ? (
                 <>
                   <EditField label="Descrição" className="col-span-2" value={form.description} onChange={(x) => set({ description: x })} />
-                  <EditField label="Entidade" value={form.entity_name} onChange={(x) => set({ entity_name: x })} />
-                  <EditField label="Categoria" value={form.category_name} onChange={(x) => set({ category_name: x })} />
-                  <EditField label="Centro de custo" value={form.cost_center_name} onChange={(x) => set({ cost_center_name: x })} />
+                  <Field label={trx.type === 'income' ? 'Cliente' : 'Fornecedor'}>
+                    {(p) => (
+                      <>
+                        <Input
+                          {...p}
+                          list="entity-options"
+                          value={form.entity_name ?? ''}
+                          onChange={(e) => {
+                            const name = e.target.value;
+                            const match = entities.find((x) => x.name.toLowerCase() === name.trim().toLowerCase());
+                            set({ entity_name: name, entity_id: match?.id ?? null });
+                          }}
+                        />
+                        <datalist id="entity-options">
+                          {entities.map((x) => <option key={x.id} value={x.name} />)}
+                        </datalist>
+                      </>
+                    )}
+                  </Field>
+                  <Field label="Categoria">
+                    {(p) => (
+                      <Select
+                        {...p}
+                        value={form.category_id ?? ''}
+                        onChange={(e) => {
+                          const opt = categoryOptions.find((o) => o.id === e.target.value);
+                          if (opt) set({ category_id: opt.id, category_name: opt.label });
+                        }}
+                      >
+                        {!categoryOptions.some((o) => o.id === form.category_id) && (
+                          <option value={form.category_id ?? ''}>{form.category_name}</option>
+                        )}
+                        {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                      </Select>
+                    )}
+                  </Field>
+                  <Field label="Projeto / centro de custo">
+                    {(p) => (
+                      <Select
+                        {...p}
+                        value={form.cost_center_id ?? ''}
+                        onChange={(e) => {
+                          const cc = costCenters.find((c) => c.id === e.target.value);
+                          set({ cost_center_id: cc?.id ?? null, cost_center_name: cc?.name ?? null });
+                        }}
+                      >
+                        <option value="">Geral (sem projeto)</option>
+                        {costCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </Select>
+                    )}
+                  </Field>
                 </>
               ) : (
                 <>

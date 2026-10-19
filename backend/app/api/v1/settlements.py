@@ -11,13 +11,13 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.core import fmt
 from app.api.deps import get_current_company_id, get_current_user, require_write
 from app.db.session import get_db
-from app.models.models import Installment, Payment, Transaction, User, AuditLog
+from app.models.models import BankAccount, Installment, Payment, Transaction, User, AuditLog
 
 router = APIRouter()
 
@@ -257,6 +257,7 @@ def preview_installments(
 # ───────────────────────────── Payments ─────────────────────────────
 
 class PaymentCreate(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     amount: Optional[float] = None          # defaults to whatever is outstanding
     payment_date: Optional[str] = None      # defaults to today
     installment_id: Optional[str] = None    # settle one parcela
@@ -297,6 +298,42 @@ def list_payments(
         .all()
     )
     return [_serialize_payment(p) for p in rows]
+
+
+def resolve_bank_account(db: Session, company_id: str, account_id: Optional[str]) -> str:
+    """The account a payment moves through.
+
+    Without one, the payment touched no account and every balance stayed at
+    its opening value forever. An account of another company is refused."""
+    if account_id:
+        account = (
+            db.query(BankAccount)
+            .filter(BankAccount.id == account_id, BankAccount.company_id == company_id)
+            .first()
+        )
+        if not account:
+            raise HTTPException(status_code=404, detail="Conta bancária não encontrada")
+        return account.id
+    from app.api.v1.bank_accounts import ensure_default_account
+
+    ensure_default_account(db, company_id)
+    account = (
+        db.query(BankAccount)
+        .filter(BankAccount.company_id == company_id)
+        .order_by(BankAccount.is_default.desc(), BankAccount.name)
+        .first()
+    )
+    return account.id
+
+
+def parse_payment_date(value: Optional[str]) -> str:
+    """AAAA-MM-DD, or today. "31/08/2026" fell in the wrong period."""
+    if not value:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        return date.fromisoformat(value.strip()[:10]).isoformat()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Data de pagamento inválida (use AAAA-MM-DD)")
 
 
 @router.post("/{trx_id}/payments", status_code=201)
@@ -362,10 +399,10 @@ def create_payment(
         company_id=company_id,
         transaction_id=trx_id,
         installment_id=installment.id if installment else None,
-        bank_account_id=item.bank_account_id,
+        bank_account_id=resolve_bank_account(db, company_id, item.bank_account_id),
         direction=direction_for(trx),
         amount=amount,
-        payment_date=item.payment_date or now.strftime("%Y-%m-%d"),
+        payment_date=parse_payment_date(item.payment_date),
         payment_method=item.payment_method,
         reference=item.reference,
         notes=item.notes,

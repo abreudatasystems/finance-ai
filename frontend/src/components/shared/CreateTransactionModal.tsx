@@ -5,8 +5,8 @@ import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { useApp } from '@/context/AppContext';
 import { apiPostOrError } from '@/services/api';
-import { fetchCategories } from '@/services/data';
-import { Category } from '@/types';
+import { fetchBankAccounts, fetchCategories } from '@/services/data';
+import { BankAccount, Category } from '@/types';
 import { SideDrawer } from './SideDrawer';
 import { Button, Field, Input, Segmented, Select, Textarea, cn } from '@/components/ui';
 import { formatDate } from '@/lib/format';
@@ -47,6 +47,10 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
     return d.toISOString().slice(0, 10);
   });
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid'>('pending');
+  // "Já pago": em que dia e por que conta — antes ficava sempre hoje e em conta nenhuma.
+  const [paidOn, setPaidOn] = useState(() => new Date().toISOString().slice(0, 10));
+  const [bankAccountId, setBankAccountId] = useState('');
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -61,6 +65,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
   useEffect(() => {
     let active = true;
     fetchCategories().then((cats) => { if (active) setCategories(cats); });
+    fetchBankAccounts().then((accs) => { if (active) setBankAccounts(accs.filter((a) => a.active !== false)); });
     return () => { active = false; };
   }, []);
 
@@ -153,6 +158,8 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
       is_recurring: isRecurring,
       due_date: dueDate,
       is_paid: paymentStatus === 'paid',
+      payment_date: paymentStatus === 'paid' ? paidOn : undefined,
+      bank_account_id: paymentStatus === 'paid' && bankAccountId ? bankAccountId : undefined,
       notes: notes.trim() || undefined,
       tags: tags ? tags.split(',').map((t) => t.trim()) : undefined,
     });
@@ -242,6 +249,24 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
             )}
           </Field>
 
+          {paymentStatus === 'paid' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label={type === 'income' ? 'Recebido em' : 'Pago em'}>
+                {(p) => <Input {...p} type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />}
+              </Field>
+              <Field label="Conta bancária">
+                {(p) => (
+                  <Select {...p} value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
+                    <option value="">Conta principal</option>
+                    {bankAccounts.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}{a.bank_name ? ` · ${a.bank_name}` : ''}</option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+            </div>
+          )}
+
           <label className="flex items-center gap-2 text-xs font-medium text-neutral-700 cursor-pointer">
             <input
               type="checkbox"
@@ -249,7 +274,7 @@ export const CreateTransactionModal: React.FC<CreateTransactionModalProps> = ({ 
               onChange={(e) => setIsRecurring(e.target.checked)}
               className="size-4 rounded border-neutral-300 accent-emerald-600"
             />
-            Tornar este movimento Recorrente (mensalidade, subscrição, etc)
+            Repetir todos os meses (renda, avença, subscrição) — lançado automaticamente a partir do próximo mês
           </label>
 
           <Field label="Descrição do Movimento" required>

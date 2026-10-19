@@ -16,7 +16,7 @@ The router above this file only maps HTTP to these functions.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Iterable, Optional
 
@@ -25,14 +25,20 @@ from sqlalchemy.orm import Session
 
 from app.core import fmt
 from app.models.models import (
-    AIApprovalItem, AIDocument, AIExtraction, AuditLog, Transaction, User,
+    AIApprovalItem, AIDocument, AIExtraction, AuditLog, Company, Transaction, User,
 )
 
 CENTS = Decimal("0.01")
 VALID_ACTIONS = {"approved", "rejected", "edited"}
 
-#: Below this the queue flags the item for a closer look.
+#: Below this the queue flags the item for a closer look — unless the company
+#: chose its own limit in Configurações (Company.ai_review_threshold).
 LOW_CONFIDENCE = 80
+
+
+def review_threshold(db: Session, company_id: str) -> int:
+    company = db.query(Company).filter(Company.id == company_id).first()
+    return (company.ai_review_threshold if company and company.ai_review_threshold else LOW_CONFIDENCE)
 
 
 def _d(value) -> Optional[Decimal]:
@@ -49,7 +55,8 @@ def _f(value) -> Optional[float]:
 # Reading
 # --------------------------------------------------------------------------
 
-def serialize(item: AIApprovalItem, document: Optional[AIDocument] = None) -> dict:
+def serialize(item: AIApprovalItem, document: Optional[AIDocument] = None,
+              threshold: int = LOW_CONFIDENCE) -> dict:
     """The shape the queue renders. Everything it needs, in one row."""
     return {
         "id": item.id,
@@ -71,7 +78,7 @@ def serialize(item: AIApprovalItem, document: Optional[AIDocument] = None) -> di
         "suggested_category_id": item.suggested_category_id,
         "suggested_cost_center": item.suggested_cost_center,
         "ai_confidence": item.ai_confidence,
-        "needs_attention": (item.ai_confidence or 0) < LOW_CONFIDENCE,
+        "needs_attention": (item.ai_confidence or 0) < threshold,
         "status": item.status,
         "transaction_id": item.transaction_id,
         "decided_by": item.decided_by,
@@ -102,7 +109,8 @@ def list_queue(db: Session, company_id: str, status: str = "pending") -> list[di
                 AIDocument.id.in_([i.document_id for i in items]))
         .all()
     }
-    return [serialize(i, documents.get(i.document_id)) for i in items]
+    threshold = review_threshold(db, company_id)
+    return [serialize(i, documents.get(i.document_id), threshold) for i in items]
 
 
 def summary(db: Session, company_id: str) -> dict:
@@ -113,13 +121,14 @@ def summary(db: Session, company_id: str) -> dict:
         .all()
     )
     pending = [i for i in items if i.status == "pending"]
+    threshold = review_threshold(db, company_id)
     return {
         "pendentes": len(pending),
         "valor_pendente": float(sum((i.amount or 0) for i in pending)),
-        "por_rever": len([i for i in pending if (i.ai_confidence or 0) < LOW_CONFIDENCE]),
+        "por_rever": len([i for i in pending if (i.ai_confidence or 0) < threshold]),
         "aprovados": len([i for i in items if i.status in ("approved", "edited")]),
         "rejeitados": len([i for i in items if i.status == "rejected"]),
-        "limite_confianca": LOW_CONFIDENCE,
+        "limite_confianca": threshold,
     }
 
 
@@ -155,7 +164,7 @@ def detail(db: Session, company_id: str, approval_id: str) -> dict:
             checks = []
 
     return {
-        "approval": serialize(item, document),
+        "approval": serialize(item, document, review_threshold(db, company_id)),
         # What the AI read, kept distinct from what the reviewer will decide.
         "extraction": {
             "id": extraction.id,
@@ -272,9 +281,25 @@ def decide(db: Session, company_id: str, current_user: User, approval_id: str,
 
     net, vat, gross = coherent_amounts(gross, vat_rate, vat, net)
 
+    # O que o revisor corrigiu ganha ao que a leitura extraiu.
+    supplier_name = (getattr(d, "supplier_name", None) or "").strip() or item.supplier_name
+    supplier_nif = (getattr(d, "supplier_nif", None) or "").strip() or None
+    doc_date = item.date
+    if getattr(d, "date", None):
+        try:
+            doc_date = date.fromisoformat(d.date.strip()[:10]).isoformat()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Data do documento inválida (use AAAA-MM-DD)")
+    document_number = (getattr(d, "document_number", None) or "").strip() or item.document_number
+    entity_id = item.entity_id
+    if supplier_name != item.supplier_name or supplier_nif:
+        from app.services.entities import find_duplicate
+        match = find_duplicate(db, company_id, supplier_nif, supplier_name)
+        entity_id = match.id if match else None
+
     category_id = d.category_id or item.suggested_category_id or ""
     category_name = d.category_name or item.suggested_category or "Por classificar"
-    due_date = d.due_date or item.due_date or item.date
+    due_date = d.due_date or item.due_date or doc_date
 
     trx_id = f"TRX-APP-{int(now.timestamp() * 1000)}"
     document = (
@@ -286,12 +311,12 @@ def decide(db: Session, company_id: str, current_user: User, approval_id: str,
     new_trx = Transaction(
         id=trx_id,
         company_id=company_id,
-        date=item.date,
+        date=doc_date,
         due_date=due_date,
         type="expense",
-        description=f"{item.document_number or item.document_name} - {item.supplier_name}",
-        entity_name=item.supplier_name,
-        entity_id=item.entity_id,
+        description=f"{document_number or item.document_name} - {supplier_name}",
+        entity_name=supplier_name,
+        entity_id=entity_id,
         category_id=category_id,
         category_name=category_name,
         cost_center_name=d.cost_center_name or item.suggested_cost_center or "Geral",
@@ -311,9 +336,9 @@ def decide(db: Session, company_id: str, current_user: User, approval_id: str,
         ai_confidence=item.ai_confidence,
         document_id=item.document_id,
         document_name=item.document_name,
-        document_number=item.document_number,
+        document_number=document_number,
         document_type=item.document_type,
-        document_date=item.date,
+        document_date=doc_date,
         document_url=document.file_url if document else None,
         created_by="Motor IA",
         approved_by=current_user.name,

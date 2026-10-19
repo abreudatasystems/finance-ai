@@ -17,6 +17,7 @@ from app.models.models import (
     AIExtraction,
     AuditLog,
     Category,
+    Company,
     Entity,
     User,
 )
@@ -145,7 +146,12 @@ def get_document_file(
         raise HTTPException(status_code=404, detail="Documento não encontrado")
 
     key = object_key(document.company_id, document.file_hash or "", document.file_name)
-    data = document_storage.get(key, legacy_name=document.file_name)
+    # O nome antigo na raiz de uploads/ só vale para documentos que foram
+    # mesmo carregados (têm ficheiro). Um documento recebido por webhook traz
+    # só um nome escolhido por quem o enviou, e podia apontar para o ficheiro
+    # de outra empresa com o mesmo nome.
+    legacy = document.file_name if (document.file_url or document.file_hash) else None
+    data = document_storage.get(key, legacy_name=legacy)
     if data is None:
         raise HTTPException(status_code=404, detail="Ficheiro não encontrado no armazenamento")
 
@@ -171,7 +177,14 @@ async def upload_document(
     This never creates a transaction directly — an approved item becomes an
     obligation only after a human decides, in the approvals module.
     """
-    file_bytes = await file.read()
+    # Lê no máximo o limite + 1 byte: um ficheiro de 150 MB não entra todo
+    # em memória só para depois ser recusado.
+    file_bytes = await file.read(uploads.MAX_BYTES + 1)
+    if len(file_bytes) > uploads.MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"O ficheiro excede o limite de {uploads.MAX_BYTES // (1024 * 1024)} MB.",
+        )
     # What the bytes are, not what the name or the browser claims they are.
     try:
         detected_type = uploads.validate(file_bytes, file.filename or "")
@@ -186,22 +199,46 @@ async def upload_document(
         .filter(AIDocument.company_id == company_id, AIDocument.file_hash == file_hash)
         .first()
     )
+    reread = False
     if duplicate:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "Documento duplicado — este ficheiro já foi carregado.",
-                "existing_document_id": duplicate.id,
-                "existing_file_name": duplicate.file_name,
-            },
+        booked = (
+            db.query(AIApprovalItem)
+            .filter(AIApprovalItem.company_id == company_id,
+                    AIApprovalItem.document_id == duplicate.id,
+                    AIApprovalItem.status.in_(("approved", "edited")))
+            .first()
         )
-
+        if booked:
+            # Já está nas contas: lançá-lo outra vez seria pagar duas vezes.
+            raise HTTPException(
+                status_code=409,
+                detail=f"Este ficheiro já foi carregado e aprovado ({duplicate.file_name}). Não é lançado duas vezes.",
+            )
+        # Ainda por aprovar: voltar a enviar é pedir uma leitura nova (o motor
+        # pode ter melhorado, ou a primeira leitura saiu mal). A leitura antiga
+        # e a sua aprovação pendente dão lugar à nova.
+        for item in db.query(AIApprovalItem).filter(
+                AIApprovalItem.company_id == company_id,
+                AIApprovalItem.document_id == duplicate.id).all():
+            db.delete(item)
+        for old in db.query(AIExtraction).filter(
+                AIExtraction.company_id == company_id,
+                AIExtraction.document_id == duplicate.id).all():
+            db.delete(old)
+        db.delete(duplicate)
+        db.flush()
+        reread = True
 
     # --- Extract structured data from the document itself ---
-    parsed, raw_text = await process_document(file_bytes, file.filename)
+    company = db.query(Company).filter(Company.id == company_id).first()
+    parsed, raw_text = await process_document(
+        file_bytes, file.filename,
+        own_nif=company.nif if company else None,
+        own_name=company.name if company else None,
+    )
 
     categories = db.query(Category).filter(Category.company_id == company_id).all()
-    cat_id, cat_name = suggest_category(parsed, categories)
+    cat_id, cat_name = suggest_category(parsed, categories, raw_text)
 
     # Match the supplier against the company's own registry when possible.
     # The registry is Entity; the legacy Supplier table is no longer written,
@@ -324,10 +361,10 @@ async def upload_document(
         company_id=company_id,
         timestamp=now.isoformat(),
         user=current_user.name,
-        action="Documento Processado",
+        action="Documento Relido" if reread else "Documento Processado",
         module="Finance Inbox",
         description=(
-            f"{file.filename}: extração {parsed.validation_status} "
+            f"{file.filename}: {'nova leitura, ' if reread else ''}extração {parsed.validation_status} "
             f"({int(round(parsed.confidence * 100))}% confiança)"
             + (" — enviado para aprovação" if approval_id else " — sem valor legível, requer revisão")
         ),
@@ -344,4 +381,5 @@ async def upload_document(
         "confidence": parsed.confidence,
         "validation_status": parsed.validation_status,
         "validation": parsed.checks,
+        "reread": reread,
     }

@@ -29,8 +29,9 @@ import { IncomeStatement, StatementLine, StatementSubtotal } from './types';
 import { fetchIncomeStatement } from './api';
 import {
   Card, CardHeader, CardBody, ErrorState, LoadingState, Select, Stat,
-  Table, THead, TBody, Th, Td,
+  Table, THead, TBody, Th, Td, ExportMenu,
 } from '@/components/ui';
+import type { ExportTable, ExportRow } from '@/components/ui';
 
 const SECTIONS: Array<{ id: StatementLine['section']; title: string }> = [
   { id: 'rendimentos', title: 'Rendimentos' },
@@ -124,6 +125,46 @@ export const IncomeStatementView: React.FC = () => {
   const revenue = subtotal('total_rendimentos')?.amount || 0;
   const share = (amount: number) => (revenue > 0 ? (amount / revenue) * 100 : 0);
 
+  /* A demonstração pela mesma ordem do ecrã: secções, linhas e subtotais. */
+  const buildExport = (): ExportTable => {
+    const rows: ExportRow[] = [];
+    if (data) {
+      const pct = (amount: number) => (revenue > 0 ? Math.round(share(amount) * 10) / 10 : null);
+      for (const section of SECTIONS) {
+        const lines = data.linhas.filter((l) => l.section === section.id);
+        if (lines.length === 0 && !(SUBTOTAL_AFTER[section.id] || []).length) continue;
+        rows.push({ label: section.title.toUpperCase() });
+        for (const line of lines) {
+          const sign = line.nature === 'expense' ? -1 : 1;
+          rows.push({
+            label: `   ${line.label}`, accounts: line.contas.join(', '),
+            amount: sign * line.amount, share: pct(line.amount), previous: sign * line.anterior, delta: line.variacao,
+          });
+        }
+        for (const key of SUBTOTAL_AFTER[section.id] || []) {
+          const row = subtotal(key);
+          if (!row) continue;
+          rows.push({
+            label: row.label, amount: row.amount, share: pct(row.amount), previous: row.anterior, delta: row.variacao,
+          });
+        }
+      }
+    }
+    return {
+      title: 'Demonstração de Resultados',
+      subtitle: data ? `${data.periodo.label} · sem IVA · regime de acréscimo` : undefined,
+      columns: [
+        { key: 'label', label: 'Rubrica' },
+        { key: 'accounts', label: 'Contas SNC' },
+        { key: 'amount', label: 'Período', type: 'money' },
+        { key: 'share', label: '% receita', type: 'percent' },
+        { key: 'previous', label: 'Anterior', type: 'money' },
+        { key: 'delta', label: 'Variação', type: 'money' },
+      ],
+      rows,
+    };
+  };
+
   return (
     <div className="space-y-4 text-xs">
       {/* ---------------------------------------------------------- header */}
@@ -143,6 +184,7 @@ export const IncomeStatementView: React.FC = () => {
               >
                 {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </Select>
+              <ExportMenu build={buildExport} disabled={loading || !data} />
             </div>
           }
         />

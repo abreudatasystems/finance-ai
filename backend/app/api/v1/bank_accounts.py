@@ -5,7 +5,8 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_company_id, require_write
@@ -16,6 +17,7 @@ router = APIRouter()
 
 
 class AccountUpdate(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     name: Optional[str] = None
     bank_name: Optional[str] = None
     iban: Optional[str] = None
@@ -25,6 +27,7 @@ class AccountUpdate(BaseModel):
 
 
 class AccountCreate(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     name: str
     bank_name: Optional[str] = None
     iban: Optional[str] = None
@@ -78,11 +81,14 @@ def list_accounts(
         .all()
     )
     payments = db.query(Payment).filter(Payment.company_id == company_id).all()
+    # Pagamentos antigos, registados sem conta, movimentaram a conta principal:
+    # sem isto nenhum saldo saía do valor de abertura.
+    default_id = accounts[0].id if accounts else None
     out = []
     for a in accounts:
         balance = Decimal(str(a.opening_balance or 0))
         for p in payments:
-            if p.bank_account_id != a.id:
+            if (p.bank_account_id or default_id) != a.id:
                 continue
             amount = Decimal(str(p.amount or 0))
             balance += amount if p.direction == "in" else -amount
@@ -169,9 +175,16 @@ def update_account(
     db.commit()
     db.refresh(account)
 
-    movements = db.query(Payment).filter(
-        Payment.company_id == company_id, Payment.bank_account_id == account_id,
-    ).all()
+    principal = (
+        db.query(BankAccount)
+        .filter(BankAccount.company_id == company_id)
+        .order_by(BankAccount.is_default.desc(), BankAccount.name)
+        .first()
+    )
+    belongs = Payment.bank_account_id == account_id
+    if principal and principal.id == account_id:
+        belongs = or_(belongs, Payment.bank_account_id.is_(None))
+    movements = db.query(Payment).filter(Payment.company_id == company_id, belongs).all()
     balance = Decimal(str(account.opening_balance or 0))
     for movement in movements:
         amount = Decimal(str(movement.amount or 0))

@@ -14,9 +14,10 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.api.deps import get_current_company_id
-from app.models.models import Transaction
+from app.models.models import Company, Transaction
 from app.services import accounting_export as export_service
 from app.services import income_statement
+from app.services import table_export
 
 router = APIRouter()
 
@@ -38,6 +39,33 @@ def export_csv_report(
         content=buffer.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="relatorio_financeiro.csv"'},
+    )
+
+
+@router.post("/export/table")
+def export_table(
+    body: table_export.ExportRequest,
+    db: Session = Depends(get_db),
+    company_id: str = Depends(get_current_company_id),
+):
+    """The table the user is looking at, as Excel or PDF.
+
+    Only formats what the page sends — the rows were already scoped to this
+    company when the page loaded them; the company name is read here so a
+    file can't be labelled with another company's name."""
+    company = db.query(Company).filter(Company.id == company_id).first()
+    company_name = company.name if company else ""
+    if body.format == "pdf":
+        content = table_export.to_pdf(body, company_name)
+        media = "application/pdf"
+    else:
+        content = table_export.to_xlsx(body, company_name)
+        media = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    filename = table_export.safe_filename(body.title, body.format)
+    return Response(
+        content=content,
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
